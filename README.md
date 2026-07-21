@@ -2,6 +2,8 @@
 
 Firefox extension that uses optical character recognition (OCR) to extract text from any selected area on a web page and show its translation in an overlay. You can switch between translation and original text, copy it to your clipboard, or listen to it using text-to-speech.
 
+<a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"><img src="media/firefox-badge.png" alt="Get the add-on" width="172" height="60"></a>
+
 ## How it works
 
 Activate the add-on from the browser toolbar or context menu. Then select an area on the page and press **Run OCR**. The selected area is captured as an image and passed to an OCR worker. The recognized text is then sent to a translation engine and rendered in the overlay.
