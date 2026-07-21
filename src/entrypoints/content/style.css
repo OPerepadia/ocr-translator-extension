@@ -1,0 +1,1328 @@
+/* The shadow root host. Reset inherited properties (font, color, line-height)
+   so the page's values don't carry across the shadow boundary into our UI. */
+:host {
+  all: initial;
+  /* `all` does not reset direction, so isolate the controls from RTL pages. */
+  direction: ltr;
+}
+
+.ocr-translate-selection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Darkens the page. While a rectangle exists it shrinks to that rectangle and
+   uses a huge spreading shadow as a spotlight, so only the selection is lit. */
+.ocr-translate-selection-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.ocr-translate-selection-dim.is-cutout {
+  inset: auto;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38);
+}
+
+/* After Run OCR: only the dim stays, click-through, while the background takes
+   the screenshot. Square cutout corners so the rounded dim doesn't bleed into
+   the captured rect. */
+.ocr-translate-selection-overlay.is-capturing {
+  pointer-events: none;
+  cursor: default;
+}
+
+.ocr-translate-selection-overlay.is-capturing .ocr-translate-selection-dim.is-cutout {
+  border-radius: 0;
+}
+
+.ocr-translate-selection-hint {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  padding: 18px 36px;
+  border: 1px solid rgba(62, 123, 214, 0.28);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.35);
+  color: #f1f5f9;
+  font: 18px/1.5 system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.ocr-translate-selection-hint.is-dismissed {
+  opacity: 0;
+}
+
+.ocr-translate-selection-hint-sub {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+.ocr-translate-selection-hint-kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.ocr-translate-selection-rect {
+  position: fixed;
+  z-index: 2;
+  display: none;
+  box-sizing: border-box;
+  border: 2px dashed #3e7bd6;
+  border-radius: 8px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.ocr-translate-selection-rect.is-adjusting {
+  cursor: move;
+  pointer-events: auto;
+}
+
+.ocr-translate-selection-handle {
+  position: absolute;
+  display: none;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #3e7bd6;
+  box-shadow: 0 1px 5px rgba(15, 23, 42, 0.35);
+  pointer-events: auto;
+}
+
+.ocr-translate-selection-rect.is-drawing .ocr-translate-selection-handle,
+.ocr-translate-selection-rect.is-adjusting .ocr-translate-selection-handle {
+  display: block;
+}
+
+.ocr-translate-selection-handle.is-nw,
+.ocr-translate-selection-handle.is-ne,
+.ocr-translate-selection-handle.is-se,
+.ocr-translate-selection-handle.is-sw {
+  width: 14px;
+  height: 14px;
+}
+
+.ocr-translate-selection-handle.is-nw { top: -8px; left: -8px; cursor: nwse-resize; }
+.ocr-translate-selection-handle.is-n { top: -7px; left: calc(50% - 6px); cursor: ns-resize; }
+.ocr-translate-selection-handle.is-ne { top: -8px; right: -8px; cursor: nesw-resize; }
+.ocr-translate-selection-handle.is-e { top: calc(50% - 6px); right: -7px; cursor: ew-resize; }
+.ocr-translate-selection-handle.is-se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+.ocr-translate-selection-handle.is-s { bottom: -7px; left: calc(50% - 6px); cursor: ns-resize; }
+.ocr-translate-selection-handle.is-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+.ocr-translate-selection-handle.is-w { top: calc(50% - 6px); left: -7px; cursor: ew-resize; }
+
+.ocr-translate-selection-controls {
+  position: fixed;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  color: #152034;
+  font: 13px/1 system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.ocr-translate-selection-controls[hidden] {
+  display: none;
+}
+
+.ocr-translate-selection-size {
+  min-width: 64px;
+  padding: 0 6px;
+  color: #64748b;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ocr-translate-selection-controls button {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ocr-translate-selection-run {
+  background: #3e7bd6;
+  color: #ffffff;
+}
+
+.ocr-translate-selection-run:hover {
+  background: #3269bd;
+}
+
+.ocr-translate-selection-cancel {
+  background: transparent;
+  color: #475569;
+}
+
+.ocr-translate-selection-cancel:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+.ocr-translate-selection-controls button:focus-visible,
+.ocr-translate-selection-handle:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.35);
+  outline-offset: 2px;
+}
+
+/* Floating card pinned to the bottom-right corner. The 8px offset matches
+   PANEL_MARGIN in the script so corner-drag resizing anchors to this corner. */
+.ocr-translate-popup {
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: clamp(380px, 28vw, 560px);
+  max-width: calc(100vw - 16px);
+  height: 520px;
+  max-height: calc(100dvh - 16px);
+  overflow: hidden;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.98)),
+    #ffffff;
+  color: #152034;
+  box-shadow:
+    0 24px 50px rgba(15, 23, 42, 0.24),
+    0 2px 10px rgba(15, 23, 42, 0.08);
+  font: 15px/1.45 system-ui, sans-serif;
+  backdrop-filter: blur(18px);
+}
+
+.ocr-translate-popup::before {
+  content: "";
+  flex: none;
+  height: 3px;
+  background: #3e7bd6;
+}
+
+/* Grab handle on the top-left corner: drags both width and height.
+   touch-action: none lets pointer dragging work on touch screens. */
+.ocr-translate-popup-resize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  border-top-left-radius: 8px;
+  color: #94a3b8;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+/* A small grid of dots reading as a drag grip. The radial-gradient repeats a
+   single dot on a 4px grid; the box is clipped to a triangle so the dots fade
+   out toward the corner instead of forming a full square. */
+.ocr-translate-popup-resize::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 11px;
+  height: 11px;
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.5px);
+  background-size: 4px 4px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.ocr-translate-popup-resize:hover,
+.ocr-translate-popup-resize.is-dragging {
+  color: #3e7bd6;
+}
+
+/* Sticky top bar. flex: none keeps it sized to its content while the body
+   below takes the remaining height and scrolls. */
+.ocr-translate-popup-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+  padding: 10px 16px 9px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, #ffffff, #f1f5f9);
+}
+
+.ocr-translate-popup-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.ocr-translate-popup-title-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.ocr-translate-popup-title-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
+.ocr-translate-popup-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Thin vertical rule separating the select-region button from the menu. */
+.ocr-translate-popup-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 5px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.ocr-translate-popup-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  color: #475569;
+  background: none;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-icon-button:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.ocr-translate-popup-icon-button:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.35);
+  outline-offset: 2px;
+}
+
+.ocr-translate-popup-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.ocr-translate-popup-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 140px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+}
+
+.ocr-translate-popup-menu-list[hidden] {
+  display: none;
+}
+
+.ocr-translate-popup-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 11px;
+  color: #152034;
+  background: none;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-menu-item:hover {
+  background: #edf3fc;
+}
+
+.ocr-translate-popup-menu-icon {
+  display: inline-flex;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  color: #475569;
+}
+
+.ocr-translate-popup-langpill {
+  position: relative;
+  display: inline-flex;
+}
+
+.ocr-translate-popup-langpill-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: #152034;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  font: 500 14px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-langpill-button:hover {
+  border-color: rgba(62, 123, 214, 0.5);
+  background: #f3f7fd;
+}
+
+.ocr-translate-popup-langpill-button:focus-visible {
+  outline: none;
+  border-color: #3e7bd6;
+  box-shadow: 0 0 0 3px rgba(62, 123, 214, 0.15);
+}
+
+.ocr-translate-popup-langpill-chevron {
+  display: inline-flex;
+  flex: none;
+  color: #64748b;
+}
+
+.ocr-translate-popup-langpill-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+}
+
+.ocr-translate-popup-langpill.is-open-above
+  .ocr-translate-popup-langpill-list {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.ocr-translate-popup-langpill-list[hidden] {
+  display: none;
+}
+
+/* Search box pinned above the scrolling list of options. */
+.ocr-translate-popup-langpill-search {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 4px;
+  padding: 7px 9px;
+  color: #152034;
+  font: inherit;
+  font-size: 14px;
+}
+
+.ocr-translate-popup-langpill-search:focus {
+  outline: none;
+  border-color: #3e7bd6;
+  box-shadow: 0 0 0 3px rgba(62, 123, 214, 0.13);
+}
+
+/* Only this inner box scrolls, so the search box stays put while filtering. */
+.ocr-translate-popup-langpill-items {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.ocr-translate-popup-langpill-item {
+  border: none;
+  border-radius: 4px;
+  padding: 8px 11px;
+  color: #152034;
+  background: none;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-langpill-item:hover {
+  background: #edf3fc;
+}
+
+.ocr-translate-popup-langpill-item.is-selected {
+  color: #3269bd;
+  font-weight: 600;
+}
+
+.ocr-translate-popup-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  /* The panel never scrolls as a whole; the text boxes scroll internally. The
+     body fills the panel and lays its sections out as a flex column. */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+
+.ocr-translate-popup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The recognized-text and translation boxes split the body evenly and stretch
+   as the panel resizes. flex-basis 0 makes the split a fixed 50/50 proportion
+   regardless of how much text each one holds. */
+.ocr-translate-popup-text {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The text box itself fills the rest of its section and scrolls internally when
+   the text is taller than the space, so the panel never grows its own scrollbar. */
+.ocr-translate-popup-text > pre,
+.ocr-translate-popup-text > .ocr-translate-popup-editable {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Wide panel: the recognized/translation text boxes sit side by side, each
+   taking an equal share of the width and the full body height. Any non-text
+   blocks (single status messages) just stay in the row at their natural size. */
+.ocr-translate-popup.is-wide .ocr-translate-popup-body {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.ocr-translate-popup.is-wide .ocr-translate-popup-text {
+  min-width: 0;
+}
+
+.ocr-translate-popup-section h2 {
+  margin: 0;
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.ocr-translate-popup-section pre,
+.ocr-translate-popup-section .ocr-translate-popup-editable {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid rgba(62, 123, 214, 0.42);
+  border-radius: 6px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 250, 252, 0.92)),
+    #f8fafc;
+  color: #07111f;
+  font: 15px/1.5 system-ui, sans-serif;
+  white-space: pre-wrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+/* The editable recognized box is a textarea; drop its native chrome so it
+   matches the read-only <pre> and show a text caret and a focus ring. */
+.ocr-translate-popup-editable {
+  display: block;
+  width: 100%;
+  resize: none;
+  cursor: text;
+  appearance: none;
+}
+
+.ocr-translate-popup-editable:focus {
+  outline: none;
+  border-color: #3e7bd6;
+  box-shadow: 0 0 0 3px rgba(62, 123, 214, 0.15);
+}
+
+/* Locked while a translation is in flight: signal that typing is disabled. */
+.ocr-translate-popup-editable:read-only {
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* Muted text while a re-translation is in flight. */
+.ocr-translate-popup-placeholder {
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Centered loading state. margin: auto centers it both ways inside the flex body. */
+.ocr-translate-popup-loading {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #475569;
+  text-align: center;
+}
+
+.ocr-translate-popup-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #3e7bd6;
+  border-radius: 50%;
+  animation: ocr-translate-spin 0.8s linear infinite;
+}
+
+@keyframes ocr-translate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ocr-translate-popup-loading-label {
+  margin: 0;
+  font-size: 17px;
+}
+
+.ocr-translate-popup-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ocr-translate-popup-section-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+}
+
+/* Heading text + its language badge, kept together on the left of the box. */
+.ocr-translate-popup-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+/* Static source-language badge next to "Source text". Mirrors the pill's
+   look but isn't interactive. */
+.ocr-translate-popup-langbadge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  border: 1px solid rgba(232, 89, 12, 0.25);
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: #e8590c;
+  background: #fff4ed;
+  font: 600 14px/1.4 system-ui, sans-serif;
+}
+
+/* Detected-language badge + source-language picker, grouped by the heading. */
+.ocr-translate-popup-recognized-extras {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Translation-provider picker + target-language pill, grouped next to the
+   heading. Wraps so the two pills can stack when the panel is narrow. */
+.ocr-translate-popup-translation-extras {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ocr-translate-popup-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  color: #64748b;
+  background: none;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-copy:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.ocr-translate-popup-copy:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.35);
+  outline-offset: 2px;
+}
+
+.ocr-translate-popup-copy.is-copied {
+  color: #16a34a;
+}
+
+.ocr-translate-popup-speak.is-speaking {
+  color: #3e7bd6;
+  background: rgba(62, 123, 214, 0.1);
+}
+
+.ocr-translate-popup-translate {
+  min-height: 32px;
+  border: 1px solid rgba(62, 123, 214, 0.28);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #eff5fd;
+  color: #3269bd;
+  font: 600 14px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-translate:hover {
+  border-color: rgba(62, 123, 214, 0.44);
+  background: #dce9fa;
+}
+
+.ocr-translate-popup-translate:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.35);
+  outline-offset: 2px;
+}
+
+.ocr-translate-popup-translate:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ocr-translate-popup-message {
+  margin: 0;
+  color: #334155;
+}
+
+/* Error message with a leading warning icon. */
+.ocr-translate-popup-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ocr-translate-popup-error-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  /* Match the message's line box (line-height 1.45) so the icon centers on the
+     first line of a wrapped message. */
+  height: 1.45em;
+  color: #dc2626;
+}
+
+/* Retry action for OCR and translation failures. */
+.ocr-translate-popup-retry {
+  width: max-content;
+  max-width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 16px;
+  background: #3e7bd6;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-retry:hover {
+  background: #3269bd;
+}
+
+.ocr-translate-popup-retry:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.35);
+  outline-offset: 2px;
+}
+
+.ocr-translate-popup-retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* In-place overlay: boxes drawn over the selected region. The container spans
+   the viewport but lets page interaction through; only the boxes and toolbar
+   capture clicks. */
+.ocr-translate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+}
+
+/* One box per paragraph, positioned (in viewport pixels) over the original
+   text. The panel-style surface masks the text underneath; the font is auto-fit
+   by the script to fill the box. */
+.ocr-translate-overlay-box {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid rgba(62, 123, 214, 0.38);
+  background: #fff;
+  color: #000;
+  font-family: system-ui, sans-serif;
+  line-height: 1.25;
+  text-align: start;
+  hyphens: auto;
+  overflow-wrap: normal;
+  white-space: pre-wrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 3px 10px rgba(15, 23, 42, 0.14);
+  pointer-events: auto;
+}
+
+.ocr-translate-overlay-box.is-dark {
+  background: #000;
+  color: #fff;
+}
+
+/* Original view of vertical CJK text: columns flow top-to-bottom and wrap
+   right-to-left, matching the source layout (e.g. manga speech bubbles). */
+.ocr-translate-overlay-box.is-vertical {
+  writing-mode: vertical-rl;
+}
+
+.ocr-translate-overlay-box.is-active,
+.ocr-translate-overlay-box:focus {
+  z-index: 2;
+}
+
+/* Softly dims the page outside the captured region while leaving the selected
+   area itself transparent. */
+.ocr-translate-overlay-dim {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38);
+  pointer-events: none;
+}
+
+/* Outline of the captured region, kept visible in overlay mode so the user can
+   see the exact selection behind the translated boxes. */
+.ocr-translate-overlay-region {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(62, 123, 214, 0.34);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.55) inset,
+    0 1px 8px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+}
+
+/* Loading spinner chip, centered over the region while the pipeline runs. */
+.ocr-translate-overlay-status {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  color: #152034;
+  font: 14px/1 system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.ocr-translate-overlay-spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3e7bd6;
+  border-radius: 50%;
+  animation: ocr-translate-spin 0.8s linear infinite;
+}
+
+.ocr-translate-overlay-status-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Error variant of the status chip: warning icon, wrapping message, actions. */
+.ocr-translate-overlay-status.is-error {
+  max-width: min(440px, calc(100vw - 32px));
+}
+
+.ocr-translate-overlay-status.is-error .ocr-translate-overlay-status-label {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.ocr-translate-overlay-status-warning {
+  display: inline-flex;
+  flex: none;
+  color: #dc2626;
+}
+
+/* Floating controls, positioned (in viewport pixels) near the selection. */
+.ocr-translate-overlay-toolbar {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  color: #152034;
+  font: 13px/1 system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.ocr-translate-overlay-toggle-wrap {
+  display: inline-flex;
+}
+
+.ocr-translate-overlay-retry {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(62, 123, 214, 0.28);
+  border-radius: 6px;
+  background: #eff5fd;
+  color: #3269bd;
+  font: 600 13px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.ocr-translate-overlay-retry:hover {
+  border-color: rgba(62, 123, 214, 0.44);
+  background: #dce9fa;
+}
+
+/* Switch is "on" when the translation is shown, "off" for the original text. */
+.ocr-translate-overlay-switch {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  margin: 0 3px;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(100, 116, 139, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ocr-translate-overlay-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: #64748b;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.3);
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease;
+}
+
+.ocr-translate-overlay-switch[aria-checked="true"] {
+  background: #3e7bd6;
+}
+
+.ocr-translate-overlay-switch[aria-checked="true"]
+  .ocr-translate-overlay-switch-knob {
+  transform: translateX(20px);
+  color: #3e7bd6;
+}
+
+.ocr-translate-overlay-switch:disabled {
+  background: rgba(148, 163, 184, 0.35);
+  cursor: default;
+}
+
+.ocr-translate-overlay-switch:disabled .ocr-translate-overlay-switch-knob {
+  color: #94a3b8;
+}
+
+.ocr-translate-overlay-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 3px 2px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.ocr-translate-overlay-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  color: #475569;
+  background: none;
+  cursor: pointer;
+}
+
+.ocr-translate-overlay-icon-button:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.ocr-translate-overlay-copy.is-copied {
+  color: #16a34a;
+}
+
+.ocr-translate-overlay-speak.is-speaking {
+  color: #3e7bd6;
+  background: rgba(62, 123, 214, 0.1);
+}
+
+.ocr-translate-overlay-menu.is-open-above .ocr-translate-popup-menu-list {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.ocr-translate-overlay-switch:focus-visible,
+.ocr-translate-overlay-retry:focus-visible,
+.ocr-translate-overlay-icon-button:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.35);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ocr-translate-selection-rect {
+    border-color: #5b93e8;
+  }
+
+  .ocr-translate-selection-handle {
+    border-color: #15191d;
+    background: #5b93e8;
+  }
+
+  .ocr-translate-selection-controls {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(26, 30, 34, 0.98);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+    color: #e5edf2;
+  }
+
+  .ocr-translate-selection-size {
+    color: #a1adb8;
+  }
+
+  .ocr-translate-selection-run {
+    background: #3269bd;
+  }
+
+  .ocr-translate-selection-run:hover {
+    background: #285aa8;
+  }
+
+  .ocr-translate-selection-cancel {
+    color: #a1adb8;
+  }
+
+  .ocr-translate-selection-cancel:hover {
+    background: rgba(226, 232, 240, 0.08);
+    color: #f8fafc;
+  }
+
+  .ocr-translate-popup {
+    color-scheme: dark;
+    border-color: rgba(148, 163, 184, 0.24);
+    background:
+      linear-gradient(180deg, rgba(28, 32, 36, 0.94), rgba(18, 22, 25, 0.98)),
+      #121619;
+    color: #e5edf2;
+    box-shadow:
+      0 24px 58px rgba(0, 0, 0, 0.46),
+      0 2px 12px rgba(0, 0, 0, 0.28);
+  }
+
+  .ocr-translate-popup-resize {
+    color: #64748b;
+  }
+
+  .ocr-translate-popup-resize:hover,
+  .ocr-translate-popup-resize.is-dragging {
+    color: #5b93e8;
+  }
+
+  .ocr-translate-popup-topbar {
+    border-bottom-color: rgba(148, 163, 184, 0.18);
+    background: linear-gradient(180deg, #22272b, #171b1f);
+  }
+
+  .ocr-translate-popup-title,
+  .ocr-translate-popup-section h2 {
+    color: #f8fafc;
+  }
+
+  .ocr-translate-popup-divider {
+    background: rgba(148, 163, 184, 0.28);
+  }
+
+  .ocr-translate-popup-icon-button,
+  .ocr-translate-popup-menu-icon,
+  .ocr-translate-popup-langpill-chevron,
+  .ocr-translate-popup-copy {
+    color: #a1adb8;
+  }
+
+  .ocr-translate-popup-icon-button:hover,
+  .ocr-translate-popup-copy:hover {
+    color: #f8fafc;
+    background: rgba(226, 232, 240, 0.08);
+  }
+
+  .ocr-translate-popup-menu-list,
+  .ocr-translate-popup-langpill-list {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(26, 30, 34, 0.98);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+  }
+
+  .ocr-translate-popup-menu-item,
+  .ocr-translate-popup-langpill-item {
+    color: #e5edf2;
+  }
+
+  .ocr-translate-popup-menu-item:hover,
+  .ocr-translate-popup-langpill-item:hover {
+    background: rgba(91, 147, 232, 0.1);
+  }
+
+  .ocr-translate-popup-langpill-button,
+  .ocr-translate-popup-langpill-search,
+  .ocr-translate-popup-translate {
+    border-color: rgba(148, 163, 184, 0.28);
+    background: #1b2024;
+    color: #e5edf2;
+    box-shadow: none;
+  }
+
+  .ocr-translate-popup-langpill-button:hover,
+  .ocr-translate-popup-translate:hover {
+    border-color: rgba(91, 147, 232, 0.42);
+    background: #20272b;
+  }
+
+  .ocr-translate-popup-langpill-button:focus-visible,
+  .ocr-translate-popup-langpill-search:focus,
+  .ocr-translate-popup-translate:focus-visible {
+    border-color: #5b93e8;
+    box-shadow: 0 0 0 3px rgba(91, 147, 232, 0.12);
+  }
+
+  .ocr-translate-popup-langpill-item.is-selected {
+    color: #8ab4f3;
+  }
+
+  .ocr-translate-popup-section pre,
+  .ocr-translate-popup-section .ocr-translate-popup-editable {
+    border-color: rgba(91, 147, 232, 0.36);
+    background:
+      linear-gradient(180deg, rgba(27, 32, 36, 0.96), rgba(20, 24, 28, 0.98)),
+      #15191d;
+    color: #eef6fa;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .ocr-translate-popup-editable:focus {
+    border-color: #5b93e8;
+    box-shadow: 0 0 0 3px rgba(91, 147, 232, 0.12);
+  }
+
+  .ocr-translate-popup-placeholder,
+  .ocr-translate-popup-loading,
+  .ocr-translate-popup-message {
+    color: #a7b3bd;
+  }
+
+  .ocr-translate-popup-spinner {
+    border-color: #2a3338;
+    border-top-color: #5b93e8;
+  }
+
+  .ocr-translate-popup-langbadge {
+    border-color: rgba(91, 147, 232, 0.24);
+    color: #8ab4f3;
+    background: rgba(91, 147, 232, 0.1);
+  }
+
+  .ocr-translate-popup-copy.is-copied {
+    color: #4ade80;
+  }
+
+  .ocr-translate-popup-speak.is-speaking {
+    color: #8ab4f3;
+    background: rgba(91, 147, 232, 0.1);
+  }
+
+  .ocr-translate-popup-error-icon {
+    color: #f87171;
+  }
+
+  .ocr-translate-popup-retry {
+    background: #3269bd;
+  }
+
+  .ocr-translate-popup-retry:hover {
+    background: #285aa8;
+  }
+
+  .ocr-translate-overlay-region {
+    border-color: rgba(91, 147, 232, 0.5);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.5) inset;
+  }
+
+  .ocr-translate-overlay-status {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(26, 30, 34, 0.98);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+    color: #e5edf2;
+  }
+
+  .ocr-translate-overlay-spinner {
+    border-color: rgba(226, 232, 240, 0.2);
+    border-top-color: #5b93e8;
+  }
+
+  .ocr-translate-overlay-toolbar {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(26, 30, 34, 0.98);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+    color: #e5edf2;
+  }
+
+  .ocr-translate-overlay-status-warning {
+    color: #f87171;
+  }
+
+  .ocr-translate-overlay-retry {
+    border-color: rgba(91, 147, 232, 0.32);
+    background: rgba(91, 147, 232, 0.12);
+    color: #8ab4f3;
+  }
+
+  .ocr-translate-overlay-retry:hover {
+    background: rgba(91, 147, 232, 0.2);
+  }
+
+  .ocr-translate-overlay-switch {
+    background: rgba(148, 163, 184, 0.4);
+  }
+
+  .ocr-translate-overlay-switch-knob {
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  .ocr-translate-overlay-switch[aria-checked="true"] {
+    background: #3269bd;
+  }
+
+  .ocr-translate-overlay-switch[aria-checked="true"]
+    .ocr-translate-overlay-switch-knob {
+    color: #3269bd;
+  }
+
+  .ocr-translate-overlay-switch:disabled .ocr-translate-overlay-switch-knob {
+    color: #64748b;
+  }
+
+  .ocr-translate-overlay-switch:disabled {
+    background: rgba(71, 85, 105, 0.45);
+  }
+
+  .ocr-translate-overlay-divider {
+    background: rgba(148, 163, 184, 0.28);
+  }
+
+  .ocr-translate-overlay-icon-button {
+    color: #a1adb8;
+  }
+
+  .ocr-translate-overlay-icon-button:hover {
+    color: #f8fafc;
+    background: rgba(226, 232, 240, 0.08);
+  }
+
+  .ocr-translate-overlay-copy.is-copied {
+    color: #4ade80;
+  }
+
+  .ocr-translate-overlay-speak.is-speaking {
+    color: #8ab4f3;
+    background: rgba(91, 147, 232, 0.1);
+  }
+}

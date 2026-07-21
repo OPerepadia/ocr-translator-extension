@@ -1,0 +1,23 @@
+{
+  "version": "arabic_PP-OCRv5_mobile_rec",
+  "detector": {
+    "modelPath": "../ppocrv6-small/det.onnx",
+    "maxSideLength": 960,
+    "mean": [0.485, 0.456, 0.406],
+    "std": [0.229, 0.224, 0.225],
+    "threshold": 0.2,
+    "boxThreshold": 0.45,
+    "unclipRatio": 1.4,
+    "minBoxSize": 3,
+    "padding": 3
+  },
+  "recognizer": {
+    "modelPath": "rec.onnx",
+    "dictPath": "dict.txt",
+    "imageHeight": 48,
+    "minImageWidth": 48,
+    "maxImageWidth": 2400,
+    "mean": [0.5, 0.5, 0.5],
+    "std": [0.5, 0.5, 0.5]
+  }
+}
