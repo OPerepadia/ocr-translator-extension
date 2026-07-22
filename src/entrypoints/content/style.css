@@ -206,7 +206,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: clamp(380px, 28vw, 560px);
+  width: clamp(380px, 28vw, 600px);
   max-width: calc(100vw - 16px);
   height: 520px;
   max-height: calc(100dvh - 16px);
@@ -413,6 +413,14 @@
 .ocr-translate-popup-langpill-button:hover {
   border-color: rgba(62, 123, 214, 0.5);
   background: #f3f7fd;
+}
+
+.ocr-translate-popup-langpill-button:disabled,
+.ocr-translate-popup-langpill-button:disabled:hover {
+  border-color: rgba(100, 116, 139, 0.32);
+  background: #ffffff;
+  opacity: 0.5;
+  cursor: default;
 }
 
 .ocr-translate-popup-langpill-button:focus-visible {
@@ -832,6 +840,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     0 3px 10px rgba(15, 23, 42, 0.14);
   pointer-events: auto;
+  transition: opacity 0.12s ease;
+}
+
+/* Peek mode: the boxes step aside so the captured area is visible as it is on
+   the page. The dim, the region outline and the toolbar stay. */
+.ocr-translate-overlay.is-peeking .ocr-translate-overlay-box {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .ocr-translate-overlay-box.is-dark {
@@ -1037,11 +1053,20 @@
   background: rgba(15, 23, 42, 0.06);
 }
 
+.ocr-translate-overlay-icon-button:disabled,
+.ocr-translate-overlay-icon-button:disabled:hover {
+  color: #475569;
+  background: none;
+  opacity: 0.4;
+  cursor: default;
+}
+
 .ocr-translate-overlay-copy.is-copied {
   color: #16a34a;
 }
 
-.ocr-translate-overlay-speak.is-speaking {
+.ocr-translate-overlay-speak.is-speaking,
+.ocr-translate-overlay-peek.is-peeking {
   color: #3e7bd6;
   background: rgba(62, 123, 214, 0.1);
 }
@@ -1174,6 +1199,12 @@
   .ocr-translate-popup-translate:hover {
     border-color: rgba(91, 147, 232, 0.42);
     background: #20272b;
+  }
+
+  .ocr-translate-popup-langpill-button:disabled,
+  .ocr-translate-popup-langpill-button:disabled:hover {
+    border-color: rgba(148, 163, 184, 0.28);
+    background: #1b2024;
   }
 
   .ocr-translate-popup-langpill-button:focus-visible,
@@ -1315,6 +1346,12 @@
   .ocr-translate-overlay-icon-button:hover {
     color: #f8fafc;
     background: rgba(226, 232, 240, 0.08);
+  }
+
+  .ocr-translate-overlay-icon-button:disabled,
+  .ocr-translate-overlay-icon-button:disabled:hover {
+    color: #a1adb8;
+    background: none;
   }
 
   .ocr-translate-overlay-copy.is-copied {

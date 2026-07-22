@@ -4,6 +4,8 @@ import {
   CHECK_ICON,
   CLOSE_ICON,
   COPY_ICON,
+  EYE_ICON,
+  EYE_OFF_ICON,
   MENU_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
@@ -55,6 +57,9 @@ let currentOriginalText = "";
 let currentDisplayText = "";
 let copyButton: HTMLButtonElement | undefined;
 let speechButton: HTMLButtonElement | undefined;
+// Peeking hides the boxes so the captured region is visible underneath.
+let peeking = false;
+let peekButton: HTMLButtonElement | undefined;
 let currentSourceLang: LangCode | undefined;
 let currentTargetLang: LangCode | undefined;
 let targetLanguages: LangCode[] = [];
@@ -87,6 +92,10 @@ let anchor:
 // Smallest/largest font the auto-fit will use inside a box.
 const MIN_FONT_PX = 8;
 const MAX_FONT_PX = 40;
+
+// A press on the peek button longer than this is a hold: the overlay comes back
+// on release. A shorter press toggles peeking and keeps it.
+const PEEK_HOLD_MS = 350;
 
 /** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
@@ -214,6 +223,7 @@ export function showOverlay(args: {
   });
   mode = hasTranslationText ? defaultMode : "original";
   activeBoxIndex = undefined;
+  peeking = false;
 
   render();
 }
@@ -279,6 +289,8 @@ export function closeOverlay(): void {
   toggleButton = undefined;
   copyButton = undefined;
   speechButton = undefined;
+  peekButton = undefined;
+  peeking = false;
   boxes = [];
   boxRects = [];
   activeBoxIndex = undefined;
@@ -349,6 +361,8 @@ function mountChip(chip: HTMLElement): void {
   toggleButton = undefined;
   copyButton = undefined;
   speechButton = undefined;
+  peekButton = undefined;
+  peeking = false;
   clearOutsideClickHandlers();
   currentLayout = undefined;
   regionBackdrop = undefined;
@@ -430,6 +444,7 @@ function rerenderToolbar(): void {
   const nextToolbar = createToolbar();
   toolbar.replaceWith(nextToolbar);
   toolbar = nextToolbar;
+  setToolbarDisabled(peeking);
   positionToolbar();
 }
 
@@ -468,6 +483,7 @@ function createToolbar(): HTMLElement {
   copyButton = createCopyButton();
   updateCopyLabel();
   speechButton = createSpeechButton();
+  peekButton = createPeekButton();
 
   const sourcePicker = createSourceLanguagePicker();
   const languagePicker = createLanguagePicker();
@@ -480,6 +496,7 @@ function createToolbar(): HTMLElement {
   const closeButton = iconButton(CLOSE_ICON, "Close", () => {
     closeOverlay();
   });
+  closeButton.classList.add("ocr-translate-overlay-close");
 
   const divider = document.createElement("span");
   divider.className = "ocr-translate-overlay-divider";
@@ -487,6 +504,7 @@ function createToolbar(): HTMLElement {
 
   // The switch sits between the pills: knob left shows the source text, knob
   // right the translation. It replaces the old "→" direction arrow.
+  bar.append(peekButton);
   if (sourcePicker) {
     bar.append(sourcePicker);
   }
@@ -646,6 +664,82 @@ function createSpeechButton(): HTMLButtonElement {
   });
 
   return button;
+}
+
+// Hides the boxes so the user can check the page underneath. Click toggles;
+// press and hold peeks only while held. Pointer capture keeps the release on
+// the button even if the pointer drifts off it.
+function createPeekButton(): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className =
+    "ocr-translate-overlay-icon-button ocr-translate-overlay-peek";
+  setPeekButtonState(button, peeking);
+
+  let pressStart = 0;
+  let peekingBeforePress = false;
+
+  button.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+    button.setPointerCapture(event.pointerId);
+    pressStart = performance.now();
+    peekingBeforePress = peeking;
+    setPeek(true);
+  });
+  button.addEventListener("pointerup", () => {
+    const held = performance.now() - pressStart >= PEEK_HOLD_MS;
+    setPeek(held ? false : !peekingBeforePress);
+  });
+  button.addEventListener("pointercancel", () => setPeek(peekingBeforePress));
+  button.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setPeek(!peeking);
+    }
+  });
+
+  return button;
+}
+
+function setPeek(next: boolean): void {
+  peeking = next;
+  container?.classList.toggle("is-peeking", next);
+  if (peekButton) {
+    setPeekButtonState(peekButton, next);
+  }
+  setToolbarDisabled(next);
+}
+
+// While peeking, the toolbar's actions would act on text that isn't on screen,
+// so all of them are disabled; peek and close stay usable.
+function setToolbarDisabled(disabled: boolean): void {
+  if (!toolbar) {
+    return;
+  }
+  const controls = toolbar.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
+    "button, input",
+  );
+  for (const control of controls) {
+    if (
+      control === peekButton ||
+      control.classList.contains("ocr-translate-overlay-close")
+    ) {
+      continue;
+    }
+    control.disabled =
+      control === toggleButton ? disabled || !hasTranslationText : disabled;
+  }
+}
+
+function setPeekButtonState(button: HTMLButtonElement, active: boolean): void {
+  button.innerHTML = active ? EYE_OFF_ICON : EYE_ICON;
+  button.classList.toggle("is-peeking", active);
+  button.setAttribute("aria-pressed", String(active));
+  const label = active ? "Show overlay" : "Hide overlay";
+  button.setAttribute("aria-label", label);
+  button.title = active ? label : "Hide overlay (hold to peek)";
 }
 
 function updateSpeechButton(
