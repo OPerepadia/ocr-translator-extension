@@ -16,3 +16,12 @@ rsvg-convert -w 128 -h 128 ocr_icon_big.svg -o 128.png
 ## Tests
 
 Use generic, fictional text in test fixtures. Do not add real names, places, quoted dialogue, news excerpts, or text copied from screenshots or other source material; common greetings and neutral examples are fine.
+
+## Commit attribution
+
+Credit AI assistance with an `Assisted-by:` trailer, not `Co-Authored-By:`.
+The format is `Assisted-by: AGENT_NAME:MODEL_VERSION`:
+
+```
+Assisted-by: Claude:claude-opus-4-8
+```
