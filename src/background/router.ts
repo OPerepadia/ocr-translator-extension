@@ -7,6 +7,7 @@ import {
   isGetTranslationProvidersRequest,
   isOcrTranslateRequest,
   isOpenOptionsRequest,
+  isPreloadOcrRequest,
   isRerecognizeRequest,
   isRetranslateRequest,
   isSpeakRequest,
@@ -53,6 +54,9 @@ export function startRouter(dependencies: RouterDependencies): void {
       return withKeepAlive(() =>
         handleOcrTranslateRequest(dependencies, message, tabId),
       );
+    }
+    if (isPreloadOcrRequest(message)) {
+      return withKeepAlive(() => handlePreloadOcrRequest(dependencies));
     }
     if (isOpenOptionsRequest(message)) {
       void browserApi.runtime.openOptionsPage();
@@ -153,6 +157,18 @@ async function handleOcrTranslateRequest(
     onOcrResult: (ocr) =>
       sendPipelineOcrResult(tabId, message.requestId, ocr),
   });
+}
+
+// Starts loading the OCR worker and model while the user is doing selection.
+async function handlePreloadOcrRequest(
+  dependencies: RouterDependencies,
+): Promise<void> {
+  try {
+    const settings = await dependencies.settingsRepository.get();
+    await dependencies.createOcrProvider(settings.ocr).preload?.();
+  } catch {
+    // Ignore; recognition re-runs initialization and surfaces any failure.
+  }
 }
 
 // Re-runs OCR (and translation) on the last captured image for a different

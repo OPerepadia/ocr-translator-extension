@@ -65,6 +65,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
 
   let worker: Worker | null = null;
   let initPromise: Promise<void> | null = null;
+  let initialized = false;
   let nextId = 1;
   const pending = new Map<number, PendingEntry>();
 
@@ -107,6 +108,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
     worker?.terminate();
     worker = null;
     initPromise = null;
+    initialized = false;
     for (const entry of pending.values()) {
       entry.reject(error);
     }
@@ -138,7 +140,13 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
       const activeWorker = ensureWorker();
       const id = nextId++;
       initPromise = new Promise<void>((resolvePromise, reject) => {
-        pending.set(id, { resolve: () => resolvePromise(), reject });
+        pending.set(id, {
+          resolve: () => {
+            initialized = true;
+            resolvePromise();
+          },
+          reject,
+        });
         activeWorker.postMessage({
           type: "init",
           id,
@@ -180,7 +188,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
         throw new Error("PP-OCRv6 provider requires a Blob image.");
       }
 
-      if (initPromise === null) {
+      if (!initialized) {
         onStatus?.({ stage: "initializing" });
       }
       await ensureInit();
@@ -250,6 +258,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
         worker = null;
       }
       initPromise = null;
+      initialized = false;
       const error = new Error("PP-OCRv6 provider disposed.");
       for (const entry of pending.values()) {
         entry.reject(error);

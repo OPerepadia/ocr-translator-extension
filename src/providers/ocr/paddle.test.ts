@@ -9,13 +9,29 @@ class FakeWorker {
   onmessage: ((event: { data: WorkerResponse }) => void) | null = null;
   onerror: ((event: { message?: string }) => void) | null = null;
   terminated = false;
+  /** Hold back the "ready" reply so a test can observe init still in flight. */
+  deferInit = false;
+  private pendingInitId?: number;
 
   postMessage(message: WorkerRequest): void {
     this.messages.push(message);
     if (message.type === "init") {
+      if (this.deferInit) {
+        this.pendingInitId = message.id;
+        return;
+      }
       queueMicrotask(() =>
         this.onmessage?.({ data: { type: "ready", id: message.id } }),
       );
+    }
+  }
+
+  /** Completes an init held back by deferInit. */
+  finishInit(): void {
+    const id = this.pendingInitId;
+    if (id !== undefined) {
+      this.pendingInitId = undefined;
+      this.onmessage?.({ data: { type: "ready", id } });
     }
   }
 
@@ -65,6 +81,41 @@ describe("createPaddleOcrProvider", () => {
     });
 
     await expect(promise).resolves.toMatchObject({ text: "hello" });
+  });
+
+  it("reports initializing when recognize starts while preload is still loading", async () => {
+    const fake = new FakeWorker();
+    fake.deferInit = true;
+    const provider = makeProvider(fake);
+
+    // Preload begins during region selection and has not finished yet.
+    void provider.preload?.();
+    await tick();
+
+    const stages: string[] = [];
+    const promise = provider.recognize(
+      { image: new Blob(["img"]) },
+      undefined,
+      (status) => stages.push(status.stage),
+    );
+    await tick();
+
+    // Without a status here the loading UI stays hidden behind the selection
+    // dim for the whole model load.
+    expect(stages).toEqual(["initializing"]);
+
+    fake.finishInit();
+    await tick();
+    expect(stages).toEqual(["initializing", "recognizing"]);
+
+    const [recognize] = fake.ofType("recognize");
+    fake.reply({
+      type: "result",
+      id: recognize.id,
+      result: { text: "hello", confidence: 0.9 },
+    });
+    await expect(promise).resolves.toMatchObject({ text: "hello" });
+    expect(fake.ofType("init")).toHaveLength(1);
   });
 
   it("passes Auto recognizer candidates to the worker", async () => {

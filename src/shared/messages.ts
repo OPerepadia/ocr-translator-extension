@@ -42,6 +42,12 @@ export type RuntimeMessage =
       requestId: string;
       ocr: PipelineOcrResult;
     }
+  // Content -> background: start loading the OCR worker and model while the user
+  // is still doing the selection, so recognition can begin as soon as the
+  // screenshot is ready. Fire-and-forget; failures surface on the real request.
+  | {
+      type: "PRELOAD_OCR";
+    }
   // Content -> background: open the extension's options page. Content scripts
   // can't call runtime.openOptionsPage themselves, so the background does it.
   | {
@@ -140,6 +146,12 @@ export function isOcrTranslateOcrResult(
   value: unknown,
 ): value is Extract<RuntimeMessage, { type: "OCR_TRANSLATE_OCR_RESULT" }> {
   return isRuntimeMessage(value) && value.type === "OCR_TRANSLATE_OCR_RESULT";
+}
+
+export function isPreloadOcrRequest(
+  value: unknown,
+): value is Extract<RuntimeMessage, { type: "PRELOAD_OCR" }> {
+  return isRuntimeMessage(value) && value.type === "PRELOAD_OCR";
 }
 
 export function isOpenOptionsRequest(

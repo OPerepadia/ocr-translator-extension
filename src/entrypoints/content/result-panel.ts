@@ -398,7 +398,7 @@ function statusMessage(status: PipelineStatus): string {
     case "recognizing":
       return status.lineCount && status.lineCount > 0
         ? `Recognizing text… ${status.line}/${status.lineCount}`
-        : "Recognizing text…";
+        : "Analyzing image…";
     case "translating":
       return "Translating…";
   }

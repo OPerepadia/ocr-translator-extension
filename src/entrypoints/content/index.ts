@@ -195,6 +195,10 @@ async function runSelectionFlow(): Promise<void> {
   if (!uiRoot) {
     return;
   }
+  // Preload the OCR worker and model while the user is selecting a region,
+  // so recognition can start as soon as the screenshot is ready.
+  void browserApi.runtime.sendMessage({ type: "PRELOAD_OCR" }).catch(() => {});
+
   const viewportRect = await startSelectionOverlay(uiRoot);
 
   if (!viewportRect) {
