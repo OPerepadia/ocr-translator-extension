@@ -10,6 +10,8 @@ import type { OcrProvider, OcrStatus } from "./types";
 const WASM_DIR = "ort/";
 const DEFAULT_RECOGNITION_TIMEOUT_MS = 60_000;
 
+const DEBUG_PPOCR = false;
+
 export interface PaddleModelConfig {
   id: string;
   modelDir: string;
@@ -50,8 +52,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
   const config = (rawConfig ?? {}) as PaddleProviderConfig;
   const model = config.model ?? DEFAULT_MODEL;
   const backend = config.backend ?? "wasm";
-  // Default on while the provider is new; flip to false to quiet the console.
-  const debug = config.debug ?? true;
+  const debug = config.debug ?? DEBUG_PPOCR;
   const resolveUrl = config.resolveUrl;
   const recognitionTimeoutMs =
     config.recognitionTimeoutMs ?? DEFAULT_RECOGNITION_TIMEOUT_MS;

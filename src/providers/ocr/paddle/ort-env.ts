@@ -12,6 +12,7 @@ export type OrtBackend = "wasm" | "webgpu";
 export function configureOrt(wasmBaseUrl: string): void {
   ort.env.wasm.wasmPaths = wasmBaseUrl;
   ort.env.wasm.numThreads = 1;
+  ort.env.logLevel = "error";
 }
 
 /** Resolve the backend to actually run: "webgpu" only when this context (the
@@ -39,6 +40,8 @@ export async function createSession(
     // With webgpu first, ORT still falls back to wasm if the EP fails to init.
     executionProviders: backend === "webgpu" ? ["webgpu", "wasm"] : ["wasm"],
     graphOptimizationLevel: "all",
+    // silence warnings about unused initializers
+    logSeverityLevel: 3,
   });
 }
 
