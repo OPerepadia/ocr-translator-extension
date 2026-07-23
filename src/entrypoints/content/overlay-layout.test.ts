@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { OcrBlock, Rect } from "../../shared/types";
 import {
   buildOverlayLayout,
+  getRenderedImageRect,
   groupParagraphs,
   mapBboxToPage,
 } from "./overlay-layout";
@@ -13,6 +14,32 @@ function block(
 ): OcrBlock {
   return { text, bbox, paragraph };
 }
+
+describe("getRenderedImageRect", () => {
+  it("excludes side gutters from a contained lightbox image", () => {
+    expect(
+      getRenderedImageRect({
+        elementRect: { x: 0, y: 0, width: 2400, height: 1200 },
+        naturalWidth: 1600,
+        naturalHeight: 1200,
+        objectFit: "contain",
+        objectPosition: "50% 50%",
+      }),
+    ).toEqual({ x: 400, y: 0, width: 1600, height: 1200 });
+  });
+
+  it("keeps the element rect when its aspect ratio matches the image", () => {
+    expect(
+      getRenderedImageRect({
+        elementRect: { x: 24, y: 16, width: 1200, height: 900 },
+        naturalWidth: 1600,
+        naturalHeight: 1200,
+        objectFit: "contain",
+        objectPosition: "50% 50%",
+      }),
+    ).toEqual({ x: 24, y: 16, width: 1200, height: 900 });
+  });
+});
 
 describe("groupParagraphs", () => {
   it("unions block bboxes that share a paragraph index", () => {

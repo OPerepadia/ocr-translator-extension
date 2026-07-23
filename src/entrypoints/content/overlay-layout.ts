@@ -52,6 +52,48 @@ export interface BuildOverlayInput {
 const VERTICAL_TRANSLATION_ASPECT_RATIO = 2.0;
 const VERTICAL_TRANSLATION_MIN_WIDTH = 120;
 
+export function getRenderedImageRect(args: {
+  elementRect: Rect;
+  naturalWidth: number;
+  naturalHeight: number;
+  objectFit: string;
+  objectPosition: string;
+}): Rect {
+  const {
+    elementRect,
+    naturalWidth,
+    naturalHeight,
+    objectFit,
+    objectPosition,
+  } = args;
+  if (
+    naturalWidth <= 0 ||
+    naturalHeight <= 0 ||
+    (objectFit !== "contain" && objectFit !== "scale-down")
+  ) {
+    return { ...elementRect };
+  }
+
+  const containScale = Math.min(
+    elementRect.width / naturalWidth,
+    elementRect.height / naturalHeight,
+  );
+  const scale =
+    objectFit === "scale-down" ? Math.min(1, containScale) : containScale;
+  const width = naturalWidth * scale;
+  const height = naturalHeight * scale;
+  const [xPosition = "50%", yPosition = "50%"] = objectPosition
+    .trim()
+    .split(/\s+/);
+
+  return {
+    x: elementRect.x + positionOffset(xPosition, elementRect.width - width),
+    y: elementRect.y + positionOffset(yPosition, elementRect.height - height),
+    width,
+    height,
+  };
+}
+
 /** Group blocks by their paragraph index, unioning each group's bboxes and
  * collecting the block texts in encounter order (the assembler emits blocks in
  * reading order). A paragraph's orientation is its blocks' orientation (uniform
@@ -275,4 +317,23 @@ function unionRect(rects: Rect[]): Rect {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function positionOffset(position: string, availableSpace: number): number {
+  switch (position) {
+    case "left":
+    case "top":
+      return 0;
+    case "center":
+      return availableSpace / 2;
+    case "right":
+    case "bottom":
+      return availableSpace;
+  }
+
+  const value = Number.parseFloat(position);
+  if (!Number.isFinite(value)) {
+    return availableSpace / 2;
+  }
+  return position.endsWith("%") ? availableSpace * (value / 100) : value;
 }

@@ -64,6 +64,7 @@ import {
   releaseSelectionDim,
   startSelectionOverlay,
 } from "./selection-overlay";
+import { getRenderedImageRect } from "./overlay-layout";
 import "./style.css";
 
 // Request id of the OCR/translate pipeline in flight, so status messages pushed
@@ -80,7 +81,7 @@ let uiRoot: HTMLElement | undefined;
 // the OCR blocks).
 let lastResult: PipelineResult | undefined;
 let lastRect: Rect | undefined;
-let lastContextElement: Element | undefined;
+let lastContextImage: HTMLImageElement | undefined;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -111,8 +112,12 @@ export default defineContentScript({
     document.addEventListener(
       "contextmenu",
       (event) => {
-        lastContextElement =
-          event.target instanceof Element ? event.target : undefined;
+        lastContextImage = event
+          .composedPath()
+          .find(
+            (target): target is HTMLImageElement =>
+              target instanceof HTMLImageElement,
+          );
       },
       true,
     );
@@ -266,17 +271,32 @@ async function runImageFlow(imageUrl: string): Promise<void> {
 
 function findImageRect(imageUrl: string): Rect | undefined {
   const image =
-    lastContextElement?.isConnected
-      ? lastContextElement
+    lastContextImage?.isConnected
+      ? lastContextImage
       : Array.from(document.images).find(
           (candidate) =>
             candidate.currentSrc === imageUrl || candidate.src === imageUrl,
         );
-  const rect = image?.getBoundingClientRect();
-  if (!rect || rect.width <= 0 || rect.height <= 0) {
+  if (!image) {
     return undefined;
   }
-  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  const rect = image.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    return undefined;
+  }
+  const style = getComputedStyle(image);
+  return getRenderedImageRect({
+    elementRect: {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    },
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    objectFit: style.objectFit,
+    objectPosition: style.objectPosition,
+  });
 }
 
 async function runCapture(
