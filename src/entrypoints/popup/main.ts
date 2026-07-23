@@ -25,9 +25,11 @@ async function initPopup(): Promise<void> {
       return;
     }
 
-    await browserApi.tabs.sendMessage(tab.id, {
-      type: "START_SELECTION",
-    });
+    await browserApi.tabs.sendMessage(
+      tab.id,
+      { type: "START_SELECTION" },
+      { frameId: 0 },
+    );
     window.close();
   } catch (error) {
     if (isContentScriptUnavailableError(error)) {

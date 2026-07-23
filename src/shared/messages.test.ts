@@ -7,6 +7,7 @@ import {
   isRuntimeMessage,
   isRerecognizeRequest,
   isSpeakRequest,
+  isStartImageTranslationMessage,
   isStartSelectionMessage,
   serializeError,
 } from "./messages";
@@ -20,6 +21,12 @@ describe("runtime message guards", () => {
 
   it("recognizes start selection messages", () => {
     expect(isStartSelectionMessage({ type: "START_SELECTION" })).toBe(true);
+    expect(
+      isStartImageTranslationMessage({
+        type: "START_IMAGE_TRANSLATION",
+        imageUrl: "file:///tmp/sample.png",
+      }),
+    ).toBe(true);
     expect(isStartSelectionMessage({ type: "OCR_TRANSLATE_REQUEST" })).toBe(
       false,
     );
@@ -43,6 +50,13 @@ describe("runtime message guards", () => {
       }),
     ).toBe(true);
     expect(isOcrTranslateRequest({ type: "START_SELECTION" })).toBe(false);
+    expect(
+      isOcrTranslateRequest({
+        type: "OCR_TRANSLATE_REQUEST",
+        requestId: "request-2",
+        imageUrl: "https://example.com/sample.png",
+      }),
+    ).toBe(true);
   });
 
   it("recognizes pipeline status and partial OCR result messages", () => {

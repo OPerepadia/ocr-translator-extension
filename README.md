@@ -6,7 +6,7 @@ Firefox extension that uses optical character recognition (OCR) to extract text 
 
 ## How it works
 
-Activate the add-on from the browser toolbar or context menu. Then select an area on the page and press **Run OCR**. The selected area is captured as an image and passed to an OCR worker. The recognized text is then sent to a translation engine and rendered in the overlay.
+Activate the add-on from the browser toolbar or context menu. Then select an area on the page and click 'Run OCR'. You can also right-click any image and choose 'Translate this image'. The translation is rendered as an overlay on the captured area (default mode), or as a panel in the bottom-right corner.
 
 - **OCR** — PaddleOCR, running in the browser. Uses WASM by default; GPU acceleration (WebGPU) can be enabled in settings.
 - **Translation** — unofficial Google Translate API (no API key required), or a user-configured OpenAI-compatible LLM endpoint (e.g. llama.cpp, LM Studio, or a cloud provider).

@@ -1,4 +1,4 @@
-import { captureVisibleArea } from "@/background/capture";
+import { captureVisibleArea, loadImage } from "@/background/capture";
 import { startContextMenu } from "@/background/context-menu";
 import { startRouter } from "@/background/router";
 import {
@@ -30,6 +30,7 @@ export default defineBackground(() => {
   startRouter({
     settingsRepository,
     captureVisibleArea,
+    loadImage,
     createOcrProvider,
     createTranslationProvider,
     detectLanguage,

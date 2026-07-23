@@ -2,10 +2,12 @@ import { browserApi } from "@/shared/browser";
 import {
   isOcrTranslateOcrResult,
   isOcrTranslateStatus,
+  isStartImageTranslationMessage,
   isStartSelectionMessage,
   serializeError,
 } from "@/shared/messages";
 import type {
+  OcrImageSource,
   OcrSourceLanguagesResponse,
   TranslationProvidersResponse,
 } from "@/shared/messages";
@@ -78,6 +80,7 @@ let uiRoot: HTMLElement | undefined;
 // the OCR blocks).
 let lastResult: PipelineResult | undefined;
 let lastRect: Rect | undefined;
+let lastContextElement: Element | undefined;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -85,6 +88,9 @@ let displayMode: DisplayMode = "panel";
 
 export default defineContentScript({
   matches: ["<all_urls>"],
+  allFrames: true,
+  matchAboutBlank: true,
+  matchOriginAsFallback: true,
   runAt: "document_idle",
   // Inject style.css into the shadow root (below) instead of the page, so the
   // page's stylesheet and ours stay isolated from each other.
@@ -102,6 +108,15 @@ export default defineContentScript({
     });
     ui.mount();
 
+    document.addEventListener(
+      "contextmenu",
+      (event) => {
+        lastContextElement =
+          event.target instanceof Element ? event.target : undefined;
+      },
+      true,
+    );
+
     // Closing the popup drops the in-flight id so late status messages and the
     // eventual result no longer reopen it.
     setOnClose(() => {
@@ -110,7 +125,7 @@ export default defineContentScript({
 
     // "Select new region" in the popup menu restarts the capture.
     setOnNewSelection(() => {
-      void runSelectionFlow();
+      startNewSelection();
     });
 
     // The "Show as overlay" / "Show panel" buttons switch the current result
@@ -122,7 +137,7 @@ export default defineContentScript({
     // The overlay's "Select new region" restarts the capture; closing it drops
     // the in-flight ids like the panel does.
     setOnOverlayNewSelection(() => {
-      void runSelectionFlow();
+      startNewSelection();
     });
     setOnOverlayClose(() => {
       activeRequestId = null;
@@ -168,12 +183,18 @@ export default defineContentScript({
         void runSelectionFlow();
         return undefined;
       }
+      if (isStartImageTranslationMessage(message)) {
+        closePopup();
+        closeOverlay();
+        void runImageFlow(message.imageUrl);
+        return undefined;
+      }
       if (
         isOcrTranslateStatus(message) &&
         message.requestId === activeRequestId
       ) {
-        // The first status means the screenshot is taken and the loading view
-        // (with its own dim, in overlay mode) is up: drop the selection's dim.
+        // For region captures, the first status means the screenshot is taken,
+        // so it is safe to drop the selection's dim.
         showActiveLoading(message.status);
         releaseSelectionDim();
         return undefined;
@@ -204,7 +225,66 @@ async function runSelectionFlow(): Promise<void> {
   if (!viewportRect) {
     return;
   }
-  lastRect = toPageRect(viewportRect);
+
+  await runCapture({
+    rect: viewportRect,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+  });
+}
+
+function startNewSelection(): void {
+  if (window === window.top) {
+    void runSelectionFlow();
+    return;
+  }
+
+  closePopup();
+  closeOverlay();
+  void browserApi.runtime.sendMessage({ type: "START_SELECTION" });
+}
+
+async function runImageFlow(imageUrl: string): Promise<void> {
+  void browserApi.runtime.sendMessage({ type: "PRELOAD_OCR" }).catch(() => {});
+
+  const imageRect = findImageRect(imageUrl);
+  if (imageUrl.startsWith("file:") && imageRect) {
+    await runCapture({
+      rect: imageRect,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+    });
+    return;
+  }
+
+  await runCapture({ imageUrl }, imageRect);
+}
+
+function findImageRect(imageUrl: string): Rect | undefined {
+  const image =
+    lastContextElement?.isConnected
+      ? lastContextElement
+      : Array.from(document.images).find(
+          (candidate) =>
+            candidate.currentSrc === imageUrl || candidate.src === imageUrl,
+        );
+  const rect = image?.getBoundingClientRect();
+  if (!rect || rect.width <= 0 || rect.height <= 0) {
+    return undefined;
+  }
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+}
+
+async function runCapture(
+  source: OcrImageSource,
+  imageRect?: Rect,
+): Promise<void> {
+  const viewportRect = imageRect ?? ("rect" in source ? source.rect : undefined);
+  lastRect = viewportRect ? toPageRect(viewportRect) : undefined;
   lastResult = undefined;
   setOverlayAvailable(false);
   // A previous overlay (if any) is for a stale region; clear it before this run.
@@ -233,24 +313,14 @@ async function runSelectionFlow(): Promise<void> {
 
   const requestId = createRequestId();
   activeRequestId = requestId;
-  // Don't show the loading panel yet. It's pinned to the bottom-right corner, so
-  // if it were on screen during the capture below, a selection in that corner
-  // would screenshot the panel instead of the page. The background captures
-  // first, then reports its first pipeline status; the listener in main() brings
-  // up the loading panel then, once the screenshot is safely taken. The
-  // selection's dim stays up across that gap (the crop excludes it) so the page
-  // doesn't flash bright; the listener releases it with the first status, and
-  // the finally below covers a request that fails before any status.
+  // For region captures, keep the loading panel hidden until the background has
+  // taken its screenshot so the panel cannot appear in the captured image.
 
   try {
     const result = await browserApi.runtime.sendMessage<PipelineResult>({
       type: "OCR_TRANSLATE_REQUEST",
       requestId,
-      rect: viewportRect,
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
+      ...source,
     });
 
     // Skip if the user closed the popup (or a newer request took over) while
@@ -264,7 +334,12 @@ async function runSelectionFlow(): Promise<void> {
     if (activeRequestId !== requestId) {
       return;
     }
-    presentError(serializeError(error), () => void runRerecognize("auto"));
+    presentError(
+      serializeError(error),
+      "imageUrl" in source
+        ? () => void runImageFlow(source.imageUrl)
+        : () => void runRerecognize("auto"),
+    );
   } finally {
     if (activeRequestId === requestId) {
       activeRequestId = null;

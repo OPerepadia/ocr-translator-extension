@@ -11,8 +11,10 @@ import {
   isRerecognizeRequest,
   isRetranslateRequest,
   isSpeakRequest,
+  isStartSelectionMessage,
   isSwitchProviderRequest,
   type OcrSourceLanguagesResponse,
+  type RuntimeMessage,
   type SpeakResponse,
   type TranslationProvidersResponse,
 } from "../shared/messages";
@@ -38,6 +40,7 @@ import { runPipeline, translateText } from "./pipeline";
 export interface RouterDependencies {
   settingsRepository: SettingsRepository;
   captureVisibleArea(args: { rect: Rect; viewport: Viewport }): Promise<Blob>;
+  loadImage(url: string): Promise<Blob>;
   createOcrProvider(settings: Settings["ocr"]): OcrProvider;
   createTranslationProvider(
     settings: Settings["translation"],
@@ -49,10 +52,24 @@ export interface RouterDependencies {
 
 export function startRouter(dependencies: RouterDependencies): void {
   browserApi.runtime.onMessage.addListener((message, sender) => {
+    const messageSender = sender as
+      | { tab?: { id?: number }; frameId?: number }
+      | undefined;
+    const tabId = messageSender?.tab?.id;
+    const frameKey =
+      typeof tabId === "number"
+        ? `${tabId}:${messageSender?.frameId ?? 0}`
+        : undefined;
+
+    if (isStartSelectionMessage(message)) {
+      if (typeof tabId === "number") {
+        return browserApi.tabs.sendMessage(tabId, message, { frameId: 0 });
+      }
+      return undefined;
+    }
     if (isOcrTranslateRequest(message)) {
-      const tabId = (sender as { tab?: { id?: number } } | undefined)?.tab?.id;
       return withKeepAlive(() =>
-        handleOcrTranslateRequest(dependencies, message, tabId),
+        handleOcrTranslateRequest(dependencies, message, tabId, frameKey),
       );
     }
     if (isPreloadOcrRequest(message)) {
@@ -75,21 +92,18 @@ export function startRouter(dependencies: RouterDependencies): void {
       return withKeepAlive(() => handleSpeakRequest(dependencies, message));
     }
     if (isRetranslateRequest(message)) {
-      const tabId = (sender as { tab?: { id?: number } } | undefined)?.tab?.id;
       return withKeepAlive(() =>
-        handleRetranslateRequest(dependencies, message, tabId),
+        handleRetranslateRequest(dependencies, message, tabId, frameKey),
       );
     }
     if (isSwitchProviderRequest(message)) {
-      const tabId = (sender as { tab?: { id?: number } } | undefined)?.tab?.id;
       return withKeepAlive(() =>
-        handleSwitchProviderRequest(dependencies, message, tabId),
+        handleSwitchProviderRequest(dependencies, message, tabId, frameKey),
       );
     }
     if (isRerecognizeRequest(message)) {
-      const tabId = (sender as { tab?: { id?: number } } | undefined)?.tab?.id;
       return withKeepAlive(() =>
-        handleRerecognizeRequest(dependencies, message, tabId),
+        handleRerecognizeRequest(dependencies, message, tabId, frameKey),
       );
     }
     return undefined;
@@ -115,34 +129,44 @@ const withKeepAlive = createKeepAlive(
   KEEPALIVE_INTERVAL_MS,
 );
 
-// The most recent captured image per tab, kept so a recognizer switch can re-run
+// The most recent captured image per frame, kept so a recognizer switch can re-run
 // OCR on the same pixels instead of recapturing (which could differ if the page
 // scrolled, resized, or its content changed). Lost if the event page unloads, in
 // which case re-recognition asks the user for a fresh selection.
-const lastCaptures = new Map<number, Blob>();
-const lastSourceLanguages = new Map<number, string>();
+interface CaptureState {
+  image?: Blob;
+  sourceLanguage: string;
+}
+
+const lastCaptures = new Map<string, CaptureState>();
 
 async function handleOcrTranslateRequest(
   dependencies: RouterDependencies,
-  message: {
-    requestId: string;
-    rect: Rect;
-    viewport: Viewport;
-  },
+  message: Extract<RuntimeMessage, { type: "OCR_TRANSLATE_REQUEST" }>,
   tabId: number | undefined,
+  frameKey: string | undefined,
 ): Promise<PipelineResult> {
+  const capture: CaptureState | undefined = frameKey
+    ? { sourceLanguage: "auto" }
+    : undefined;
+  if (frameKey && capture) {
+    lastCaptures.set(frameKey, capture);
+  }
+
   const settings = await dependencies.settingsRepository.get();
   const ocrProvider = dependencies.createOcrProvider(settings.ocr);
   const translationProvider = dependencies.createTranslationProvider(
     settings.translation,
   );
-  const image = await dependencies.captureVisibleArea({
-    rect: message.rect,
-    viewport: message.viewport,
-  });
-  if (tabId !== undefined) {
-    lastCaptures.set(tabId, image);
-    lastSourceLanguages.set(tabId, "auto");
+  const image =
+    "imageUrl" in message
+      ? await dependencies.loadImage(message.imageUrl)
+      : await dependencies.captureVisibleArea({
+          rect: message.rect,
+          viewport: message.viewport,
+        });
+  if (frameKey && capture && lastCaptures.get(frameKey) === capture) {
+    capture.image = image;
   }
 
   return runPipeline({
@@ -180,28 +204,29 @@ async function handleRerecognizeRequest(
     sourceLang: LangCode | "auto";
   },
   tabId: number | undefined,
+  frameKey: string | undefined,
 ): Promise<PipelineResult> {
-  const settings = await dependencies.settingsRepository.get();
+  const capture = frameKey ? lastCaptures.get(frameKey) : undefined;
   const selection = findOcrSourceLanguage(message.sourceLang);
   if (!selection) {
     throw new Error(`Unsupported OCR source language: ${message.sourceLang}`);
   }
-  const ocr = {
-    ...settings.ocr,
-    sourceLang: selection.id,
-  };
-  const image = tabId === undefined ? undefined : lastCaptures.get(tabId);
-
+  const image = capture?.image;
   if (!image) {
     throw new Error(
       "The captured image is no longer available. Please select the region again.",
     );
   }
 
-  if (tabId !== undefined) {
-    lastSourceLanguages.set(tabId, selection.id);
+  if (frameKey && capture && lastCaptures.get(frameKey) === capture) {
+    capture.sourceLanguage = selection.id;
   }
 
+  const settings = await dependencies.settingsRepository.get();
+  const ocr = {
+    ...settings.ocr,
+    sourceLang: selection.id,
+  };
   const ocrProvider = dependencies.createOcrProvider(ocr);
   const translationProvider = dependencies.createTranslationProvider(
     settings.translation,
@@ -307,6 +332,7 @@ async function handleRetranslateRequest(
     targetLang: LangCode;
   },
   tabId: number | undefined,
+  frameKey: string | undefined,
 ): Promise<PipelineResult> {
   const settings = await dependencies.settingsRepository.get();
   const nextTranslation = {
@@ -323,7 +349,7 @@ async function handleRetranslateRequest(
   const { translation, translationStatus } = await translateText({
     text: message.text,
     translationProvider,
-    sourceLang: sourceLanguageForTab(tabId),
+    sourceLang: sourceLanguageForFrame(frameKey),
     targetLang: message.targetLang,
     detectLanguage: dependencies.detectLanguage,
     onStatus: (status) =>
@@ -347,6 +373,7 @@ async function handleSwitchProviderRequest(
     text: string;
   },
   tabId: number | undefined,
+  frameKey: string | undefined,
 ): Promise<PipelineResult> {
   const settings = await dependencies.settingsRepository.get();
   const nextTranslation = {
@@ -365,7 +392,7 @@ async function handleSwitchProviderRequest(
   const { translation, translationStatus } = await translateText({
     text: message.text,
     translationProvider,
-    sourceLang: sourceLanguageForTab(tabId),
+    sourceLang: sourceLanguageForFrame(frameKey),
     targetLang: nextTranslation.targetLang,
     detectLanguage: dependencies.detectLanguage,
     onStatus: (status) =>
@@ -375,8 +402,8 @@ async function handleSwitchProviderRequest(
   return { ocr: { text: message.text }, translation, translationStatus };
 }
 
-function sourceLanguageForTab(tabId: number | undefined): string | "auto" {
+function sourceLanguageForFrame(frameKey: string | undefined): string | "auto" {
   return resolveTranslationSourceLanguage(
-    tabId === undefined ? "auto" : lastSourceLanguages.get(tabId),
+    frameKey ? lastCaptures.get(frameKey)?.sourceLanguage : "auto",
   );
 }

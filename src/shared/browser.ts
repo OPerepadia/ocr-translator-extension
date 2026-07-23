@@ -40,16 +40,24 @@ export interface BrowserApi {
       options?: { format?: "jpeg" | "png"; quality?: number },
     ): Promise<string>;
     query(queryInfo: { active?: boolean; currentWindow?: boolean }): Promise<BrowserTab[]>;
-    sendMessage<TResponse = unknown>(tabId: number, message: RuntimeMessage): Promise<TResponse>;
+    sendMessage<TResponse = unknown>(
+      tabId: number,
+      message: RuntimeMessage,
+      options?: { frameId?: number },
+    ): Promise<TResponse>;
   };
   contextMenus: {
     create(properties: {
       id: string;
       title: string;
-      contexts: ["all"];
+      contexts: Array<"all" | "image">;
+      documentUrlPatterns?: string[];
     }): string | number;
     onClicked: BrowserEvent<
-      (info: { menuItemId: string | number }, tab?: BrowserTab) => void
+      (
+        info: { menuItemId: string | number; srcUrl?: string; frameId?: number },
+        tab?: BrowserTab,
+      ) => void
     >;
   };
   i18n: {

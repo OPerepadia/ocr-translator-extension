@@ -2,6 +2,14 @@ import { browserApi } from "../shared/browser";
 import { cropBitmapToBlob, dataUrlToImageBitmap } from "../shared/image";
 import type { Rect, Viewport } from "../shared/types";
 
+export async function loadImage(url: string): Promise<Blob> {
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) {
+    throw new Error(`Could not load image (${response.status}).`);
+  }
+  return response.blob();
+}
+
 /**
  * Capture the visible tab and crop the selected region out of it.
  *

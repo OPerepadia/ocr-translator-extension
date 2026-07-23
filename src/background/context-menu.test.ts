@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BrowserApi } from "../shared/browser";
+import type { RuntimeMessage } from "../shared/messages";
 import {
   START_SELECTION_MENU_ID,
+  TRANSLATE_IMAGE_MENU_ID,
   startContextMenu,
 } from "./context-menu";
+
+type MenuClickListener = (
+  info: { menuItemId: string | number; srcUrl?: string; frameId?: number },
+  tab?: { id?: number },
+) => void;
 
 describe("OCR context menu", () => {
   it("creates a menu item when the extension is installed", () => {
@@ -19,17 +26,23 @@ describe("OCR context menu", () => {
     startContextMenu(api);
     onInstalled?.();
 
+    const documentUrlPatterns = ["http://*/*", "https://*/*", "file:///*"];
     expect(create).toHaveBeenCalledWith({
       id: START_SELECTION_MENU_ID,
-      title: "Select region for OCR",
+      title: "Translate a screen region…",
       contexts: ["all"],
+      documentUrlPatterns,
+    });
+    expect(create).toHaveBeenCalledWith({
+      id: TRANSLATE_IMAGE_MENU_ID,
+      title: "Translate this image",
+      contexts: ["image"],
+      documentUrlPatterns,
     });
   });
 
   it("starts region selection in the clicked tab", async () => {
-    let onClicked:
-      | ((info: { menuItemId: string | number }, tab?: { id?: number }) => void)
-      | undefined;
+    let onClicked: MenuClickListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
     const api = createBrowserApi({
       onClicked: (listener) => {
@@ -41,16 +54,47 @@ describe("OCR context menu", () => {
     startContextMenu(api);
     onClicked?.({ menuItemId: START_SELECTION_MENU_ID }, { id: 7 });
     await vi.waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith(7, {
-        type: "START_SELECTION",
-      });
+      expect(sendMessage).toHaveBeenCalledWith(
+        7,
+        { type: "START_SELECTION" },
+        { frameId: 0 },
+      );
+    });
+  });
+
+  it("translates an image clicked inside a frame", async () => {
+    let onClicked: MenuClickListener | undefined;
+    const sendMessage = vi.fn(async () => undefined);
+    const api = createBrowserApi({
+      onClicked: (listener) => {
+        onClicked = listener;
+      },
+      sendMessage,
+    });
+
+    startContextMenu(api);
+    onClicked?.(
+      {
+        menuItemId: TRANSLATE_IMAGE_MENU_ID,
+        srcUrl: "file:///tmp/sample.png",
+        frameId: 4,
+      },
+      { id: 7 },
+    );
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        7,
+        {
+          type: "START_IMAGE_TRANSLATION",
+          imageUrl: "file:///tmp/sample.png",
+        },
+        { frameId: 4 },
+      );
     });
   });
 
   it("ignores other menu items and clicks without a tab", () => {
-    let onClicked:
-      | ((info: { menuItemId: string | number }, tab?: { id?: number }) => void)
-      | undefined;
+    let onClicked: MenuClickListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
     const api = createBrowserApi({
       onClicked: (listener) => {
@@ -61,6 +105,7 @@ describe("OCR context menu", () => {
 
     startContextMenu(api);
     onClicked?.({ menuItemId: "another-menu-item" }, { id: 7 });
+    onClicked?.({ menuItemId: TRANSLATE_IMAGE_MENU_ID }, { id: 7 });
     onClicked?.({ menuItemId: START_SELECTION_MENU_ID });
 
     expect(sendMessage).not.toHaveBeenCalled();
@@ -69,18 +114,18 @@ describe("OCR context menu", () => {
 
 function createBrowserApi(overrides: {
   onInstalled?: (listener: () => void) => void;
-  onClicked?: (
-    listener: (
-      info: { menuItemId: string | number },
-      tab?: { id?: number },
-    ) => void,
-  ) => void;
+  onClicked?: (listener: MenuClickListener) => void;
   create?: (properties: {
     id: string;
     title: string;
-    contexts: ["all"];
+    contexts: Array<"all" | "image">;
+    documentUrlPatterns?: string[];
   }) => string | number;
-  sendMessage?: (tabId: number, message: { type: "START_SELECTION" }) => Promise<unknown>;
+  sendMessage?: (
+    tabId: number,
+    message: RuntimeMessage,
+    options?: { frameId?: number },
+  ) => Promise<unknown>;
 }): BrowserApi {
   return {
     runtime: {

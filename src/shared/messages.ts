@@ -8,16 +8,19 @@ import type {
   Viewport,
 } from "./types";
 
+export type OcrImageSource =
+  | { rect: Rect; viewport: Viewport }
+  | { imageUrl: string };
+
 export type RuntimeMessage =
   | {
       type: "START_SELECTION";
     }
   | {
-      type: "OCR_TRANSLATE_REQUEST";
-      requestId: string;
-      rect: Rect;
-      viewport: Viewport;
+      type: "START_IMAGE_TRANSLATION";
+      imageUrl: string;
     }
+  | ({ type: "OCR_TRANSLATE_REQUEST"; requestId: string } & OcrImageSource)
   | {
       type: "OCR_TRANSLATE_RESULT";
       requestId: string;
@@ -128,6 +131,12 @@ export function isStartSelectionMessage(
   value: unknown,
 ): value is Extract<RuntimeMessage, { type: "START_SELECTION" }> {
   return isRuntimeMessage(value) && value.type === "START_SELECTION";
+}
+
+export function isStartImageTranslationMessage(
+  value: unknown,
+): value is Extract<RuntimeMessage, { type: "START_IMAGE_TRANSLATION" }> {
+  return isRuntimeMessage(value) && value.type === "START_IMAGE_TRANSLATION";
 }
 
 export function isOcrTranslateRequest(
