@@ -457,9 +457,9 @@ export class PaddleEngine {
         cached?.get(index) ??
         (await this.recognizeLine(source, box, recognizer));
       if (this.debug) {
-        const { width, height } = box.bbox;
+        const { x, y, width, height } = box.bbox;
         console.log(
-          `${LOG_PREFIX} box #${index} ${width}x${height} (det score ${box.score.toFixed(2)}) -> ${JSON.stringify(recognized.text)} (rec conf ${recognized.confidence.toFixed(3)}, model=${recognizer.candidate.id})`,
+          `${LOG_PREFIX} box #${index} ${width}x${height} @(${x},${y}) (det score ${box.score.toFixed(2)}) -> ${JSON.stringify(recognized.text)} (rec conf ${recognized.confidence.toFixed(3)}, model=${recognizer.candidate.id})`,
         );
       }
       if (recognized.text.length > 0) {

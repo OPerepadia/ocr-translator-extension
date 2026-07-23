@@ -137,40 +137,14 @@ function splitIntoColumns(
   const gutter = COLUMN_GUTTER_RATIO * scale;
   const maxVerticalGap = ABSOLUTE_BREAK_RATIO * scale;
 
-  const parent = lines.map((_, i) => i);
-  const find = (i: number): number => {
-    while (parent[i] !== i) {
-      parent[i] = parent[parent[i]];
-      i = parent[i];
-    }
-    return i;
-  };
-  const union = (a: number, b: number): void => {
-    const ra = find(a);
-    const rb = find(b);
-    if (ra !== rb) parent[ra] = rb;
-  };
+  const groups = clusterLines(
+    lines,
+    (a, b) =>
+      horizontalGap(a.bbox, b.bbox) < gutter &&
+      verticalGap(a.bbox, b.bbox) <= maxVerticalGap,
+  );
 
-  for (let i = 0; i < lines.length; i++) {
-    for (let j = i + 1; j < lines.length; j++) {
-      if (
-        horizontalGap(lines[i].bbox, lines[j].bbox) < gutter &&
-        verticalGap(lines[i].bbox, lines[j].bbox) <= maxVerticalGap
-      ) {
-        union(i, j);
-      }
-    }
-  }
-
-  const groups = new Map<number, RecognizedLine[]>();
-  lines.forEach((line, i) => {
-    const root = find(i);
-    const group = groups.get(root);
-    if (group) group.push(line);
-    else groups.set(root, [line]);
-  });
-
-  return [...groups.values()].sort((a, b) => {
+  return groups.sort((a, b) => {
     const topDiff = topEdge(a) - topEdge(b);
     if (Math.abs(topDiff) > scale) return topDiff;
     return rtl ? rightEdge(b) - rightEdge(a) : leftEdge(a) - leftEdge(b);
@@ -424,6 +398,19 @@ function percentile(values: number[], p: number): number {
   return sorted[index];
 }
 
+/** A single box's reading orientation from its aspect ratio, or undefined when
+ * it is too near-square to vote (single glyphs, logos, decorative marks). */
+function readingOrientation(
+  rect: Rect,
+): "horizontal" | "vertical" | undefined {
+  const w = Math.max(1, rect.width);
+  const h = Math.max(1, rect.height);
+  if (Math.max(w, h) / Math.min(w, h) < READING_ORIENTATION_MIN_ASPECT) {
+    return undefined;
+  }
+  return h > w ? "vertical" : "horizontal";
+}
+
 /** Length-weighted vote over box aspect ratios: do the boxes read vertically?
  * The detector fuses a vertical column into one tall box and a horizontal line
  * into a wide one, so the box shapes carry the answer. Weighting by long-axis
@@ -435,11 +422,10 @@ function orientationVote(
   let vertical = 0;
   let horizontal = 0;
   for (const line of lines) {
-    const w = Math.max(1, line.bbox.width);
-    const h = Math.max(1, line.bbox.height);
-    const long = Math.max(w, h);
-    if (long / Math.min(w, h) < READING_ORIENTATION_MIN_ASPECT) continue;
-    if (h > w) vertical += long;
+    const orientation = readingOrientation(line.bbox);
+    if (!orientation) continue;
+    const long = Math.max(line.bbox.width, line.bbox.height);
+    if (orientation === "vertical") vertical += long;
     else horizontal += long;
   }
   if (vertical === 0 && horizontal === 0) return undefined;
@@ -452,12 +438,34 @@ function isVerticalLayout(lines: RecognizedLine[]): boolean {
 
 /** Cluster boxes into blocks (e.g. speech bubbles): grow each box by `margin`
  * and union any that overlap, so columns of one bubble group together while
- * separate bubbles stay apart. Union-find over O(n^2) pairs — n is small. */
+ * separate bubbles stay apart. */
 function clusterBlocks(
   lines: RecognizedLine[],
   margin: number,
 ): RecognizedLine[][] {
+  return clusterLines(lines, (a, b) => rectsTouch(a.bbox, b.bbox, margin));
+}
+
+/** Group boxes into clusters: two boxes join when `connected` reports them as
+ * neighbours. The caller defines what "neighbour" means, so one routine serves
+ * both clustering paths (overlapping blocks, and side-by-side columns).
+ *
+ * The one constraint: a cluster never mixes reading orientations. A merge that
+ * would put a vertical box and a horizontal box together is rejected. A
+ * near-square box has no orientation of its own — it may join either side, but
+ * can never bridge a vertical cluster to a horizontal one.
+ *
+ * Union-find over O(n^2) pairs; n (the box count) is small. */
+function clusterLines(
+  lines: RecognizedLine[],
+  connected: (a: RecognizedLine, b: RecognizedLine) => boolean,
+): RecognizedLine[][] {
   const parent = lines.map((_, i) => i);
+  // Per-cluster orientation flags, kept up to date on the cluster root.
+  const vertical = lines.map((l) => readingOrientation(l.bbox) === "vertical");
+  const horizontal = lines.map(
+    (l) => readingOrientation(l.bbox) === "horizontal",
+  );
   const find = (i: number): number => {
     while (parent[i] !== i) {
       parent[i] = parent[parent[i]];
@@ -468,12 +476,18 @@ function clusterBlocks(
   const union = (a: number, b: number): void => {
     const ra = find(a);
     const rb = find(b);
-    if (ra !== rb) parent[ra] = rb;
+    if (ra === rb) return;
+    if ((vertical[ra] || vertical[rb]) && (horizontal[ra] || horizontal[rb])) {
+      return; // merging would mix reading orientations
+    }
+    parent[ra] = rb;
+    vertical[rb] = vertical[ra] || vertical[rb];
+    horizontal[rb] = horizontal[ra] || horizontal[rb];
   };
 
   for (let i = 0; i < lines.length; i++) {
     for (let j = i + 1; j < lines.length; j++) {
-      if (rectsTouch(lines[i].bbox, lines[j].bbox, margin)) union(i, j);
+      if (connected(lines[i], lines[j])) union(i, j);
     }
   }
 

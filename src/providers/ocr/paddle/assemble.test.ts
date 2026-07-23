@@ -356,4 +356,43 @@ describe("assembleResult vertical CJK", () => {
 
     expect(result.text).toBe("側の段落");
   });
+
+  it("never merges boxes of different orientation into one block", () => {
+    // A full-width horizontal banner touches two far-apart vertical columns.
+    // It must not bridge them: a block never mixes vertical and horizontal
+    // boxes, so the columns stay separate instead of forming one page-wide box.
+    const result = assembleResult([
+      vcol("たて", 130, 250, 60, 400), // left column
+      vcol("たて", 910, 250, 60, 400), // right column, a page-width away
+      line("よこながのバナーです", 0, 460, 1000, 120), // full-width banner
+    ]);
+
+    // Three boxes, three separate blocks — the banner glues nothing together.
+    expect(new Set(result.blocks?.map((b) => b.paragraph)).size).toBe(3);
+    // Only the banner spans the page; neither column grew page-wide.
+    const pageWide = result.blocks?.filter((b) => b.bbox.width >= 1000) ?? [];
+    expect(pageWide).toHaveLength(1);
+  });
+
+  it("keeps two vertical bubbles apart despite a horizontal bar between them", () => {
+    // Vertical-dominant page (block clustering path): a horizontal bar touches
+    // both bubbles from below. It must not bridge them into one block, and the
+    // columns still read right-to-left.
+    const result = assembleResult([
+      vcol("みぎ", 600, 200, 80, 300), // right bubble
+      vcol("ひだり", 200, 200, 80, 300), // left bubble
+      line("よこ", 150, 360, 500, 60), // horizontal bar spanning under both
+    ]);
+
+    expect(result.orientation).toBe("vertical");
+    const paragraphByText = new Map(
+      result.blocks?.map((b) => [b.text, b.paragraph]),
+    );
+    // Three distinct blocks; the bar glued nothing together.
+    expect(new Set(paragraphByText.values()).size).toBe(3);
+    // The right bubble reads before the left one.
+    expect(paragraphByText.get("みぎ") ?? 0).toBeLessThan(
+      paragraphByText.get("ひだり") ?? 0,
+    );
+  });
 });
