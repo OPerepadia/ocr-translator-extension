@@ -115,8 +115,12 @@ let anchor:
   | undefined;
 
 // Smallest/largest font the auto-fit will use inside a painted box.
-const MIN_FONT_PX = 10;
+const MIN_FONT_PX = 12;
 const MAX_FONT_PX = 24;
+// How far past its frame a panel may spill, in fractions of a line, so a last
+// line that only just misses is kept rather than dropped. The frame is only an
+// approximate OCR box, so a slight overhang beats losing a line.
+const CLAMP_SPILL_LINES = 0.35;
 
 /** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
@@ -1010,11 +1014,18 @@ function createTranslationBox(
   box.setAttribute("aria-controls", POPOVER_ID);
   setBoxPopoverState(box, false);
   positionRectElement(box, rect);
-  box.textContent = text;
-  box.dir = "auto";
+
+  // The box outlines the whole paragraph; only this panel is painted, so it
+  // covers no more of the picture than the translation needs.
+  const panel = document.createElement("span");
+  panel.className = "ocr-translate-overlay-translation-text";
+  panel.textContent = text;
+  panel.dir = "auto";
   if (currentTargetLang) {
-    box.lang = currentTargetLang;
+    panel.lang = currentTargetLang;
   }
+  box.append(panel);
+
   // Dragging out of the box would otherwise run the selection on into the page.
   box.addEventListener("pointerdown", () => {
     beginSelection("box");
@@ -1023,9 +1034,19 @@ function createTranslationBox(
   return box;
 }
 
-// Shrink the font with a binary search until the text fits the box, flooring at
-// MIN_FONT_PX (the box then scrolls internally if it still overflows).
+// Shrink the font with a binary search until the translation fits, flooring at
+// MIN_FONT_PX (`clampToWholeLines` truncates whatever still overflows). The two
+// axes measure different things: the panel is capped at the box's width, so a
+// word too wide overflows the panel rather than widening it; its height is its
+// own, so that one is measured against the box.
 function fitFontSize(box: HTMLElement): void {
+  const panel = box.firstElementChild;
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
+  // Truncation left from an earlier fit would hide the overflow being measured.
+  panel.style.removeProperty("-webkit-line-clamp");
+  panel.style.removeProperty("overflow-wrap");
   const cap = Math.max(
     MIN_FONT_PX,
     Math.min(MAX_FONT_PX, Math.floor(box.clientHeight)),
@@ -1037,8 +1058,8 @@ function fitFontSize(box: HTMLElement): void {
     const mid = Math.floor((lo + hi) / 2);
     box.style.fontSize = `${mid}px`;
     if (
-      box.scrollHeight <= box.clientHeight &&
-      box.scrollWidth <= box.clientWidth
+      panel.offsetHeight <= box.clientHeight &&
+      panel.scrollWidth <= panel.clientWidth
     ) {
       best = mid;
       lo = mid + 1;
@@ -1047,6 +1068,31 @@ function fitFontSize(box: HTMLElement): void {
     }
   }
   box.style.fontSize = `${best}px`;
+  clampToWholeLines(panel, box);
+}
+
+// Cut a too-long translation to whole lines with an ellipsis rather than at
+// whatever glyph the box edge lands on; the popover still carries it in full.
+// Set on every box, since one that already fits is under the limit anyway.
+function clampToWholeLines(panel: HTMLElement, box: HTMLElement): void {
+  // Firefox ignores `text-overflow` on the legacy box the clamp needs, so a word
+  // too wide for a line is broken instead. Read before clamping, while the panel
+  // still reports its untruncated width.
+  if (panel.scrollWidth > panel.clientWidth) {
+    panel.style.overflowWrap = "anywhere";
+  }
+  const styles = getComputedStyle(panel);
+  const lineHeight = Number.parseFloat(styles.lineHeight);
+  const padding =
+    Number.parseFloat(styles.paddingTop) +
+    Number.parseFloat(styles.paddingBottom);
+  if (!Number.isFinite(lineHeight) || lineHeight <= 0 || !Number.isFinite(padding)) {
+    return;
+  }
+  const lines = Math.floor(
+    (box.clientHeight - padding) / lineHeight + CLAMP_SPILL_LINES,
+  );
+  panel.style.setProperty("-webkit-line-clamp", `${Math.max(1, lines)}`);
 }
 
 function createBox(

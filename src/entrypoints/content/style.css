@@ -859,18 +859,45 @@
   outline-offset: 2px;
 }
 
-/* Translation view: a nearly opaque panel that masks the text underneath and
-   carries the translation, its font auto-fit by the script to fill the box. The
-   text is ordinary DOM text, so it selects like any other. Resting the pointer
-   on it opens its popover, the same way the frames do. */
+/* Translation view: the paragraph keeps the same frame the original view draws,
+   so switching views doesn't move the boxes, and the translation is painted on
+   the panel below rather than across the whole frame. Resting the pointer on it
+   opens its popover, the same way the frames do. */
 .ocr-translate-overlay-translation-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 6px;
-  border: 1px solid rgba(100, 116, 139, 0.34);
+  /* The panel truncates its own text and may hang slightly over the frame, so
+     this must not clip the way the original view's frames do. */
+  overflow: visible;
+  border: 1px solid rgba(62, 123, 214, 0.45);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(62, 123, 214, 0.06);
+  /* Softens the source text showing around the panel so it reads as picture
+     rather than as text competing with the translation. */
+  backdrop-filter: blur(3px);
+  cursor: text;
+  user-select: text;
+  transition: opacity 0.12s ease;
+}
+
+/* The only painted part: an opaque panel sized by its own text, wrapping at the
+   frame's width and centered on the source paragraph, so a short translation
+   masks a label's worth of picture instead of the whole region. The script
+   auto-fits the font, inherited from the box. Ordinary DOM text, so it selects
+   like any other. */
+.ocr-translate-overlay-translation-text {
+  box-sizing: border-box;
+  max-width: 100%;
+  /* The legacy box `-webkit-line-clamp` needs. The clamp itself is set by the
+     script, since applied here it would ellipsize the very overflow the fit
+     measures and the text would look fitted at any size. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.97);
   color: #152034;
   font-family: system-ui, sans-serif;
   line-height: 1.25;
@@ -878,21 +905,17 @@
   hyphens: auto;
   overflow-wrap: normal;
   white-space: pre-wrap;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 3px 10px rgba(15, 23, 42, 0.14);
-  cursor: text;
-  user-select: text;
-  transition: opacity 0.12s ease;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 
-/* Marks the box the popover belongs to, like the frames do. Only the border
-   picks up the accent: the box already carries text, and repainting its fill
-   under the pointer would disturb what the eye is reading. */
+/* Marks the box the popover belongs to, as the original view's frames do. The
+   accent lands on the frame, not the text: the panel is opaque, so what the eye
+   is reading stays put. */
 .ocr-translate-overlay-translation-box:hover,
 .ocr-translate-overlay-translation-box:focus-visible,
 .ocr-translate-overlay-translation-box.is-active {
-  border-color: rgba(62, 123, 214, 0.9);
+  background: rgba(62, 123, 214, 0.18);
+  border-color: rgba(62, 123, 214, 0.95);
 }
 
 .ocr-translate-overlay-translation-box:focus-visible {
