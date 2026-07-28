@@ -244,8 +244,8 @@ async function requestChatCompletion(args: {
       );
     }
     throw new RemoteTranslationError(
-      `Couldn't reach the LLM endpoint (${describeError(error)}). Check the ` +
-        "endpoint URL in settings and that the server is running.",
+      `Couldn't reach the LLM endpoint (${describeError(error)}). Please check ` +
+        "your configuration and make sure the server is running.",
     );
   } finally {
     clearTimeout(timer);

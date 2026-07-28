@@ -62,6 +62,12 @@ let regionFrame: HTMLElement | undefined;
 // spinner animation.
 let statusChip: HTMLElement | undefined;
 let loadingLabel: HTMLElement | undefined;
+let currentTranslationError:
+  | {
+      message: string;
+      onRetry?: () => void;
+    }
+  | undefined;
 
 let currentLayout: OverlayLayout | undefined;
 let currentRect: Rect | undefined;
@@ -184,12 +190,16 @@ export function setOnOverlayProviderChange(
   onProviderChange = handler;
 }
 
-/** The text to draw in translation mode, if this result has overlay content. */
+/** The text used to build the overlay. Failed translations fall back to the
+ * recognized text so the source boxes and toolbar remain available. */
 export function overlayDisplayText(result: PipelineResult): string | undefined {
   if (result.translation) {
     return result.translation.text;
   }
-  if (result.translationStatus.state === "same_language") {
+  if (
+    result.translationStatus.state === "same_language" ||
+    result.translationStatus.state === "failed"
+  ) {
     return result.ocr.text;
   }
   return undefined;
@@ -221,6 +231,7 @@ export function overlayTargetLanguage(
 export function showOverlay(args: {
   result: PipelineResult;
   rect: Rect;
+  onRetryTranslation?: () => void;
 }): void {
   const { result, rect } = args;
   const displayText = overlayDisplayText(result);
@@ -243,6 +254,13 @@ export function showOverlay(args: {
       ? currentSourceLanguageId
       : undefined);
   currentTargetLang = overlayTargetLanguage(result);
+  currentTranslationError =
+    result.translationStatus.state === "failed"
+      ? {
+          message: result.translationStatus.reason ?? "Translation failed.",
+          onRetry: args.onRetryTranslation,
+        }
+      : undefined;
   captureAnchor();
   currentLayout = buildOverlayLayout({
     ocrText: result.ocr.text,
@@ -334,6 +352,7 @@ export function closeOverlay(): void {
   currentDisplayText = "";
   currentSourceLang = undefined;
   currentTargetLang = undefined;
+  currentTranslationError = undefined;
   anchor = undefined;
   onClose?.();
 
@@ -381,10 +400,22 @@ function render(): void {
   }
   toolbar = createToolbar();
   container.append(toolbar);
+  if (currentTranslationError) {
+    statusChip = createErrorChip({
+      ...currentTranslationError,
+      onOpenSettings: openSettings,
+      onDismiss: dismissTranslationError,
+    });
+    statusChip.classList.add("is-result-error");
+    container.append(statusChip);
+  }
 
   (uiRoot ?? document.documentElement).append(container);
   renderBoxes();
   positionToolbar();
+  if (statusChip) {
+    positionChip(statusChip);
+  }
   ensureGlobalHandlers();
 }
 
@@ -411,6 +442,7 @@ function mountChip(chip: HTMLElement): void {
   toggleButton = undefined;
   clearOutsideClickHandlers();
   currentLayout = undefined;
+  currentTranslationError = undefined;
   regionBackdrop = undefined;
   regionFrame = undefined;
 
@@ -501,7 +533,9 @@ function createToolbar(): HTMLElement {
   const toggleWrapper = document.createElement("span");
   toggleWrapper.className = "ocr-translate-overlay-toggle-wrap";
   if (!hasTranslationText) {
-    toggleWrapper.title = "The text is already in target language";
+    toggleWrapper.title = currentTranslationError
+      ? "Translation unavailable"
+      : "The text is already in target language";
   }
   toggleWrapper.append(createModeSwitch());
 
@@ -659,9 +693,7 @@ function createMenu(): {
     });
   }
   addItem(PANEL_ICON, "Show in panel", () => onShowPanel?.());
-  addItem(SETTINGS_ICON, "Settings", () => {
-    void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
-  });
+  addItem(SETTINGS_ICON, "Settings", openSettings);
 
   button.addEventListener("click", () => {
     const open = list.hidden;
@@ -682,6 +714,18 @@ function createMenu(): {
 
   wrapper.append(button, list);
   return { element: wrapper, handleOutsideClick };
+}
+
+function openSettings(): void {
+  void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
+}
+
+function dismissTranslationError(): void {
+  if (!statusChip?.classList.contains("is-result-error")) {
+    return;
+  }
+  statusChip.remove();
+  statusChip = undefined;
 }
 
 async function copyAllText(text: string): Promise<void> {
@@ -1819,6 +1863,7 @@ function createErrorChip(args: {
   message: string;
   onRetry?: () => void;
   onOpenSettings?: () => void;
+  onDismiss?: () => void;
 }): HTMLElement {
   const chip = document.createElement("div");
   chip.className = "ocr-translate-overlay-status is-error";
@@ -1843,7 +1888,13 @@ function createErrorChip(args: {
   if (args.onOpenSettings) {
     chip.append(iconButton(SETTINGS_ICON, "Settings", args.onOpenSettings));
   }
-  chip.append(iconButton(CLOSE_ICON, "Close", closeOverlay));
+  chip.append(
+    iconButton(
+      CLOSE_ICON,
+      args.onDismiss ? "Dismiss" : "Close",
+      args.onDismiss ?? closeOverlay,
+    ),
+  );
   return chip;
 }
 
@@ -1873,13 +1924,30 @@ function positionChip(chip: HTMLElement): void {
     8,
     Math.max(8, window.innerWidth - width - 8),
   );
-  const y = clamp(
-    rect.y + rect.height / 2 - height / 2,
-    8,
-    Math.max(8, window.innerHeight - height - 8),
-  );
+  const y = chip.classList.contains("is-result-error")
+    ? resultErrorChipY(rect, height)
+    : clamp(
+        rect.y + rect.height / 2 - height / 2,
+        8,
+        Math.max(8, window.innerHeight - height - 8),
+      );
   chip.style.left = `${x}px`;
   chip.style.top = `${y}px`;
+}
+
+function resultErrorChipY(rect: Rect, height: number): number {
+  const margin = 8;
+  const maxY = Math.max(margin, window.innerHeight - height - margin);
+  const toolbarRect = toolbar?.getBoundingClientRect();
+  const candidates = toolbarRect
+    ? toolbarRect.bottom <= rect.y
+      ? [rect.y + rect.height + margin, toolbarRect.top - height - margin]
+      : [rect.y - height - margin, toolbarRect.bottom + margin]
+    : [rect.y + rect.height + margin, rect.y - height - margin];
+  return (
+    candidates.find((candidate) => candidate >= margin && candidate <= maxY) ??
+    clamp(rect.y + rect.height / 2 - height / 2, margin, maxY)
+  );
 }
 
 function captureAnchor(): void {

@@ -1110,6 +1110,7 @@
 /* Loading spinner chip, centered over the region while the pipeline runs. */
 .ocr-translate-overlay-status {
   position: absolute;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 10px;

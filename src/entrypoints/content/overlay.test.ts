@@ -62,14 +62,14 @@ describe("overlayDisplayText", () => {
     expect(isOverlayable(result)).toBe(true);
   });
 
-  it("does not make unavailable translation states overlayable", () => {
+  it("keeps recognized boxes overlayable when translation fails", () => {
     const result: PipelineResult = {
       ocr: overlayReadyOcr,
       translationStatus: { state: "failed", targetLang: "ja" },
     };
 
-    expect(overlayDisplayText(result)).toBeUndefined();
-    expect(isOverlayable(result)).toBe(false);
+    expect(overlayDisplayText(result)).toBe("Hello");
+    expect(isOverlayable(result)).toBe(true);
   });
 });
 

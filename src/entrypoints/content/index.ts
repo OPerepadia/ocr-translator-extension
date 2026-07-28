@@ -416,7 +416,7 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
   if (wantOverlay && overlayable && lastRect) {
     activeView = "overlay";
     closePopup({ notify: false });
-    showOverlay({ result: enriched, rect: lastRect });
+    showResultOverlay(enriched, lastRect);
     return;
   }
 
@@ -427,8 +427,8 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
     return;
   }
 
-  // A failed translation has no overlay text, but bouncing to the corner panel
-  // is jarring in overlay mode; show the failure over the region instead.
+  // Without OCR geometry there are no boxes to retain, so keep the error-only
+  // fallback for captures that cannot render a result overlay.
   const status = enriched.translationStatus;
   if (wantOverlay && lastRect && status.state === "failed") {
     const targetLang = status.targetLang;
@@ -525,7 +525,22 @@ function switchToOverlay(): void {
   }
   activeView = "overlay";
   closePopup({ notify: false });
-  showOverlay({ result: lastResult, rect: lastRect });
+  showResultOverlay(lastResult, lastRect);
+}
+
+function showResultOverlay(result: PipelineResult, rect: Rect): void {
+  const targetLang =
+    result.translationStatus.state === "failed"
+      ? result.translationStatus.targetLang
+      : undefined;
+  showOverlay({
+    result,
+    rect,
+    onRetryTranslation:
+      targetLang && pendingText
+        ? () => void runRetranslate(targetLang)
+        : undefined,
+  });
 }
 
 // Switch the current result from the overlay back to the panel. Only changes the
