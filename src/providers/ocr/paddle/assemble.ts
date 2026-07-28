@@ -1,11 +1,17 @@
 // Assemble recognized text lines into an OcrResult. Pure TypeScript.
 
-import type { OcrBlock, PipelineOcrResult, Rect } from "../../../shared/types";
+import type {
+  OcrBlock,
+  OcrChar,
+  PipelineOcrResult,
+  Rect,
+} from "../../../shared/types";
 
 export interface RecognizedLine {
   bbox: Rect;
   text: string;
   confidence: number;
+  chars?: OcrChar[];
 }
 
 export interface AssembleOptions {
@@ -109,6 +115,7 @@ function assembleHorizontal(
           blocks.push({
             text: member.text,
             bbox: member.bbox,
+            ...(member.chars ? { chars: member.chars } : {}),
             confidence: member.confidence,
             paragraph: paragraphIndex,
           });
@@ -219,6 +226,7 @@ function assembleVertical(
       blocks.push({
         text: member.text,
         bbox: member.bbox,
+        ...(member.chars ? { chars: member.chars } : {}),
         confidence: member.confidence,
         paragraph: blockIndex,
         orientation: block.orientation,

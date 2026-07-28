@@ -815,21 +815,63 @@
   pointer-events: none;
 }
 
-/* One box per paragraph, positioned (in viewport pixels) over the original
-   text. The panel-style surface masks the text underneath; the font is auto-fit
-   by the script to fill the box. */
+/* One box per paragraph, positioned (in viewport pixels) over the capture. The
+   toolbar switch decides which of the two kinds below is on screen. */
 .ocr-translate-overlay-box {
   position: absolute;
   z-index: 1;
   box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+/* Original view: a semi-transparent marker of where recognized text sits,
+   leaving the picture readable. Clicking, tapping or using the keyboard opens
+   its text details. It holds a screen-reader label plus the selectable text
+   layer, so dragging inside it selects the image's own text. */
+.ocr-translate-overlay-frame-box {
+  border: 1px solid rgba(62, 123, 214, 0.45);
+  border-radius: 4px;
+  background: rgba(62, 123, 214, 0.06);
+  color: transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+
+/* Emphasize the box while it's hovered, holding keyboard focus or showing its
+   text, so the source of the visible popover is clear. */
+.ocr-translate-overlay-frame-box:hover,
+.ocr-translate-overlay-frame-box:focus-visible,
+.ocr-translate-overlay-frame-box.is-active {
+  background: rgba(62, 123, 214, 0.18);
+  border-color: rgba(62, 123, 214, 0.95);
+}
+
+/* Only the box under the pointer or keyboard focus rises above its neighbours.
+   A box that merely holds the open popover must not: paragraphs can overlap,
+   and a parked box could block interaction with the one underneath. */
+.ocr-translate-overlay-frame-box:hover,
+.ocr-translate-overlay-frame-box:focus-visible {
+  z-index: 2;
+}
+
+.ocr-translate-overlay-frame-box:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.55);
+  outline-offset: 2px;
+}
+
+/* Translation view: a nearly opaque panel that masks the text underneath and
+   carries the translation, its font auto-fit by the script to fill the box. The
+   text is ordinary DOM text, so it selects like any other. Resting the pointer
+   on it opens its popover, the same way the frames do. */
+.ocr-translate-overlay-translation-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   padding: 3px 6px;
-  border: 1px solid rgba(62, 123, 214, 0.38);
-  background: #fff;
-  color: #000;
+  border: 1px solid rgba(100, 116, 139, 0.34);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #152034;
   font-family: system-ui, sans-serif;
   line-height: 1.25;
   text-align: start;
@@ -839,31 +881,206 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     0 3px 10px rgba(15, 23, 42, 0.14);
-  pointer-events: auto;
+  cursor: text;
+  user-select: text;
   transition: opacity 0.12s ease;
 }
 
-/* Peek mode: the boxes step aside so the captured area is visible as it is on
-   the page. The dim, the region outline and the toolbar stay. */
-.ocr-translate-overlay.is-peeking .ocr-translate-overlay-box {
-  opacity: 0;
-  pointer-events: none;
+/* Marks the box the popover belongs to, like the frames do. Only the border
+   picks up the accent: the box already carries text, and repainting its fill
+   under the pointer would disturb what the eye is reading. */
+.ocr-translate-overlay-translation-box:hover,
+.ocr-translate-overlay-translation-box:focus-visible,
+.ocr-translate-overlay-translation-box.is-active {
+  border-color: rgba(62, 123, 214, 0.9);
 }
 
-.ocr-translate-overlay-box.is-dark {
-  background: #000;
-  color: #fff;
+.ocr-translate-overlay-translation-box:focus-visible {
+  outline: 2px solid rgba(62, 123, 214, 0.55);
+  outline-offset: 2px;
 }
 
-/* Original view of vertical CJK text: columns flow top-to-bottom and wrap
-   right-to-left, matching the source layout (e.g. manga speech bubbles). */
-.ocr-translate-overlay-box.is-vertical {
+/* Like the frames, only the box under the pointer or keyboard focus rises above
+   its neighbours; one merely holding the popover open must not, since the
+   painted boxes can overlap. */
+.ocr-translate-overlay-translation-box:hover,
+.ocr-translate-overlay-translation-box:focus {
+  z-index: 2;
+}
+
+/* Floating panel showing the active box's texts and controls. Positioned by the
+   script below (or above) the box, which also sets max-width from the box's own
+   width and max-height from the room around it; the values here only apply until
+   it is first positioned, flush against the box so the pointer can cross onto it.
+   It captures the pointer so its text can be selected and its controls used, and
+   stays open while the pointer is on it or on its box. */
+.ocr-translate-overlay-popover {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(360px, calc(100vw - 16px));
+  max-height: 60vh;
+  overflow: hidden;
+  padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 6px;
+  background: #fff;
+  color: #152034;
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: start;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.ocr-translate-overlay-popover[hidden] {
+  display: none;
+}
+
+.ocr-translate-overlay-popover-text {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Text that outgrows the height cap scrolls here, and the wheel doesn't carry on
+   to the page at the ends. */
+.ocr-translate-overlay-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.28) transparent;
+}
+
+/* One row per text: the text, then its own controls in the same place on every
+   row. The translation leads in both views; the original follows below the
+   divider, muted and slightly smaller, so the translation reads as the main
+   text wherever the popover was opened from. */
+.ocr-translate-overlay-popover-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ocr-translate-overlay-popover-row .ocr-translate-overlay-popover-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.ocr-translate-overlay-popover-row.is-source {
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.34);
+}
+
+.ocr-translate-overlay-popover-row.is-source
+  .ocr-translate-overlay-popover-text {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.ocr-translate-overlay-popover-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ocr-translate-overlay-popover .ocr-translate-overlay-popover-text {
+  cursor: text;
+  user-select: text;
+}
+
+.ocr-translate-overlay-popover-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  color: #475569;
+  background: none;
+  cursor: pointer;
+}
+
+.ocr-translate-overlay-popover-button:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.ocr-translate-overlay-popover-button.is-active {
+  color: #3e7bd6;
+  background: rgba(62, 123, 214, 0.14);
+}
+
+/* An invisible copy of the recognized text, laid over the image's own glyphs one
+   OCR line at a time, so a drag selects the image text: the highlight lands on
+   the picture's characters and the DOM glyphs never paint. */
+.ocr-translate-overlay-text-layer {
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  user-select: text;
+  cursor: text;
+}
+
+.ocr-translate-overlay-text-layer-line {
+  position: absolute;
+  transform-origin: 0 0;
+  white-space: pre;
+  line-height: 1;
+  font-family: system-ui, sans-serif;
+}
+
+.ocr-translate-overlay-text-layer-line.is-vertical {
   writing-mode: vertical-rl;
 }
 
-.ocr-translate-overlay-box.is-active,
-.ocr-translate-overlay-box:focus {
-  z-index: 2;
+/* Translucent, and keeps the text unpainted, so the highlight tints the image
+   glyphs underneath instead of covering them. */
+.ocr-translate-overlay-text-layer::selection,
+.ocr-translate-overlay-text-layer-line::selection {
+  color: transparent;
+  background: rgba(62, 123, 214, 0.4);
+}
+
+/* While a drag-select runs, only the part it started in stays selectable, so the
+   range can't spill from the popover onto the image text or the other way. */
+.ocr-translate-overlay.is-selecting-popover .ocr-translate-overlay-text-layer,
+.ocr-translate-overlay.is-selecting-popover
+  .ocr-translate-overlay-text-layer-line,
+.ocr-translate-overlay.is-selecting-popover
+  .ocr-translate-overlay-translation-box {
+  user-select: none;
+}
+
+.ocr-translate-overlay.is-selecting-layer
+  .ocr-translate-overlay-popover
+  .ocr-translate-overlay-popover-text,
+.ocr-translate-overlay.is-selecting-box
+  .ocr-translate-overlay-popover
+  .ocr-translate-overlay-popover-text {
+  user-select: none;
+}
+
+/* Reachable by screen readers, never rendered. */
+.ocr-translate-overlay-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Softly dims the page outside the captured region while leaving the selected
@@ -937,7 +1154,10 @@
   color: #dc2626;
 }
 
-/* Floating controls, positioned (in viewport pixels) near the selection. */
+/* Floating controls, positioned (in viewport pixels) near the selection. The
+   captured image underneath can be any color, so the edge is a strong border
+   plus a ring in the opposite tone to the panel — here a dark ring under a light
+   panel, inverted for dark mode — and one of the two always shows. */
 .ocr-translate-overlay-toolbar {
   position: absolute;
   z-index: 3;
@@ -945,17 +1165,72 @@
   align-items: center;
   gap: 6px;
   padding: 5px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
+  border: 1px solid rgba(100, 116, 139, 0.5);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.16),
+    0 14px 32px rgba(15, 23, 42, 0.22);
   color: #152034;
   font: 13px/1 system-ui, sans-serif;
   pointer-events: auto;
+  transform-origin: center;
+  animation: ocr-translate-toolbar-bounce-in 0.12s ease-out;
 }
 
-.ocr-translate-overlay-toggle-wrap {
-  display: inline-flex;
+@keyframes ocr-translate-toolbar-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ocr-translate-overlay-toolbar.is-closing {
+  pointer-events: none;
+  animation: ocr-translate-toolbar-bounce-in 0.12s ease-in reverse forwards;
+}
+
+.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button {
+  transition: background-color 0.06s ease, border-color 0.06s ease;
+}
+
+.ocr-translate-overlay-provider-button {
+  height: 30px;
+  gap: 3px;
+  padding: 0 6px;
+}
+
+.ocr-translate-overlay-provider-label {
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocr-translate-overlay-provider .ocr-translate-popup-langpill-list {
+  right: 0;
+  left: auto;
+  width: max-content;
+  min-width: 100%;
+}
+
+.ocr-translate-overlay-toolbar .ocr-translate-overlay-icon-button {
+  transition: background-color 0.06s ease, color 0.06s ease;
+}
+
+.ocr-translate-overlay-toolbar .ocr-translate-popup-menu-item,
+.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-item {
+  transition: background-color 0.06s ease;
 }
 
 .ocr-translate-overlay-retry {
@@ -975,7 +1250,13 @@
   background: #dce9fa;
 }
 
-/* Switch is "on" when the translation is shown, "off" for the original text. */
+.ocr-translate-overlay-toggle-wrap {
+  display: inline-flex;
+}
+
+/* Switch is "on" when the translation is painted over the image, "off" when the
+   image shows through the frames. Sitting between the two language pills, it
+   also reads as the direction arrow. */
 .ocr-translate-overlay-switch {
   position: relative;
   flex: none;
@@ -1053,22 +1334,17 @@
   background: rgba(15, 23, 42, 0.06);
 }
 
+.ocr-translate-overlay-toolbar .ocr-translate-overlay-close:not(:disabled):hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
 .ocr-translate-overlay-icon-button:disabled,
 .ocr-translate-overlay-icon-button:disabled:hover {
   color: #475569;
   background: none;
   opacity: 0.4;
   cursor: default;
-}
-
-.ocr-translate-overlay-copy.is-copied {
-  color: #16a34a;
-}
-
-.ocr-translate-overlay-speak.is-speaking,
-.ocr-translate-overlay-peek.is-peeking {
-  color: #3e7bd6;
-  background: rgba(62, 123, 214, 0.1);
 }
 
 .ocr-translate-overlay-menu.is-open-above .ocr-translate-popup-menu-list {
@@ -1289,9 +1565,11 @@
   }
 
   .ocr-translate-overlay-toolbar {
-    border-color: rgba(148, 163, 184, 0.22);
+    border-color: rgba(148, 163, 184, 0.5);
     background: rgba(26, 30, 34, 0.98);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+    box-shadow:
+      0 0 0 1px rgba(226, 232, 240, 0.14),
+      0 18px 36px rgba(0, 0, 0, 0.5);
     color: #e5edf2;
   }
 
@@ -1331,10 +1609,6 @@
     color: #64748b;
   }
 
-  .ocr-translate-overlay-switch:disabled {
-    background: rgba(71, 85, 105, 0.45);
-  }
-
   .ocr-translate-overlay-divider {
     background: rgba(148, 163, 184, 0.28);
   }
@@ -1354,12 +1628,53 @@
     background: none;
   }
 
-  .ocr-translate-overlay-copy.is-copied {
-    color: #4ade80;
+  .ocr-translate-overlay-popover {
+    /* Native scrollbar and selection colors in the scrolling body follow this. */
+    color-scheme: dark;
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(26, 30, 34, 0.98);
+    color: #e5edf2;
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
   }
 
-  .ocr-translate-overlay-speak.is-speaking {
+  .ocr-translate-overlay-popover-body {
+    scrollbar-color: rgba(226, 232, 240, 0.28) transparent;
+  }
+
+  .ocr-translate-overlay-popover-row.is-source {
+    border-color: rgba(148, 163, 184, 0.28);
+  }
+
+  .ocr-translate-overlay-popover-row.is-source
+    .ocr-translate-overlay-popover-text {
+    color: #a1adb8;
+  }
+
+  .ocr-translate-overlay-popover-button {
+    color: #a1adb8;
+  }
+
+  .ocr-translate-overlay-popover-button:hover {
+    color: #f8fafc;
+    background: rgba(226, 232, 240, 0.08);
+  }
+
+  .ocr-translate-overlay-popover-button.is-active {
     color: #8ab4f3;
-    background: rgba(91, 147, 232, 0.1);
+    background: rgba(91, 147, 232, 0.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ocr-translate-overlay-toolbar,
+  .ocr-translate-overlay-toolbar.is-closing {
+    animation: none;
+  }
+
+  .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button,
+  .ocr-translate-overlay-toolbar .ocr-translate-overlay-icon-button,
+  .ocr-translate-overlay-toolbar .ocr-translate-popup-menu-item,
+  .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-item {
+    transition: none;
   }
 }

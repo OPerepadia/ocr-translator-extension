@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   cropQuad,
-  detectBackgroundTone,
   orientCropForRecognition,
   padQuad,
   type RgbaImage,
@@ -60,36 +59,6 @@ describe("cropQuad", () => {
 
     expect(crop.width).toBe(6);
     expect(crop.height).toBe(6);
-  });
-});
-
-describe("detectBackgroundTone", () => {
-  it("uses the dominant lightness inside the detected text box", () => {
-    const source = image(4, 2);
-    source.data.fill(255);
-    source.data[0] = 0;
-    source.data[1] = 0;
-    source.data[2] = 0;
-
-    expect(
-      detectBackgroundTone(source, { x: 0, y: 0, width: 4, height: 2 }),
-    ).toBe("light");
-
-    source.data.fill(0);
-    source.data[3] = 255;
-    source.data[7] = 255;
-    expect(
-      detectBackgroundTone(source, { x: 0, y: 0, width: 4, height: 2 }),
-    ).toBe("dark");
-  });
-
-  it("keeps medium backgrounds light", () => {
-    const source = image(2, 2);
-    source.data.fill(112);
-
-    expect(
-      detectBackgroundTone(source, { x: 0, y: 0, width: 2, height: 2 }),
-    ).toBe("light");
   });
 });
 

@@ -12,7 +12,7 @@ export function startContextMenu(api: BrowserApi = browserApi): void {
     api.contextMenus.create({
       id: START_SELECTION_MENU_ID,
       title: "Translate a screen region…",
-      contexts: ["all"],
+      contexts: ["page"],
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
     api.contextMenus.create({

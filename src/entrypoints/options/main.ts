@@ -12,9 +12,7 @@ import {
 import {
   createSettingsRepository,
   getDisplayMode,
-  getOverlayShowOriginal,
   setDisplayMode,
-  setOverlayShowOriginal,
 } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
 import { hasWebGpuAdapter } from "@/shared/webgpu";
@@ -83,15 +81,6 @@ async function initOptions(): Promise<void> {
     setDisplayMode(
       elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",
     ).then(
-      () => showStatus("Saved."),
-      (error: unknown) => showSaveError(error),
-    );
-  });
-
-  // The overlay's default text also lives under its own storage key.
-  elements.overlayShowOriginalInput.checked = await getOverlayShowOriginal();
-  elements.overlayShowOriginalInput.addEventListener("change", () => {
-    setOverlayShowOriginal(elements.overlayShowOriginalInput.checked).then(
       () => showStatus("Saved."),
       (error: unknown) => showSaveError(error),
     );
@@ -440,7 +429,6 @@ function getOptionsElements(): {
   googleProviderNote: HTMLElement;
   targetLangSelect: HTMLSelectElement;
   displayModeSelect: HTMLSelectElement;
-  overlayShowOriginalInput: HTMLInputElement;
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
   ocrWebGpuStatus: HTMLElement;
@@ -468,9 +456,6 @@ function getOptionsElements(): {
   );
   const displayModeSelect = app.querySelector<HTMLSelectElement>(
     "select[name='displayMode']",
-  );
-  const overlayShowOriginalInput = app.querySelector<HTMLInputElement>(
-    "input[name='overlayShowOriginal']",
   );
   const ocrWebGpuInput = app.querySelector<HTMLInputElement>(
     "input[name='ocrWebGpu']",
@@ -511,7 +496,6 @@ function getOptionsElements(): {
     !googleProviderNote ||
     !targetLangSelect ||
     !displayModeSelect ||
-    !overlayShowOriginalInput ||
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
     !ocrWebGpuStatus ||
@@ -536,7 +520,6 @@ function getOptionsElements(): {
     googleProviderNote,
     targetLangSelect,
     displayModeSelect,
-    overlayShowOriginalInput,
     ocrWebGpuInput,
     ocrWebGpuNote,
     ocrWebGpuStatus,

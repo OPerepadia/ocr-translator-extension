@@ -1,8 +1,20 @@
 // Greedy CTC decoding for the PP-OCRv6 recognizer output. Pure TypeScript.
 
+/** One decoded character and the timesteps whose argmax produced it. The
+ * recognizer's timesteps map evenly across the width of the line crop, so this
+ * run locates the character along the line. */
+export interface CtcChar {
+  char: string;
+  /** First timestep of the run, inclusive. */
+  start: number;
+  /** Last timestep of the run, exclusive. */
+  end: number;
+}
+
 export interface CtcResult {
   text: string;
   confidence: number;
+  chars: CtcChar[];
 }
 
 /**
@@ -22,7 +34,7 @@ export function ctcGreedyDecode(
   charAt: (classIndex: number) => string | null,
   outputsAreProbabilities = false,
 ): CtcResult {
-  const chars: string[] = [];
+  const chars: CtcChar[] = [];
   const probs: number[] = [];
   let prevIndex = -1;
 
@@ -43,7 +55,11 @@ export function ctcGreedyDecode(
     prevIndex = maxIndex;
 
     // Blank (index 0) and CTC repeat collapse: skip but keep prevIndex updated.
+    // A repeat still belongs to the character it repeats, so it widens its run.
     if (maxIndex === 0 || isRepeat) {
+      if (isRepeat && maxIndex !== 0 && chars.length > 0) {
+        chars[chars.length - 1].end = t + 1;
+      }
       continue;
     }
 
@@ -52,7 +68,7 @@ export function ctcGreedyDecode(
       continue;
     }
 
-    chars.push(char);
+    chars.push({ char, start: t, end: t + 1 });
     probs.push(
       outputsAreProbabilities
         ? maxValue
@@ -65,7 +81,11 @@ export function ctcGreedyDecode(
       ? 0
       : probs.reduce((sum, p) => sum + p, 0) / probs.length;
 
-  return { text: chars.join(""), confidence };
+  return {
+    text: chars.map((entry) => entry.char).join(""),
+    confidence,
+    chars,
+  };
 }
 
 export function reverseArabicCtcText(text: string): string {

@@ -1,3 +1,4 @@
+import type { OcrChar } from "../../../shared/types";
 import type { DetectedBox } from "./db-postprocess";
 import { LOW_CONFIDENCE_FILTER_THRESHOLD } from "./assemble";
 
@@ -16,6 +17,8 @@ export interface AutoRecognizerCandidate {
 export interface ProbeRecognition {
   text: string;
   confidence: number;
+  /** Per-character boxes, when the recognizer could locate them. */
+  chars?: OcrChar[];
 }
 
 export interface RecognizerProbeResult {

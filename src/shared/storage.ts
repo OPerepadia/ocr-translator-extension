@@ -25,21 +25,32 @@ export async function setDisplayMode(mode: DisplayMode): Promise<void> {
   await browserApi.storage.local.set({ [DISPLAY_MODE_KEY]: mode });
 }
 
-// Whether the overlay boxes open showing the recognized original instead of
-// the translation. Stored like the display mode, under its own key.
-const OVERLAY_SHOW_ORIGINAL_KEY = "overlayShowOriginal";
+// Which view the overlay boxes open in: the translated text painted over the
+// image, or transparent frames leaving the image readable. Not an Options
+// setting — the toolbar switch writes the last used view here so the next
+// capture opens the same way.
+export type OverlayMode = "translation" | "original";
 
-export async function getOverlayShowOriginal(): Promise<boolean> {
+const OVERLAY_MODE_KEY = "overlayMode";
+const DEFAULT_OVERLAY_MODE: OverlayMode = "translation";
+
+export async function getOverlayMode(): Promise<OverlayMode> {
   try {
-    const values = await browserApi.storage.local.get(OVERLAY_SHOW_ORIGINAL_KEY);
-    return values[OVERLAY_SHOW_ORIGINAL_KEY] === true;
+    const values = await browserApi.storage.local.get(OVERLAY_MODE_KEY);
+    return values[OVERLAY_MODE_KEY] === "original"
+      ? "original"
+      : DEFAULT_OVERLAY_MODE;
   } catch {
-    return false;
+    return DEFAULT_OVERLAY_MODE;
   }
 }
 
-export async function setOverlayShowOriginal(value: boolean): Promise<void> {
-  await browserApi.storage.local.set({ [OVERLAY_SHOW_ORIGINAL_KEY]: value });
+export async function setOverlayMode(mode: OverlayMode): Promise<void> {
+  try {
+    await browserApi.storage.local.set({ [OVERLAY_MODE_KEY]: mode });
+  } catch {
+    // Losing the preference is not worth surfacing mid-capture.
+  }
 }
 
 export const defaultSettings: Settings = {

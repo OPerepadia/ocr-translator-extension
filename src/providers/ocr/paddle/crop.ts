@@ -2,7 +2,6 @@
 // worker; quad crop math works on plain RGBA buffers and is unit-testable.
 
 import { computeRecWidth } from "./preprocess";
-import type { Rect } from "../../../shared/types";
 import {
   lineIntersection,
   type Point,
@@ -14,8 +13,6 @@ export interface RgbaImage {
   width: number;
   height: number;
 }
-
-const DARK_BACKGROUND_LUMINANCE = 96;
 
 function context(width: number, height: number): OffscreenCanvasRenderingContext2D {
   const canvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
@@ -54,35 +51,6 @@ export function resizeToImageData(
 /** Copy a bitmap into ImageData once so multiple line crops can sample it. */
 export function bitmapToImageData(bitmap: ImageBitmap): ImageData {
   return resizeToImageData(bitmap, bitmap.width, bitmap.height);
-}
-
-export function detectBackgroundTone(
-  source: RgbaImage,
-  bbox: Rect,
-): "light" | "dark" {
-  const left = Math.max(0, Math.floor(bbox.x));
-  const top = Math.max(0, Math.floor(bbox.y));
-  const right = Math.min(source.width, Math.ceil(bbox.x + bbox.width));
-  const bottom = Math.min(source.height, Math.ceil(bbox.y + bbox.height));
-  let lightPixels = 0;
-  let darkPixels = 0;
-
-  for (let y = top; y < bottom; y++) {
-    for (let x = left; x < right; x++) {
-      const offset = (y * source.width + x) * 4;
-      const luminance =
-        source.data[offset] * 0.299 +
-        source.data[offset + 1] * 0.587 +
-        source.data[offset + 2] * 0.114;
-      if (luminance >= DARK_BACKGROUND_LUMINANCE) {
-        lightPixels++;
-      } else {
-        darkPixels++;
-      }
-    }
-  }
-
-  return lightPixels >= darkPixels ? "light" : "dark";
 }
 
 /**
@@ -212,6 +180,22 @@ export function padQuad(quad: Quad, padding: number): Quad {
       y: point.y + (dy / len) * padding,
     };
   }) as Quad;
+}
+
+/** Whether a crop of this quad is rotated upright before recognition — the same
+ * test `orientCropForRecognition` applies, but on the quad, so callers can tell
+ * which way the recognizer's timesteps run without cropping anything. */
+export function isRotatedForRecognition(quad: Quad): boolean {
+  const ordered = orderQuad(quad);
+  const width = Math.max(
+    distance(ordered[0], ordered[1]),
+    distance(ordered[3], ordered[2]),
+  );
+  const height = Math.max(
+    distance(ordered[0], ordered[3]),
+    distance(ordered[1], ordered[2]),
+  );
+  return Math.max(1, Math.round(height)) / Math.max(1, Math.round(width)) >= 1.5;
 }
 
 export function orientCropForRecognition(crop: RgbaImage): RgbaImage {

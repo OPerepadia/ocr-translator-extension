@@ -18,11 +18,21 @@ export interface Viewport {
 
 export type LangCode = string;
 
+/** One recognized character and where it sits, in the same pixel space as the
+ * block's bbox. Derived from the recognizer's timesteps, so positions are
+ * approximate — good enough to lay a selectable text layer over the glyphs. */
+export interface OcrChar {
+  text: string;
+  bbox: Rect;
+}
+
 export interface OcrBlock {
   text: string;
   bbox: Rect;
+  /** Per-character boxes for this line, in reading order, when the recognizer
+   * could locate them. */
+  chars?: OcrChar[];
   confidence?: number;
-  backgroundTone?: "light" | "dark";
   /** Index of the paragraph this block was grouped into (see assembleResult).
    * Blocks sharing a value belong to the same translated paragraph. */
   paragraph?: number;

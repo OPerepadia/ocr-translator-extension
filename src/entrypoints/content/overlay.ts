@@ -4,8 +4,6 @@ import {
   CHECK_ICON,
   CLOSE_ICON,
   COPY_ICON,
-  EYE_ICON,
-  EYE_OFF_ICON,
   MENU_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
@@ -14,8 +12,14 @@ import {
   TRANSLATE_ICON,
   WARNING_ICON,
 } from "./icons";
-import { createLanguagePill } from "./language-picker";
-import { buildOverlayLayout, type OverlayLayout } from "./overlay-layout";
+import { setOverlayMode } from "../../shared/storage";
+import { CHEVRON_ICON, createLanguagePill } from "./language-picker";
+import {
+  buildOverlayLayout,
+  moveOverlayLayout,
+  type OverlayLayout,
+  type OverlayLine,
+} from "./overlay-layout";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 
 const OVERLAY_SPEECH_OWNER = "overlay";
@@ -36,7 +40,21 @@ let toolbar: HTMLElement | undefined;
 let toggleButton: HTMLButtonElement | undefined;
 let boxes: HTMLElement[] = [];
 let boxRects: Rect[] = [];
-let activeBoxIndex: number | undefined;
+// Both texts for each box, so the popover can show them together.
+let boxContents: Array<{ original: string; translated: string }> = [];
+// Floating panel showing one box's text. It opens when the pointer is over the
+// box or the panel itself, and is interactive (selectable, with controls) as
+// long as the pointer stays on it.
+type PopoverView = {
+  el: HTMLElement;
+  // The scrolling text area, set by renderPopover.
+  body?: HTMLElement;
+  boxIndex: number;
+  // Speak buttons by the text they read, so the right one shows as playing.
+  speechButtons: Partial<Record<OverlayMode, HTMLButtonElement>>;
+};
+let activePopover: PopoverView | undefined;
+let popoverEl: HTMLElement | undefined;
 let regionBackdrop: HTMLElement | undefined;
 let regionFrame: HTMLElement | undefined;
 // The loading spinner shown over the region while OCR/translation runs, and its
@@ -47,19 +65,17 @@ let loadingLabel: HTMLElement | undefined;
 
 let currentLayout: OverlayLayout | undefined;
 let currentRect: Rect | undefined;
+// Which view the boxes are in. "translation" paints the translated text over
+// the image, the way a dub replaces the original; "original" leaves the image
+// alone behind transparent frames, and the text is read from the popover and
+// selected off the picture itself.
 let mode: OverlayMode = "translation";
-// The mode a fresh overlay opens in, from the Options page.
+// The view a fresh overlay opens in: whichever one was last used.
 let defaultMode: OverlayMode = "translation";
 let hasTranslationText = false;
-// Full texts of the two modes, kept for the toolbar's copy action (box text
-// isn't selectable: pointerdown activates the box instead).
+// Full texts used by the whole-selection actions in the toolbar menu.
 let currentOriginalText = "";
 let currentDisplayText = "";
-let copyButton: HTMLButtonElement | undefined;
-let speechButton: HTMLButtonElement | undefined;
-// Peeking hides the boxes so the captured region is visible underneath.
-let peeking = false;
-let peekButton: HTMLButtonElement | undefined;
 let currentSourceLang: LangCode | undefined;
 let currentTargetLang: LangCode | undefined;
 let targetLanguages: LangCode[] = [];
@@ -68,6 +84,8 @@ let targetLanguages: LangCode[] = [];
 // the user picks one).
 let ocrSourceLanguages: Array<{ id: string; label: string }> = [];
 let currentSourceLanguageId: string | undefined;
+let translationProviders: Array<{ id: string; label: string }> = [];
+let currentProviderId: string | undefined;
 
 let onClose: (() => void) | undefined;
 let onShowPanel: (() => void) | undefined;
@@ -76,6 +94,7 @@ let onTargetLangChange: ((targetLang: LangCode) => void) | undefined;
 let onSourceLanguageChange:
   | ((sourceLang: LangCode | "auto") => void)
   | undefined;
+let onProviderChange: ((providerId: string) => void) | undefined;
 
 let keydownHandler: ((event: KeyboardEvent) => void) | undefined;
 let resizeHandler: (() => void) | undefined;
@@ -89,20 +108,16 @@ let anchor:
     }
   | undefined;
 
-// Smallest/largest font the auto-fit will use inside a box.
-const MIN_FONT_PX = 8;
-const MAX_FONT_PX = 40;
-
-// A press on the peek button longer than this is a hold: the overlay comes back
-// on release. A shorter press toggles peeking and keeps it.
-const PEEK_HOLD_MS = 350;
+// Smallest/largest font the auto-fit will use inside a painted box.
+const MIN_FONT_PX = 10;
+const MAX_FONT_PX = 24;
 
 /** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
   uiRoot = root;
 }
 
-/** Set which text (translation or original) a new overlay shows first. */
+/** Set which view a new overlay opens in. */
 export function setOverlayDefaultMode(nextMode: OverlayMode): void {
   defaultMode = nextMode;
 }
@@ -150,6 +165,23 @@ export function setOnOverlaySourceLanguageChange(
   handler: (sourceLang: LangCode | "auto") => void,
 ): void {
   onSourceLanguageChange = handler;
+}
+
+/** Provide the translation providers and the currently selected one. */
+export function setOverlayTranslationProviders(
+  providers: Array<{ id: string; label: string }>,
+  currentId: string,
+): void {
+  translationProviders = providers;
+  currentProviderId = currentId;
+  rerenderToolbar();
+}
+
+/** Register a callback invoked when the user picks a translation provider. */
+export function setOnOverlayProviderChange(
+  handler: (providerId: string) => void,
+): void {
+  onProviderChange = handler;
 }
 
 /** The text to draw in translation mode, if this result has overlay content. */
@@ -221,9 +253,8 @@ export function showOverlay(args: {
     rect,
     orientation: result.ocr.orientation,
   });
+  // With nothing to paint, the translation view has no reason to exist.
   mode = hasTranslationText ? defaultMode : "original";
-  activeBoxIndex = undefined;
-  peeking = false;
 
   render();
 }
@@ -270,6 +301,8 @@ export function closeOverlay(): void {
   if (!container) {
     return;
   }
+  const closingContainer = container;
+  const closingToolbar = toolbar;
   if (keydownHandler) {
     document.removeEventListener("keydown", keydownHandler, true);
     keydownHandler = undefined;
@@ -283,17 +316,13 @@ export function closeOverlay(): void {
     scrollHandler = undefined;
   }
   clearOutsideClickHandlers();
-  container.remove();
   container = undefined;
   toolbar = undefined;
   toggleButton = undefined;
-  copyButton = undefined;
-  speechButton = undefined;
-  peekButton = undefined;
-  peeking = false;
   boxes = [];
   boxRects = [];
-  activeBoxIndex = undefined;
+  boxContents = [];
+  teardownPopover();
   regionBackdrop = undefined;
   regionFrame = undefined;
   statusChip = undefined;
@@ -307,6 +336,24 @@ export function closeOverlay(): void {
   currentTargetLang = undefined;
   anchor = undefined;
   onClose?.();
+
+  if (!closingToolbar) {
+    closingContainer.remove();
+    return;
+  }
+
+  closingContainer.replaceChildren(closingToolbar);
+  closingToolbar.classList.add("is-closing");
+  const animations = closingToolbar.getAnimations();
+  if (animations.length === 0) {
+    closingContainer.remove();
+    return;
+  }
+  const remove = (): void => closingContainer.remove();
+  void Promise.all(animations.map((animation) => animation.finished)).then(
+    remove,
+    remove,
+  );
 }
 
 function render(): void {
@@ -319,11 +366,13 @@ function render(): void {
   container = document.createElement("div");
   container.className = "ocr-translate-overlay";
 
-  // A settled result replaces any loading spinner.
+  // A settled result replaces any loading spinner. The popover is a child of the
+  // old container, so drop the stale reference; it's recreated when next opened.
   statusChip = undefined;
   loadingLabel = undefined;
   regionBackdrop = undefined;
   regionFrame = undefined;
+  teardownPopover();
 
   if (currentRect) {
     regionBackdrop = createRegionBackdrop(currentRect);
@@ -356,13 +405,10 @@ function mountChip(chip: HTMLElement): void {
   }
   boxes = [];
   boxRects = [];
-  activeBoxIndex = undefined;
+  boxContents = [];
+  teardownPopover();
   toolbar = undefined;
   toggleButton = undefined;
-  copyButton = undefined;
-  speechButton = undefined;
-  peekButton = undefined;
-  peeking = false;
   clearOutsideClickHandlers();
   currentLayout = undefined;
   regionBackdrop = undefined;
@@ -427,6 +473,7 @@ function reposition(): void {
   if (statusChip) {
     positionChip(statusChip);
   }
+  positionPopover();
 }
 
 function clearOutsideClickHandlers(): void {
@@ -444,7 +491,6 @@ function rerenderToolbar(): void {
   const nextToolbar = createToolbar();
   toolbar.replaceWith(nextToolbar);
   toolbar = nextToolbar;
-  setToolbarDisabled(peeking);
   positionToolbar();
 }
 
@@ -457,36 +503,11 @@ function createToolbar(): HTMLElement {
   if (!hasTranslationText) {
     toggleWrapper.title = "The text is already in target language";
   }
-
-  toggleButton = document.createElement("button");
-  toggleButton.type = "button";
-  toggleButton.className = "ocr-translate-overlay-switch";
-  toggleButton.setAttribute("role", "switch");
-  toggleButton.disabled = !hasTranslationText;
-  const knob = document.createElement("span");
-  knob.className = "ocr-translate-overlay-switch-knob";
-  knob.innerHTML = TRANSLATE_ICON;
-  toggleButton.append(knob);
-  updateToggleLabel();
-  toggleButton.addEventListener("click", () => {
-    if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
-      stopSpeaking();
-    }
-    mode = mode === "translation" ? "original" : "translation";
-    updateToggleLabel();
-    updateCopyLabel();
-    updateSpeechButton();
-    renderBoxes();
-  });
-  toggleWrapper.append(toggleButton);
-
-  copyButton = createCopyButton();
-  updateCopyLabel();
-  speechButton = createSpeechButton();
-  peekButton = createPeekButton();
+  toggleWrapper.append(createModeSwitch());
 
   const sourcePicker = createSourceLanguagePicker();
   const languagePicker = createLanguagePicker();
+  const providerPicker = createProviderPicker();
   const menu = createMenu();
   outsideClickHandlers.push(menu.handleOutsideClick);
   const selectButton = iconButton(SELECT_REGION_ICON, "Select new region", () => {
@@ -502,9 +523,8 @@ function createToolbar(): HTMLElement {
   divider.className = "ocr-translate-overlay-divider";
   divider.setAttribute("aria-hidden", "true");
 
-  // The switch sits between the pills: knob left shows the source text, knob
-  // right the translation. It replaces the old "→" direction arrow.
-  bar.append(peekButton);
+  // The switch sits between the pills: knob left shows the source, knob right
+  // the translation, so it doubles as the direction arrow.
   if (sourcePicker) {
     bar.append(sourcePicker);
   }
@@ -512,15 +532,44 @@ function createToolbar(): HTMLElement {
   if (languagePicker) {
     bar.append(languagePicker);
   }
-  bar.append(
-    speechButton,
-    copyButton,
-    selectButton,
-    menu.element,
-    divider,
-    closeButton,
-  );
+  if (providerPicker) {
+    bar.append(providerPicker);
+  }
+  bar.append(selectButton, menu.element, divider, closeButton);
   return bar;
+}
+
+// Flips between the painted translation and the bare image with its selectable
+// text. Disabled when there is no translation to paint.
+function createModeSwitch(): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ocr-translate-overlay-switch";
+  button.setAttribute("role", "switch");
+  button.disabled = !hasTranslationText;
+
+  const knob = document.createElement("span");
+  knob.className = "ocr-translate-overlay-switch-knob";
+  knob.innerHTML = TRANSLATE_ICON;
+  button.append(knob);
+  toggleButton = button;
+  updateToggleLabel();
+
+  // Both views are built from the same toolbar, so only the boxes and the
+  // switch's own labels change; rebuilding the bar would replay its entry
+  // animation on every flip.
+  button.addEventListener("click", () => {
+    if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
+      stopSpeaking();
+    }
+    mode = mode === "translation" ? "original" : "translation";
+    defaultMode = mode;
+    void setOverlayMode(mode);
+    renderBoxes();
+    updateToggleLabel();
+  });
+
+  return button;
 }
 
 function updateToggleLabel(): void {
@@ -528,8 +577,8 @@ function updateToggleLabel(): void {
     return;
   }
   const showingTranslation = mode === "translation";
+  const label = showingTranslation ? "Hide translation overlay" : "Show translation overlay";
   toggleButton.setAttribute("aria-checked", String(showingTranslation));
-  const label = showingTranslation ? "Show original" : "Show translation";
   toggleButton.setAttribute("aria-label", label);
   if (hasTranslationText) {
     toggleButton.title = label;
@@ -588,6 +637,27 @@ function createMenu(): {
     list.append(entry);
   }
 
+  if (hasTranslationText) {
+    addItem(COPY_ICON, "Copy all original text", () => {
+      void copyAllText(currentOriginalText);
+    });
+    addItem(COPY_ICON, "Copy all translated text", () => {
+      void copyAllText(currentDisplayText);
+    });
+    addItem(SPEAK_ICON, "Read all original text", () => {
+      speakAll("original");
+    });
+    addItem(SPEAK_ICON, "Read all translated text", () => {
+      speakAll("translation");
+    });
+  } else {
+    addItem(COPY_ICON, "Copy all text", () => {
+      void copyAllText(currentOriginalText);
+    });
+    addItem(SPEAK_ICON, "Read all text", () => {
+      speakAll("original");
+    });
+  }
   addItem(PANEL_ICON, "Show in panel", () => onShowPanel?.());
   addItem(SETTINGS_ICON, "Settings", () => {
     void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
@@ -614,166 +684,35 @@ function createMenu(): {
   return { element: wrapper, handleOutsideClick };
 }
 
-function createCopyButton(): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className =
-    "ocr-translate-overlay-icon-button ocr-translate-overlay-copy";
-  button.innerHTML = COPY_ICON;
-
-  let resetTimer: ReturnType<typeof setTimeout> | undefined;
-  button.addEventListener("click", async () => {
-    const text = mode === "original" ? currentOriginalText : currentDisplayText;
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      return;
-    }
-    button.innerHTML = CHECK_ICON;
-    button.classList.add("is-copied");
-    clearTimeout(resetTimer);
-    resetTimer = setTimeout(() => {
-      button.innerHTML = COPY_ICON;
-      button.classList.remove("is-copied");
-    }, 1500);
-  });
-
-  return button;
-}
-
-function createSpeechButton(): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className =
-    "ocr-translate-overlay-icon-button ocr-translate-overlay-speak";
-  setOverlaySpeakButtonState(button, isSpeaking(OVERLAY_SPEECH_OWNER));
-
-  button.addEventListener("click", () => {
-    if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
-      stopSpeaking();
-      return;
-    }
-
-    requestSpeak({
-      text: mode === "original" ? currentOriginalText : currentDisplayText,
-      lang: mode === "original" ? currentSourceLang : currentTargetLang,
-      owner: OVERLAY_SPEECH_OWNER,
-      onStart: () => updateSpeechButton(true),
-      onEnd: () => updateSpeechButton(false),
-    });
-  });
-
-  return button;
-}
-
-// Hides the boxes so the user can check the page underneath. Click toggles;
-// press and hold peeks only while held. Pointer capture keeps the release on
-// the button even if the pointer drifts off it.
-function createPeekButton(): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className =
-    "ocr-translate-overlay-icon-button ocr-translate-overlay-peek";
-  setPeekButtonState(button, peeking);
-
-  let pressStart = 0;
-  let peekingBeforePress = false;
-
-  button.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0) {
-      return;
-    }
-    button.setPointerCapture(event.pointerId);
-    pressStart = performance.now();
-    peekingBeforePress = peeking;
-    setPeek(true);
-  });
-  button.addEventListener("pointerup", () => {
-    const held = performance.now() - pressStart >= PEEK_HOLD_MS;
-    setPeek(held ? false : !peekingBeforePress);
-  });
-  button.addEventListener("pointercancel", () => setPeek(peekingBeforePress));
-  button.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setPeek(!peeking);
-    }
-  });
-
-  return button;
-}
-
-function setPeek(next: boolean): void {
-  peeking = next;
-  container?.classList.toggle("is-peeking", next);
-  if (peekButton) {
-    setPeekButtonState(peekButton, next);
-  }
-  setToolbarDisabled(next);
-}
-
-// While peeking, the toolbar's actions would act on text that isn't on screen,
-// so all of them are disabled; peek and close stay usable.
-function setToolbarDisabled(disabled: boolean): void {
-  if (!toolbar) {
+async function copyAllText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
     return;
   }
-  const controls = toolbar.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
-    "button, input",
-  );
-  for (const control of controls) {
-    if (
-      control === peekButton ||
-      control.classList.contains("ocr-translate-overlay-close")
-    ) {
-      continue;
+}
+
+function speakAll(target: OverlayMode): void {
+  if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
+    const wasTarget =
+      speakingTarget === target && speakingBoxIndex === undefined;
+    stopSpeaking();
+    if (wasTarget) {
+      return;
     }
-    control.disabled =
-      control === toggleButton ? disabled || !hasTranslationText : disabled;
   }
-}
 
-function setPeekButtonState(button: HTMLButtonElement, active: boolean): void {
-  button.innerHTML = active ? EYE_OFF_ICON : EYE_ICON;
-  button.classList.toggle("is-peeking", active);
-  button.setAttribute("aria-pressed", String(active));
-  const label = active ? "Show overlay" : "Hide overlay";
-  button.setAttribute("aria-label", label);
-  button.title = active ? label : "Hide overlay (hold to peek)";
-}
-
-function updateSpeechButton(
-  active = isSpeaking(OVERLAY_SPEECH_OWNER),
-): void {
-  if (speechButton) {
-    setOverlaySpeakButtonState(speechButton, active);
-  }
-}
-
-function setOverlaySpeakButtonState(
-  button: HTMLButtonElement,
-  active: boolean,
-): void {
-  const label = active ? "Stop speaking" : "Read aloud";
-  button.innerHTML = active ? STOP_SPEAK_ICON : SPEAK_ICON;
-  button.classList.toggle("is-speaking", active);
-  button.setAttribute("aria-label", label);
-  button.title = label;
-}
-
-// Keep the copy button's tooltip in step with the mode toggle. When there's no
-// translation both modes show the same text, so the label stays generic.
-function updateCopyLabel(): void {
-  if (!copyButton) {
-    return;
-  }
-  const label = !hasTranslationText
-    ? "Copy text"
-    : mode === "translation"
-      ? "Copy translation"
-      : "Copy original text";
-  copyButton.setAttribute("aria-label", label);
-  copyButton.title = label;
+  requestSpeak({
+    text: target === "original" ? currentOriginalText : currentDisplayText,
+    lang: modeLang(target),
+    owner: OVERLAY_SPEECH_OWNER,
+    onStart: () => {
+      setPopoverSpeakState(true, target);
+    },
+    onEnd: () => {
+      setPopoverSpeakState(false);
+    },
+  });
 }
 
 // The source-language pill: picking one re-runs OCR on the same capture with
@@ -827,48 +766,146 @@ function createLanguagePicker(): HTMLElement | undefined {
   return pill.element;
 }
 
+function createProviderPicker(): HTMLElement | undefined {
+  if (translationProviders.length < 2) {
+    return undefined;
+  }
+  const current =
+    translationProviders.find(({ id }) => id === currentProviderId) ??
+    translationProviders[0];
+
+  const wrapper = document.createElement("div");
+  wrapper.className =
+    "ocr-translate-popup-langpill ocr-translate-overlay-provider";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className =
+    "ocr-translate-popup-langpill-button ocr-translate-overlay-provider-button";
+  button.setAttribute("aria-haspopup", "listbox");
+  button.setAttribute("aria-expanded", "false");
+  button.title = `Translation provider: ${current.label}`;
+
+  const label = document.createElement("span");
+  label.className = "ocr-translate-overlay-provider-label";
+  label.textContent = current.label;
+  const chevron = document.createElement("span");
+  chevron.className = "ocr-translate-popup-langpill-chevron";
+  chevron.innerHTML = CHEVRON_ICON;
+  button.append(label, chevron);
+
+  const list = document.createElement("div");
+  list.className = "ocr-translate-popup-langpill-list";
+  list.setAttribute("role", "listbox");
+  list.hidden = true;
+
+  function closeList(): void {
+    list.hidden = true;
+    wrapper.classList.remove("is-open-above");
+    button.setAttribute("aria-expanded", "false");
+  }
+
+  const itemsBox = document.createElement("div");
+  itemsBox.className = "ocr-translate-popup-langpill-items";
+  for (const provider of translationProviders) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "ocr-translate-popup-langpill-item";
+    item.setAttribute("role", "option");
+    item.textContent = provider.label;
+    if (provider.id === current.id) {
+      item.setAttribute("aria-selected", "true");
+      item.classList.add("is-selected");
+    }
+    item.addEventListener("click", () => {
+      closeList();
+      if (provider.id !== current.id) {
+        currentProviderId = provider.id;
+        onProviderChange?.(provider.id);
+      }
+    });
+    itemsBox.append(item);
+  }
+  list.append(itemsBox);
+
+  button.addEventListener("click", () => {
+    const open = list.hidden;
+    list.hidden = !open;
+    button.setAttribute("aria-expanded", String(open));
+    wrapper.classList.remove("is-open-above");
+    if (open && list.getBoundingClientRect().bottom > window.innerHeight - 8) {
+      wrapper.classList.add("is-open-above");
+    }
+  });
+
+  function handleOutsideClick(event: MouseEvent): void {
+    if (!list.hidden && !event.composedPath().includes(wrapper)) {
+      closeList();
+    }
+  }
+  document.addEventListener("click", handleOutsideClick);
+  outsideClickHandlers.push(handleOutsideClick);
+
+  wrapper.append(button, list);
+  return wrapper;
+}
+
 function renderBoxes(): void {
   if (!container || !currentLayout) {
     return;
   }
-  const overlayContainer = container;
   for (const box of boxes) {
     box.remove();
   }
   boxes = [];
   boxRects = [];
+  boxContents = [];
+  hidePopover();
 
-  const showOriginal = mode === "original";
+  if (mode === "translation") {
+    renderTranslationBoxes(currentLayout, container);
+  } else {
+    renderSourceBoxes(currentLayout, container);
+  }
+}
 
-  // Translation view without a per-paragraph split: one combined box so the
-  // text is never misattributed to the wrong region.
-  if (!showOriginal && !currentLayout.segmented) {
-    const box = createBox(
-      currentLayout.combinedRect,
-      currentLayout.combinedTranslation,
+// The translation view: opaque boxes carrying the translated text, sized to fill
+// them. They stand where the translation belongs rather than exactly on the
+// source text, so no text layer goes with them — the picture is covered anyway,
+// and the painted text is real DOM text that selects on its own.
+function renderTranslationBoxes(
+  layout: OverlayLayout,
+  overlayContainer: HTMLElement,
+): void {
+  // Without a per-paragraph split, one combined box, so the whole translation is
+  // never misattributed to a single region.
+  if (!layout.segmented) {
+    const box = createTranslationBox(
+      layout.combinedRect,
+      layout.combinedTranslation,
       0,
-      currentLayout.combinedBackgroundTone,
     );
     overlayContainer.append(box);
     boxes.push(box);
-    boxRects.push(currentLayout.combinedRect);
-    if (activeBoxIndex !== undefined) {
-      box.classList.add("is-active");
-    }
+    boxRects.push(layout.combinedRect);
+    boxContents.push({
+      original: currentOriginalText,
+      translated: layout.combinedTranslation,
+    });
   } else {
-    currentLayout.paragraphs.forEach((paragraph, index) => {
-      const text = showOriginal
-        ? paragraph.original
-        : (paragraph.translated ?? "");
-      const rect = showOriginal
-        ? paragraph.sourceRect
-        : paragraph.translationRect;
-      const box = createBox(rect, text, index, paragraph.backgroundTone);
-      box.classList.toggle("is-vertical", showOriginal && paragraph.vertical);
+    layout.paragraphs.forEach((paragraph, index) => {
+      const box = createTranslationBox(
+        paragraph.translationRect,
+        paragraph.translated ?? "",
+        index,
+      );
       overlayContainer.append(box);
       boxes.push(box);
-      boxRects.push(rect);
-      box.classList.toggle("is-active", index === activeBoxIndex);
+      boxRects.push(paragraph.translationRect);
+      boxContents.push({
+        original: paragraph.original,
+        translated: paragraph.translated ?? "",
+      });
     });
   }
 
@@ -878,33 +915,68 @@ function renderBoxes(): void {
   }
 }
 
-function createBox(
+// The original view: transparent frames on the source text, each with the
+// selectable text layer over the image's glyphs and a popover carrying both
+// texts.
+function renderSourceBoxes(
+  layout: OverlayLayout,
+  overlayContainer: HTMLElement,
+): void {
+  if (hasTranslationText && !layout.segmented) {
+    const box = createBox(
+      layout.combinedSourceRect,
+      currentOriginalText,
+      layout.paragraphs.flatMap((paragraph) => paragraph.lines),
+      0,
+    );
+    overlayContainer.append(box);
+    boxes.push(box);
+    boxRects.push(layout.combinedSourceRect);
+    boxContents.push({
+      original: currentOriginalText,
+      translated: layout.combinedTranslation,
+    });
+  } else {
+    layout.paragraphs.forEach((paragraph, index) => {
+      const rect = paragraph.sourceRect;
+      const box = createBox(rect, paragraph.original, paragraph.lines, index);
+      overlayContainer.append(box);
+      boxes.push(box);
+      boxRects.push(rect);
+      boxContents.push({
+        original: paragraph.original,
+        translated: paragraph.translated ?? "",
+      });
+    });
+  }
+  fitTextLayers();
+}
+
+function createTranslationBox(
   rect: Rect,
   text: string,
   index: number,
-  backgroundTone: "light" | "dark",
 ): HTMLElement {
   const box = document.createElement("div");
-  box.className = "ocr-translate-overlay-box";
-  box.classList.add(`is-${backgroundTone}`);
+  box.className =
+    "ocr-translate-overlay-box ocr-translate-overlay-translation-box";
   box.tabIndex = 0;
+  box.setAttribute("role", "button");
+  box.setAttribute("aria-haspopup", "dialog");
+  box.setAttribute("aria-controls", POPOVER_ID);
+  setBoxPopoverState(box, false);
   positionRectElement(box, rect);
   box.textContent = text;
   box.dir = "auto";
-  const lang = mode === "original" ? currentSourceLang : currentTargetLang;
-  if (lang) {
-    box.lang = lang;
+  if (currentTargetLang) {
+    box.lang = currentTargetLang;
   }
-  box.addEventListener("pointerdown", () => activateBox(box, index));
-  box.addEventListener("focus", () => activateBox(box, index));
+  // Dragging out of the box would otherwise run the selection on into the page.
+  box.addEventListener("pointerdown", () => {
+    beginSelection("box");
+  });
+  attachBoxPopoverTriggers(box, index);
   return box;
-}
-
-function activateBox(activeBox: HTMLElement, index: number): void {
-  activeBoxIndex = index;
-  for (const box of boxes) {
-    box.classList.toggle("is-active", box === activeBox);
-  }
 }
 
 // Shrink the font with a binary search until the text fits the box, flooring at
@@ -933,6 +1005,774 @@ function fitFontSize(box: HTMLElement): void {
   box.style.fontSize = `${best}px`;
 }
 
+function createBox(
+  rect: Rect,
+  text: string,
+  lines: OverlayLine[],
+  index: number,
+): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "ocr-translate-overlay-box ocr-translate-overlay-frame-box";
+  box.tabIndex = 0;
+  box.setAttribute("role", "button");
+  box.setAttribute("aria-haspopup", "dialog");
+  box.setAttribute("aria-controls", POPOVER_ID);
+  setBoxPopoverState(box, false);
+  positionRectElement(box, rect);
+  box.dir = "auto";
+
+  // The box text is for screen readers only; the visible text stays in the page
+  // image, with the selectable copy of it laid over the glyphs below.
+  const label = document.createElement("span");
+  label.className = "ocr-translate-overlay-sr-only";
+  label.textContent = text;
+  if (currentSourceLang) {
+    label.lang = currentSourceLang;
+  }
+  box.append(label, createTextLayer(lines, rect));
+  attachBoxPopoverTriggers(box, index);
+  return box;
+}
+
+const POPOVER_ID = "ocr-translate-overlay-popover";
+
+export function isOverlayBoxActivationKey(key: string): boolean {
+  return key === "Enter" || key === " ";
+}
+
+// Hovering a box opens its popover once the pointer settles on it, and it closes
+// as soon as the pointer leaves both. The popover is placed flush against its
+// box, so the pointer is always over one of the two on the way between them, and
+// leaving is never a matter of timing.
+function attachBoxPopoverTriggers(box: HTMLElement, index: number): void {
+  box.addEventListener("pointerenter", (event) => {
+    // A touch has no travel across the page to settle from, and waiting would
+    // just lose taps shorter than the wait.
+    if (event.pointerType === "touch") {
+      showPopover(index);
+      return;
+    }
+    waitForPointerToSettle(index, event);
+  });
+  box.addEventListener("pointermove", (event) => {
+    keepWaitingForPointerToSettle(index, event);
+  });
+  box.addEventListener("pointerleave", handlePopoverPointerLeave);
+
+  // The keyboard equivalent of hovering: activation pins the popover open, and
+  // it closes on the next activation or a click elsewhere.
+  box.addEventListener("keydown", (event) => {
+    if (event.repeat || !isOverlayBoxActivationKey(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    togglePopover(index);
+  });
+}
+
+// How long the pointer has to hold still on a box before its popover opens. The
+// wait runs from the last movement, not from entering the box, so crossing a run
+// of small regions opens nothing on the way — only where the pointer comes to
+// rest.
+const POPOVER_SETTLE_MS = 100;
+// Movement under this is a shaky hand rather than travel, and doesn't restart the
+// wait.
+const POPOVER_SETTLE_MOVE_PX = 4;
+
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+// Where the pointer was when the pending wait started, to measure movement from.
+let settleOrigin: { x: number; y: number } | undefined;
+
+function waitForPointerToSettle(index: number, event: PointerEvent): void {
+  clearSettleTimer();
+  if (activePopover?.boxIndex === index) {
+    return;
+  }
+  settleOrigin = { x: event.clientX, y: event.clientY };
+  settleTimer = setTimeout(() => {
+    settleTimer = undefined;
+    settleOrigin = undefined;
+    showPopover(index);
+  }, POPOVER_SETTLE_MS);
+}
+
+function keepWaitingForPointerToSettle(
+  index: number,
+  event: PointerEvent,
+): void {
+  // Nothing pending: this box's popover is already open, or a touch opened it.
+  if (!settleTimer || !settleOrigin) {
+    return;
+  }
+  const travelled = Math.hypot(
+    event.clientX - settleOrigin.x,
+    event.clientY - settleOrigin.y,
+  );
+  if (travelled > POPOVER_SETTLE_MOVE_PX) {
+    waitForPointerToSettle(index, event);
+  }
+}
+
+function clearSettleTimer(): void {
+  clearTimeout(settleTimer);
+  settleTimer = undefined;
+  settleOrigin = undefined;
+}
+
+function handlePopoverPointerLeave(event: PointerEvent): void {
+  // The pointer left before settling, so whatever it was about to open is off,
+  // for a lifted finger as much as for a pointer moving on.
+  clearSettleTimer();
+  // A touch pointer stops existing when the finger lifts, which would close the
+  // popover that same tap opened. Those close on a tap elsewhere instead.
+  if (!activePopover || event.pointerType === "touch") {
+    return;
+  }
+  // Moving between the popover and its box leaves neither of them.
+  const into = event.relatedTarget;
+  if (
+    into instanceof Node &&
+    (activePopover.el.contains(into) ||
+      boxes[activePopover.boxIndex]?.contains(into))
+  ) {
+    return;
+  }
+  if (isPopoverBusy()) {
+    return;
+  }
+  hidePopover();
+}
+
+// Work the popover is in the middle of outlives the hover: a selection being
+// dragged or already made in it, and text it is reading aloud. Closing would
+// drop the selection or cut the reading off. A click elsewhere still closes it.
+function isPopoverBusy(): boolean {
+  if (!activePopover) {
+    return false;
+  }
+  return (
+    selectingFrom === "popover" ||
+    hasSelectionInside(activePopover.el) ||
+    (speakingBoxIndex === activePopover.boxIndex &&
+      isSpeaking(OVERLAY_SPEECH_OWNER))
+  );
+}
+
+function hasSelectionInside(element: HTMLElement): boolean {
+  const selection = window.getSelection();
+  return Boolean(
+    selection &&
+      !selection.isCollapsed &&
+      selection.anchorNode &&
+      selection.focusNode &&
+      element.contains(selection.anchorNode) &&
+      element.contains(selection.focusNode),
+  );
+}
+
+function togglePopover(index: number): void {
+  if (activePopover?.boxIndex === index) {
+    hidePopover();
+    return;
+  }
+  showPopover(index);
+}
+
+function setBoxPopoverState(box: HTMLElement, open: boolean): void {
+  box.classList.toggle("is-active", open);
+  box.setAttribute("aria-expanded", String(open));
+}
+
+function syncBoxPopoverStates(): void {
+  boxes.forEach((box, index) => {
+    setBoxPopoverState(box, activePopover?.boxIndex === index);
+  });
+}
+
+// An invisible, selectable copy of the recognized text, one span per detected
+// OCR line, laid over the image's own glyphs. Selecting it draws the highlight
+// across the image text instead of over a hidden translation. Each span is
+// stretched to its line's box (`fitTextLayers`) so the two roughly line up, and
+// each takes its own line's orientation: one box can gather lines of both, when
+// a translation that didn't split per paragraph puts the whole capture in the
+// combined box.
+function createTextLayer(lines: OverlayLine[], boxRect: Rect): HTMLElement {
+  const layer = document.createElement("div");
+  layer.className = "ocr-translate-overlay-text-layer";
+  layer.addEventListener("pointerdown", () => {
+    beginSelection("layer");
+  });
+  // The screen-reader label above already carries the text.
+  layer.setAttribute("aria-hidden", "true");
+
+  for (const line of lines) {
+    if (!line.text) {
+      continue;
+    }
+    // One span per character when the recognizer located them, so a selection
+    // covers exactly the glyphs it crosses. Otherwise the whole line goes in one
+    // span, stretched to fit, and lands only roughly.
+    const pieces = line.chars?.length
+      ? line.chars
+      : [{ rect: line.rect, text: line.text }];
+    for (const piece of pieces) {
+      if (!piece.text) {
+        continue;
+      }
+      layer.append(createTextLayerPiece(piece, boxRect, line.vertical));
+    }
+  }
+  return layer;
+}
+
+function createTextLayerPiece(
+  piece: { rect: Rect; text: string },
+  boxRect: Rect,
+  vertical: boolean,
+): HTMLElement {
+  const span = document.createElement("span");
+  span.className = "ocr-translate-overlay-text-layer-line";
+  span.textContent = piece.text;
+  span.style.left = `${piece.rect.x - boxRect.x}px`;
+  span.style.top = `${piece.rect.y - boxRect.y}px`;
+  // Starting size: the piece's thickness. `fitTextLayers` corrects it once it
+  // can measure what the font actually paints.
+  span.style.fontSize = `${vertical ? piece.rect.width : piece.rect.height}px`;
+  if (vertical) {
+    span.classList.add("is-vertical");
+  }
+  span.dataset.x = `${piece.rect.x - boxRect.x}`;
+  span.dataset.y = `${piece.rect.y - boxRect.y}`;
+  span.dataset.width = `${piece.rect.width}`;
+  span.dataset.height = `${piece.rect.height}`;
+  return span;
+}
+
+// Fit each span to its OCR line, the way a PDF text layer does. The selection
+// band is the font's ascent+descent, which runs 15-20% taller than the em box,
+// so the font size comes from what the span actually paints rather than from
+// the line's thickness; the length is then stretched to match. Every span is
+// measured before anything is written, so the boxes lay out once.
+function fitTextLayers(): void {
+  const spans: HTMLElement[] = [];
+  for (const box of boxes) {
+    spans.push(
+      ...box.querySelectorAll<HTMLElement>(
+        ".ocr-translate-overlay-text-layer-line",
+      ),
+    );
+  }
+
+  const fits = spans.map((span) => {
+    const vertical = span.classList.contains("is-vertical");
+    const width = Number(span.dataset.width);
+    const height = Number(span.dataset.height);
+    const painted = paintedRect(span);
+    const fontSize = Number.parseFloat(span.style.fontSize);
+    // Along the reading direction the line runs; across it the glyphs sit.
+    const length = vertical ? height : width;
+    const thickness = vertical ? width : height;
+    const paintedLength = vertical ? painted.height : painted.width;
+    const paintedThickness = vertical ? painted.width : painted.height;
+    if (paintedLength <= 0 || paintedThickness <= 0 || !fontSize) {
+      return undefined;
+    }
+    const nextFontSize = (fontSize * thickness) / paintedThickness;
+    // Lengths scale with the font size, so the stretch is measured against what
+    // the resized span will paint.
+    const scale = length / (paintedLength * (nextFontSize / fontSize));
+    // Centre the band on the line: the highlight grows around the text's middle.
+    const offset = (thickness - nextFontSize) / 2;
+    return { fontSize: nextFontSize, scale, offset, vertical };
+  });
+
+  spans.forEach((span, index) => {
+    const fit = fits[index];
+    if (!fit) {
+      return;
+    }
+    span.style.fontSize = `${fit.fontSize}px`;
+    if (fit.vertical) {
+      span.style.left = `${Number(span.dataset.x) + fit.offset}px`;
+      span.style.transform = `scaleY(${fit.scale})`;
+    } else {
+      span.style.top = `${Number(span.dataset.y) + fit.offset}px`;
+      span.style.transform = `scaleX(${fit.scale})`;
+    }
+  });
+}
+
+// The box the selection highlight would cover: the text's own client rect,
+// which follows the font's metrics rather than the element's line box.
+function paintedRect(span: HTMLElement): DOMRect {
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  return range.getBoundingClientRect();
+}
+
+// Selecting text drags across whatever is under the pointer, and the browser
+// happily runs the range on into the page — swallowing the image and every
+// other text layer. While a drag is in progress, everything except the part it
+// started in is made unselectable, so the selection stays where it began.
+let selectingFrom: "popover" | "layer" | "box" | undefined;
+let pageUserSelect: string | undefined;
+
+function beginSelection(from: "popover" | "layer" | "box"): void {
+  if (selectingFrom) {
+    return;
+  }
+  selectingFrom = from;
+  container?.classList.add(`is-selecting-${from}`);
+  pageUserSelect = document.documentElement.style.userSelect;
+  document.documentElement.style.userSelect = "none";
+  document.addEventListener("pointerup", endSelection, true);
+  document.addEventListener("pointercancel", endSelection, true);
+}
+
+function endSelection(): void {
+  if (!selectingFrom) {
+    return;
+  }
+  container?.classList.remove(`is-selecting-${selectingFrom}`);
+  selectingFrom = undefined;
+  document.documentElement.style.userSelect = pageUserSelect ?? "";
+  pageUserSelect = undefined;
+  document.removeEventListener("pointerup", endSelection, true);
+  document.removeEventListener("pointercancel", endSelection, true);
+}
+
+// Open the popover for a box, taking it over from whichever box had it. Already
+// showing that box is left alone: the pointer crossing back from the popover
+// onto its box must not rebuild the panel under it.
+function showPopover(index: number): void {
+  if (activePopover?.boxIndex === index) {
+    return;
+  }
+  // Moving the popover to another box takes away the stop button of whatever the
+  // old one was reading, so the reading stops with it.
+  if (speakingBoxIndex !== undefined && isSpeaking(OVERLAY_SPEECH_OWNER)) {
+    stopSpeaking();
+  }
+  activePopover = openPopover(index) ?? activePopover;
+  syncBoxPopoverStates();
+}
+
+function openPopover(index: number): PopoverView | undefined {
+  const content = boxContents[index];
+  const el = content ? ensurePopoverElement() : undefined;
+  if (!content || !el) {
+    return undefined;
+  }
+  const view: PopoverView = {
+    el,
+    boxIndex: index,
+    speechButtons: {},
+  };
+  renderPopover(view, content);
+  el.hidden = false;
+  positionPopoverView(view);
+  return view;
+}
+
+// Reuse one element across boxes so opening many of them doesn't pile up nodes.
+function ensurePopoverElement(): HTMLElement | undefined {
+  if (popoverEl) {
+    return popoverEl;
+  }
+  if (!container) {
+    return undefined;
+  }
+  const el = document.createElement("div");
+  el.className = "ocr-translate-overlay-popover";
+  el.id = POPOVER_ID;
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", "Recognized and translated text");
+  el.addEventListener("pointerdown", () => {
+    beginSelection("popover");
+  });
+  el.addEventListener("pointerleave", handlePopoverPointerLeave);
+  container.append(el);
+  document.addEventListener("click", handlePopoverOutsideClick);
+  popoverEl = el;
+  return el;
+}
+
+// A click anywhere but the popover or its box closes it.
+function handlePopoverOutsideClick(event: MouseEvent): void {
+  if (!activePopover) {
+    return;
+  }
+  const path = event.composedPath();
+  if (
+    !path.includes(activePopover.el) &&
+    !path.includes(boxes[activePopover.boxIndex])
+  ) {
+    hidePopover();
+  }
+}
+
+function availablePopoverMode(content: {
+  original: string;
+  translated: string;
+}): OverlayMode {
+  return content.original.trim() ? "original" : "translation";
+}
+
+// Both texts, each with its own speak/copy, so neither has to be switched to.
+// The translation leads in both views, so the rows keep their places wherever
+// the popover was opened from and a text long enough to scroll never pushes it
+// below the fold. Over a painted box it is the whole translation, including what
+// a box too small to paint all of it had to cut. The original follows in a muted
+// row, for reading and copying exactly what was recognized.
+function renderPopover(
+  view: PopoverView,
+  content: { original: string; translated: string },
+): void {
+  view.el.replaceChildren();
+  view.speechButtons = {};
+
+  const body = document.createElement("div");
+  body.className = "ocr-translate-overlay-popover-body";
+
+  const both = hasBothTexts(content);
+  const lead = both ? "translation" : availablePopoverMode(content);
+  body.append(createPopoverRow(view, lead, content, false));
+  if (both) {
+    body.append(createPopoverRow(view, "original", content, true));
+  }
+
+  view.body = body;
+  view.el.append(body);
+}
+
+function createPopoverText(
+  textMode: OverlayMode,
+  content: { original: string; translated: string },
+): HTMLElement {
+  const body = document.createElement("div");
+  body.className = "ocr-translate-overlay-popover-text";
+  body.textContent = modeText(textMode, content);
+  body.dir = "auto";
+  const lang = modeLang(textMode);
+  if (lang) {
+    body.lang = lang;
+  }
+  return body;
+}
+
+// One text with its own speak/copy to the right.
+function createPopoverRow(
+  view: PopoverView,
+  textMode: OverlayMode,
+  content: { original: string; translated: string },
+  isSource: boolean,
+): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "ocr-translate-overlay-popover-row";
+  if (isSource) {
+    row.classList.add("is-source");
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "ocr-translate-overlay-popover-row-controls";
+  controls.append(
+    createSpeakButton(view, textMode, content),
+    createPopoverCopyButton(textMode, content),
+  );
+
+  row.append(createPopoverText(textMode, content), controls);
+  return row;
+}
+
+function hasBothTexts(content: {
+  original: string;
+  translated: string;
+}): boolean {
+  return (
+    hasTranslationText &&
+    Boolean(content.original.trim()) &&
+    Boolean(content.translated.trim())
+  );
+}
+
+function modeText(
+  textMode: OverlayMode,
+  content: { original: string; translated: string },
+): string {
+  return textMode === "original" ? content.original : content.translated;
+}
+
+function modeLang(textMode: OverlayMode): LangCode | undefined {
+  return textMode === "original" ? currentSourceLang : currentTargetLang;
+}
+
+function createSpeakButton(
+  view: PopoverView,
+  target: OverlayMode,
+  content: { original: string; translated: string },
+): HTMLButtonElement {
+  const button = popoverButton(SPEAK_ICON, "Read aloud", () => {
+    if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
+      const wasTarget =
+        speakingTarget === target && speakingBoxIndex === view.boxIndex;
+      stopSpeaking();
+      // Speaking the other text takes over instead of just stopping.
+      if (wasTarget) {
+        return;
+      }
+    }
+    requestSpeak({
+      text: modeText(target, content),
+      lang: modeLang(target),
+      owner: OVERLAY_SPEECH_OWNER,
+      onStart: () => {
+        setPopoverSpeakState(true, target, view.boxIndex);
+      },
+      onEnd: () => {
+        setPopoverSpeakState(false);
+      },
+    });
+  });
+  view.speechButtons[target] = button;
+  setSpeakButtonState(
+    button,
+    isSpeaking(OVERLAY_SPEECH_OWNER) &&
+      speakingTarget === target &&
+      speakingBoxIndex === view.boxIndex,
+  );
+  return button;
+}
+
+function createPopoverCopyButton(
+  target: OverlayMode,
+  content: { original: string; translated: string },
+): HTMLButtonElement {
+  const button = popoverButton(COPY_ICON, "Copy text", () => {
+    void copyPopoverText(button, modeText(target, content));
+  });
+  return button;
+}
+
+function popoverButton(
+  icon: string,
+  label: string,
+  onClick: () => void,
+): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ocr-translate-overlay-popover-button";
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.innerHTML = icon;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+// Which text the popover is reading aloud, so only that exact box button shows
+// as active. Whole-selection speech has no box index and lights none.
+let speakingTarget: OverlayMode | undefined;
+let speakingBoxIndex: number | undefined;
+
+function setPopoverSpeakState(
+  active: boolean,
+  target?: OverlayMode,
+  boxIndex?: number,
+): void {
+  speakingTarget = active ? target : undefined;
+  speakingBoxIndex = active ? boxIndex : undefined;
+  for (const textMode of ["original", "translation"] as const) {
+    setSpeakButtonState(
+      activePopover?.speechButtons[textMode],
+      active &&
+        speakingTarget === textMode &&
+        speakingBoxIndex === activePopover?.boxIndex,
+    );
+  }
+}
+
+function setSpeakButtonState(
+  button: HTMLButtonElement | undefined,
+  active: boolean,
+): void {
+  if (!button) {
+    return;
+  }
+  const label = active ? "Stop speaking" : "Read aloud";
+  button.innerHTML = active ? STOP_SPEAK_ICON : SPEAK_ICON;
+  button.classList.toggle("is-active", active);
+  button.setAttribute("aria-label", label);
+  button.title = label;
+}
+
+const popoverCopyResetTimers = new Map<
+  HTMLButtonElement,
+  ReturnType<typeof setTimeout>
+>();
+async function copyPopoverText(
+  button: HTMLButtonElement,
+  text: string,
+): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    return;
+  }
+  button.innerHTML = CHECK_ICON;
+  button.classList.add("is-active");
+  clearTimeout(popoverCopyResetTimers.get(button));
+  const resetTimer = setTimeout(() => {
+    button.innerHTML = COPY_ICON;
+    button.classList.remove("is-active");
+    popoverCopyResetTimers.delete(button);
+  }, 1500);
+  popoverCopyResetTimers.set(button, resetTimer);
+}
+
+// Close the popover. Any pending open goes with it, so a rebuilt or closed
+// overlay can't be reopened against boxes that are gone.
+function hidePopover(): void {
+  clearSettleTimer();
+  if (!activePopover) {
+    return;
+  }
+  // Closing takes away the stop button of whatever this popover is reading, so
+  // the reading stops with it.
+  if (
+    speakingBoxIndex === activePopover.boxIndex &&
+    isSpeaking(OVERLAY_SPEECH_OWNER)
+  ) {
+    stopSpeaking();
+  }
+  activePopover.el.hidden = true;
+  activePopover = undefined;
+  syncBoxPopoverStates();
+}
+
+// Full reset when the container is rebuilt or the overlay closes: the popover
+// element goes with the old container, so drop its references.
+function teardownPopover(): void {
+  clearSettleTimer();
+  for (const timer of popoverCopyResetTimers.values()) {
+    clearTimeout(timer);
+  }
+  popoverCopyResetTimers.clear();
+  endSelection();
+  document.removeEventListener("click", handlePopoverOutsideClick);
+  activePopover = undefined;
+  popoverEl = undefined;
+}
+
+// Gap kept between the popover and the viewport edges. There is deliberately no
+// gap against the box itself: the popover is a hover panel, and a gap would be a
+// strip where the pointer is on neither of them and the popover closes on the
+// way over.
+const POPOVER_MARGIN = 8;
+// A popover narrower than this reads as a column of fragments even for a narrow
+// box; wider than this the line becomes too long to scan comfortably.
+const POPOVER_MIN_WIDTH = 360;
+const POPOVER_MAX_WIDTH = 720;
+// Even with room to spare, a popover taller than this much of the viewport hides
+// too much of the page, so it scrolls instead.
+const POPOVER_MAX_HEIGHT_RATIO = 0.6;
+// Floor for the cap, so a box that leaves almost no room still gets a popover
+// worth reading rather than a sliver.
+const POPOVER_MIN_HEIGHT = 120;
+
+/** How wide the popover may grow for a box of `boxWidth`. It follows the box, so
+ * the text wraps at roughly the width it was recognized at, bounded by what
+ * reads well and by the viewport. */
+export function popoverMaxWidth(
+  boxWidth: number,
+  viewportWidth: number,
+): number {
+  const room = viewportWidth - POPOVER_MARGIN * 2;
+  return Math.min(
+    Math.max(boxWidth, POPOVER_MIN_WIDTH),
+    Math.max(Math.min(POPOVER_MAX_WIDTH, room), 0),
+  );
+}
+
+/** Where the popover sits vertically, and how tall it may get there. It sits
+ * flush against the box, on the side with room for the whole text; when neither
+ * side has it, on the roomier side, with the height capped so the text scrolls
+ * inside the viewport instead of running off it. */
+export function popoverVerticalPlacement(args: {
+  boxY: number;
+  boxHeight: number;
+  height: number;
+  viewportHeight: number;
+}): { top: number; maxHeight: number } {
+  const { boxY, boxHeight, height, viewportHeight } = args;
+  const cap = Math.max(
+    POPOVER_MIN_HEIGHT,
+    viewportHeight * POPOVER_MAX_HEIGHT_RATIO,
+  );
+  const roomBelow = Math.min(
+    cap,
+    viewportHeight - boxY - boxHeight - POPOVER_MARGIN,
+  );
+  const roomAbove = Math.min(cap, boxY - POPOVER_MARGIN);
+  const fitsAbove = height > roomBelow && height <= roomAbove;
+  const below = !fitsAbove && (height <= roomBelow || roomBelow >= roomAbove);
+
+  const maxHeight = Math.max(POPOVER_MIN_HEIGHT, below ? roomBelow : roomAbove);
+  const shown = Math.min(height, maxHeight);
+  const top = below ? boxY + boxHeight : boxY - shown;
+  return {
+    top: clamp(
+      top,
+      POPOVER_MARGIN,
+      Math.max(POPOVER_MARGIN, viewportHeight - shown - POPOVER_MARGIN),
+    ),
+    maxHeight,
+  };
+}
+
+function positionPopover(): void {
+  if (activePopover) {
+    positionPopoverView(activePopover);
+  }
+}
+
+function positionPopoverView(view: PopoverView): void {
+  if (view.el.hidden) {
+    return;
+  }
+  const pageRect = boxRects[view.boxIndex];
+  if (!pageRect) {
+    return;
+  }
+  const rect = pageToViewportRect(pageRect);
+  // Widen to the box before measuring: a wide box gets a wide popover, which is
+  // what keeps a long paragraph from turning into a narrow column of many lines.
+  view.el.style.maxWidth = `${popoverMaxWidth(rect.width, window.innerWidth)}px`;
+  // The height cap has to come off to measure what the text really needs. That
+  // collapses the scroll position of a body that no longer overflows, so put it
+  // back once the cap is on again; both happen before the next paint.
+  const scrollTop = view.body?.scrollTop ?? 0;
+  view.el.style.maxHeight = "";
+  const width = view.el.offsetWidth;
+  const height = view.el.offsetHeight;
+  const x = clamp(
+    rect.x + rect.width / 2 - width / 2,
+    POPOVER_MARGIN,
+    Math.max(POPOVER_MARGIN, window.innerWidth - width - POPOVER_MARGIN),
+  );
+  const vertical = popoverVerticalPlacement({
+    boxY: rect.y,
+    boxHeight: rect.height,
+    height,
+    viewportHeight: window.innerHeight,
+  });
+  view.el.style.maxHeight = `${vertical.maxHeight}px`;
+  if (view.body) {
+    view.body.scrollTop = scrollTop;
+  }
+  view.el.style.left = `${x}px`;
+  view.el.style.top = `${vertical.top}px`;
+}
+
 function positionToolbar(): void {
   if (!toolbar || !currentRect) {
     return;
@@ -947,12 +1787,15 @@ function positionToolbar(): void {
   );
   const belowY = rect.y + rect.height + 8;
   const aboveY = rect.y - height - 8;
+  // Above the region by default, so the controls sit away from the popovers,
+  // which open below their box whenever there is room. Drops below when the
+  // region starts too close to the top of the viewport.
   const y =
-    belowY + height <= window.innerHeight - 8
-      ? belowY
-      : aboveY >= 8
-        ? aboveY
-        : clamp(belowY, 8, Math.max(8, window.innerHeight - height - 8));
+    aboveY >= 8
+      ? aboveY
+      : belowY + height <= window.innerHeight - 8
+        ? belowY
+        : clamp(aboveY, 8, Math.max(8, window.innerHeight - height - 8));
   toolbar.style.left = `${x}px`;
   toolbar.style.top = `${y}px`;
 }
@@ -1095,18 +1938,9 @@ function moveCurrentLayout(dx: number, dy: number): void {
   if (currentRect) {
     currentRect = moveRect(currentRect, dx, dy);
   }
-  if (!currentLayout) {
-    return;
+  if (currentLayout) {
+    currentLayout = moveOverlayLayout(currentLayout, dx, dy);
   }
-  currentLayout = {
-    ...currentLayout,
-    paragraphs: currentLayout.paragraphs.map((paragraph) => ({
-      ...paragraph,
-      sourceRect: moveRect(paragraph.sourceRect, dx, dy),
-      translationRect: moveRect(paragraph.translationRect, dx, dy),
-    })),
-    combinedRect: moveRect(currentLayout.combinedRect, dx, dy),
-  };
   boxRects = boxRects.map((rect) => moveRect(rect, dx, dy));
 }
 

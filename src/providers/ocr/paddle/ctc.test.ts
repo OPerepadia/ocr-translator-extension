@@ -21,6 +21,15 @@ describe("ctcGreedyDecode", () => {
     expect(result.text).toBe("ab");
   });
 
+  it("reports the timestep run each character won", () => {
+    // "a" wins steps 1-2 (collapsed), blank at 3, "b" at 4.
+    const result = ctcGreedyDecode(rows([0, 1, 1, 0, 2]), 5, C, charAt, true);
+    expect(result.chars).toEqual([
+      { char: "a", start: 1, end: 3 },
+      { char: "b", start: 4, end: 5 },
+    ]);
+  });
+
   it("keeps repeats separated by a blank", () => {
     const result = ctcGreedyDecode(rows([1, 0, 1]), 3, C, charAt, true);
     expect(result.text).toBe("aa");

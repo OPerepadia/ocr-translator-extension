@@ -50,7 +50,7 @@ export interface BrowserApi {
     create(properties: {
       id: string;
       title: string;
-      contexts: Array<"all" | "image">;
+      contexts: Array<"page" | "image">;
       documentUrlPatterns?: string[];
     }): string | number;
     onClicked: BrowserEvent<

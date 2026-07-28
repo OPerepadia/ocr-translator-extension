@@ -17,6 +17,10 @@ describe("translation providers", () => {
       "google",
       "openai",
     ]);
+    expect(TRANSLATION_PROVIDERS.map(({ label }) => label)).toEqual([
+      "Google",
+      "LLM",
+    ]);
   });
 });
 

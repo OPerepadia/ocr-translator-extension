@@ -12,10 +12,12 @@ import {
   type RecognizerProbeResult,
   type RecognizerScore,
 } from "./auto-select";
+import { charBoxes } from "./char-boxes";
 import {
   bitmapToImageData,
   cropQuadToImageData,
-  detectBackgroundTone,
+  isRotatedForRecognition,
+  padQuad,
   resizeToImageData,
   type RgbaImage,
 } from "./crop";
@@ -213,11 +215,6 @@ export class PaddleEngine {
         backend: this.backend,
         direction: script === "arabic" ? "rtl" : "ltr",
       });
-      for (const block of result.blocks ?? []) {
-        if (sourceImageData) {
-          block.backgroundTone = detectBackgroundTone(sourceImageData, block.bbox);
-        }
-      }
       result.providerMeta = {
         ...(result.providerMeta as Record<string, unknown>),
         modelId: recognized.modelId,
@@ -467,6 +464,7 @@ export class PaddleEngine {
           bbox: box.bbox,
           text: recognized.text,
           confidence: recognized.confidence,
+          ...(recognized.chars ? { chars: recognized.chars } : {}),
         });
       }
     }
@@ -539,9 +537,29 @@ export class PaddleEngine {
       recognizer.charAt,
       true,
     );
-    return recognizer.candidate.script === "arabic"
-      ? { ...decoded, text: reverseArabicCtcText(decoded.text) }
-      : decoded;
+    // Arabic is re-ordered after decoding, so the timesteps no longer line up
+    // with the text; that script goes without character boxes.
+    if (recognizer.candidate.script === "arabic") {
+      return {
+        text: reverseArabicCtcText(decoded.text),
+        confidence: decoded.confidence,
+      };
+    }
+
+    // Ordered but unpadded: character boxes hug the detected text, while the
+    // rotation test follows the padded crop the recognizer actually saw.
+    const quad = padQuad(box.quad, 0);
+    return {
+      text: decoded.text,
+      confidence: decoded.confidence,
+      chars: charBoxes({
+        chars: decoded.chars,
+        timeSteps,
+        quad,
+        padding: this.detector.padding,
+        rotated: isRotatedForRecognition(padQuad(box.quad, this.detector.padding)),
+      }),
+    };
   }
 
   private async run(

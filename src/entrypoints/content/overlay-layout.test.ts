@@ -5,6 +5,7 @@ import {
   getRenderedImageRect,
   groupParagraphs,
   mapBboxToPage,
+  moveOverlayLayout,
 } from "./overlay-layout";
 
 function block(
@@ -49,9 +50,21 @@ describe("groupParagraphs", () => {
       block(1, { x: 0, y: 20, width: 30, height: 6 }, "c"),
     ]);
 
-    expect(groups).toEqual([
+    expect(groups).toMatchObject([
       { paragraph: 0, bbox: { x: 0, y: 0, width: 20, height: 6 }, texts: ["a", "b"] },
       { paragraph: 1, bbox: { x: 0, y: 20, width: 30, height: 6 }, texts: ["c"] },
+    ]);
+  });
+
+  it("keeps each block's own bbox alongside the union", () => {
+    const groups = groupParagraphs([
+      block(0, { x: 0, y: 0, width: 10, height: 4 }, "a"),
+      block(0, { x: 12, y: 1, width: 8, height: 5 }, "b"),
+    ]);
+
+    expect(groups[0]?.lineBboxes).toEqual([
+      { x: 0, y: 0, width: 10, height: 4 },
+      { x: 12, y: 1, width: 8, height: 5 },
     ]);
   });
 
@@ -120,9 +133,45 @@ describe("buildOverlayLayout", () => {
       width: 100,
       height: 10,
     });
-    expect(layout.paragraphs[0].translationRect).toEqual(
-      layout.paragraphs[0].sourceRect,
-    );
+  });
+
+  it("maps each detected line onto the page for the text layer", () => {
+    const layout = buildOverlayLayout({
+      ocrText: "hello world",
+      translationText: "bonjour monde",
+      // Two lines in one paragraph, crop pixels at 2x the page rect.
+      blocks: [
+        block(0, { x: 0, y: 0, width: 100, height: 10 }, "hello"),
+        block(0, { x: 0, y: 20, width: 60, height: 10 }, "world"),
+      ],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 10, y: 20, width: 50, height: 50 },
+    });
+
+    expect(layout.paragraphs[0].lines).toEqual([
+      { rect: { x: 10, y: 20, width: 50, height: 5 }, text: "hello", vertical: false },
+      { rect: { x: 10, y: 30, width: 30, height: 5 }, text: "world", vertical: false },
+    ]);
+  });
+
+  it("marks lines of a vertical paragraph, so mixed captures keep both", () => {
+    const layout = buildOverlayLayout({
+      ocrText: "\u7e26\u66f8\u304d\nhorizontal caption",
+      translationText: "vertical\ncaption",
+      blocks: [
+        { text: "縦書き", bbox: { x: 0, y: 0, width: 10, height: 60 }, paragraph: 0, orientation: "vertical" },
+        { text: "horizontal caption", bbox: { x: 0, y: 80, width: 90, height: 10 }, paragraph: 1, orientation: "horizontal" },
+      ],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 100, height: 100 },
+    });
+
+    expect(layout.paragraphs.map((p) => p.lines[0].vertical)).toEqual([
+      true,
+      false,
+    ]);
   });
 
   it("falls back to the combined translation when line counts differ", () => {
@@ -138,24 +187,6 @@ describe("buildOverlayLayout", () => {
     expect(layout.combinedRect).toEqual({ x: 0, y: 0, width: 100, height: 60 });
   });
 
-  it("uses the dominant detected background tone for each overlay box", () => {
-    const layout = buildOverlayLayout({
-      ...base,
-      blocks: [
-        { ...base.blocks[0], backgroundTone: "dark" },
-        { ...base.blocks[1], backgroundTone: "light" },
-      ],
-      ocrText: "hello\nworld",
-      translationText: "bonjour\nmonde",
-    });
-
-    expect(layout.paragraphs.map((p) => p.backgroundTone)).toEqual([
-      "dark",
-      "light",
-    ]);
-    expect(layout.combinedBackgroundTone).toBe("light");
-  });
-
   it("falls back when edited OCR text has fewer lines than OCR paragraph groups", () => {
     const layout = buildOverlayLayout({
       ...base,
@@ -168,7 +199,7 @@ describe("buildOverlayLayout", () => {
     expect(layout.combinedTranslation).toBe("bonjour le monde");
   });
 
-  it("widens and centers translated boxes for narrow vertical source text", () => {
+  it("widens and centers painted boxes for narrow vertical source text", () => {
     const layout = buildOverlayLayout({
       blocks: [block(0, { x: 40, y: 0, width: 20, height: 100 })],
       imageWidth: 100,
@@ -190,6 +221,47 @@ describe("buildOverlayLayout", () => {
       width: 120,
       height: 100,
     });
+    expect(layout.combinedRect).toEqual({
+      x: -20,
+      y: 0,
+      width: 120,
+      height: 100,
+    });
+  });
+
+  // The original view's frame and popover stay on the text they came from, even
+  // where the painted box was widened away from it.
+  it("keeps the combined source rect on the vertical source text", () => {
+    const layout = buildOverlayLayout({
+      blocks: [block(0, { x: 40, y: 0, width: 20, height: 100 })],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 80, height: 100 },
+      ocrText: "縦書きのサンプル文",
+      translationText: "Generic translated phrase",
+    });
+
+    expect(layout.combinedSourceRect).toEqual({
+      x: 32,
+      y: 0,
+      width: 16,
+      height: 100,
+    });
+  });
+
+  it("keeps vertical CJK translations on the source text box", () => {
+    const layout = buildOverlayLayout({
+      blocks: [block(0, { x: 50, y: 0, width: 20, height: 100 })],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 100, height: 100 },
+      ocrText: "縦書きのサンプル文",
+      translationText: "翻訳の例文です",
+    });
+
+    expect(layout.paragraphs[0].translationRect).toEqual(
+      layout.paragraphs[0].sourceRect,
+    );
   });
 
   it("marks paragraphs vertical so the original view can match the layout", () => {
@@ -251,19 +323,57 @@ describe("buildOverlayLayout", () => {
     // The horizontal paragraph keeps the joined line, not newline-split columns.
     expect(layout.paragraphs[1].original).toBe("Footer");
   });
+});
 
-  it("keeps vertical CJK translations on the source text box", () => {
-    const layout = buildOverlayLayout({
-      blocks: [block(0, { x: 50, y: 0, width: 20, height: 100 })],
-      imageWidth: 100,
-      imageHeight: 100,
-      rect: { x: 0, y: 0, width: 100, height: 100 },
-      ocrText: "縦書きのサンプル文",
-      translationText: "翻訳の例文です",
-    });
+describe("moveOverlayLayout", () => {
+  const layout = buildOverlayLayout({
+    ocrText: "hello\nworld",
+    translationText: "one line for both",
+    blocks: [
+      {
+        text: "hello",
+        bbox: { x: 0, y: 0, width: 100, height: 10 },
+        paragraph: 0,
+        chars: [{ text: "h", bbox: { x: 0, y: 0, width: 20, height: 10 } }],
+      },
+      block(1, { x: 0, y: 50, width: 100, height: 10 }, "world"),
+    ],
+    imageWidth: 100,
+    imageHeight: 100,
+    rect: { x: 0, y: 0, width: 100, height: 100 },
+  });
 
-    expect(layout.paragraphs[0].translationRect).toEqual(
-      layout.paragraphs[0].sourceRect,
+  it("shifts every rectangle a rebuild reads, not just the boxes on screen", () => {
+    const moved = moveOverlayLayout(layout, 10, -5);
+    const shifted = (before: Rect, after: Rect): boolean =>
+      after.x === before.x + 10 &&
+      after.y === before.y - 5 &&
+      after.width === before.width &&
+      after.height === before.height;
+
+    expect(shifted(layout.combinedRect, moved.combinedRect)).toBe(true);
+    expect(shifted(layout.combinedSourceRect, moved.combinedSourceRect)).toBe(
+      true,
     );
+    moved.paragraphs.forEach((paragraph, index) => {
+      const before = layout.paragraphs[index];
+      expect(shifted(before.sourceRect, paragraph.sourceRect)).toBe(true);
+      expect(shifted(before.translationRect, paragraph.translationRect)).toBe(
+        true,
+      );
+      paragraph.lines.forEach((line, lineIndex) => {
+        expect(shifted(before.lines[lineIndex].rect, line.rect)).toBe(true);
+      });
+    });
+    expect(moved.paragraphs[0].lines[0].chars?.[0].rect).toEqual({
+      x: 10,
+      y: -5,
+      width: 20,
+      height: 10,
+    });
+  });
+
+  it("leaves the layout alone when nothing moved", () => {
+    expect(moveOverlayLayout(layout, 0, 0)).toBe(layout);
   });
 });

@@ -30,7 +30,7 @@ describe("OCR context menu", () => {
     expect(create).toHaveBeenCalledWith({
       id: START_SELECTION_MENU_ID,
       title: "Translate a screen region…",
-      contexts: ["all"],
+      contexts: ["page"],
       documentUrlPatterns,
     });
     expect(create).toHaveBeenCalledWith({
@@ -118,7 +118,7 @@ function createBrowserApi(overrides: {
   create?: (properties: {
     id: string;
     title: string;
-    contexts: Array<"all" | "image">;
+    contexts: Array<"page" | "image">;
     documentUrlPatterns?: string[];
   }) => string | number;
   sendMessage?: (

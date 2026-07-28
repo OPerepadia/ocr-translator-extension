@@ -225,12 +225,12 @@ export function resolveOcrModel(modelId: string | undefined) {
 export const TRANSLATION_PROVIDERS = [
   {
     id: "google",
-    label: "Google Translate",
+    label: "Google",
     kind: "remote",
   },
   {
     id: "openai",
-    label: "LLM endpoint (OpenAI-compatible)",
+    label: "LLM",
     kind: "remote",
   },
 ] as const;

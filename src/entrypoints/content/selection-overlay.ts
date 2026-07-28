@@ -21,11 +21,21 @@ const RESIZE_HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 // in the image.
 let lingeringOverlay: HTMLElement | undefined;
 
+// Dismisses a selection still being drawn, as Escape does. Set while one is on
+// screen so callers outside the flow (a route change) can drop it.
+let cancelActiveSelection: (() => void) | undefined;
+
 // Remove the dim left behind by a confirmed selection. Called once the next
 // view's own dim (or an error) is on screen, and before a new selection starts.
 export function releaseSelectionDim(): void {
   lingeringOverlay?.remove();
   lingeringOverlay = undefined;
+}
+
+// Abandon an in-progress selection; its promise resolves to null, so the caller
+// stops before capturing. No-op when nothing is being selected.
+export function cancelSelectionOverlay(): void {
+  cancelActiveSelection?.();
 }
 
 // Draw a rectangle, then refine it before confirming. Coordinates are viewport
@@ -90,6 +100,7 @@ export function startSelectionOverlay(
 
     function cleanup(result: Rect | null): void {
       document.removeEventListener("keydown", onKeyDown, true);
+      cancelActiveSelection = undefined;
       if (result) {
         // Keep the dim; hide the selection chrome so none of it (the border is
         // drawn inside the rect) lands in the screenshot.
@@ -389,6 +400,8 @@ export function startSelectionOverlay(
         confirmSelection();
       }
     }
+
+    cancelActiveSelection = () => cleanup(null);
 
     runButton.addEventListener("click", confirmSelection);
     cancelButton.addEventListener("click", () => cleanup(null));
