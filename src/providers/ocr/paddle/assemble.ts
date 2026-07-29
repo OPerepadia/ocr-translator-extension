@@ -113,6 +113,13 @@ function assembleHorizontal(
     const paragraphs = groupRowsIntoParagraphs(buildRows(ordered, rtl), rtl);
     for (const paragraph of paragraphs) {
       let text = "";
+      // A page reads horizontally as a whole and can still hold a vertical
+      // column (a CJK title beside horizontal captions, or one the detector
+      // mis-cut). Each paragraph reports its own reading orientation, so the
+      // overlay can lay that column out the way it is written rather than the
+      // way the page voted.
+      const orientation =
+        orientationVote(paragraph.flatMap((row) => row.members)) ?? "horizontal";
       for (const row of paragraph) {
         text = joinAcrossLineBreak(text, row.text);
         for (const member of row.members) {
@@ -123,6 +130,7 @@ function assembleHorizontal(
             ...(member.chars ? { chars: member.chars } : {}),
             confidence: member.confidence,
             paragraph: paragraphIndex,
+            orientation,
           });
         }
       }

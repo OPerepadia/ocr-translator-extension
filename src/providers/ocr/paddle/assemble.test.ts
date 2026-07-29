@@ -253,6 +253,42 @@ describe("assembleResult", () => {
   });
 });
 
+describe("assembleResult per-paragraph orientation", () => {
+  it("marks a tall column vertical on a page that reads horizontally", () => {
+    // A page of wide lines outvotes the one column, so the whole capture is
+    // assembled horizontally — the column still has to read the way it is set.
+    const result = assembleResult([
+      line("wide one", 300, 10, 400, 30),
+      line("wide two", 300, 60, 400, 30),
+      line("wide three", 300, 110, 400, 30),
+      { text: "column", bbox: { x: 40, y: 10, width: 40, height: 300 }, confidence: 1 },
+    ]);
+
+    expect(result.orientation).toBe("horizontal");
+    const column = result.blocks?.find((block) => block.text === "column");
+    expect(column?.orientation).toBe("vertical");
+    expect(
+      result.blocks
+        ?.filter((block) => block.text.startsWith("wide"))
+        .every((block) => block.orientation === "horizontal"),
+    ).toBe(true);
+  });
+
+  it("keeps one orientation across a paragraph's lines", () => {
+    const result = assembleResult([
+      line("first", 10, 10, 200, 20),
+      line("second", 10, 40, 200, 20),
+    ]);
+    const orientations = new Set(result.blocks?.map((b) => b.orientation));
+    expect([...orientations]).toEqual(["horizontal"]);
+  });
+
+  it("falls back to horizontal when every line is too square to vote", () => {
+    const result = assembleResult([line("a", 10, 10, 20, 18)]);
+    expect(result.blocks?.[0].orientation).toBe("horizontal");
+  });
+});
+
 describe("assembleResult tilted boxes", () => {
   const oriented = {
     rect: { x: 12, y: 11, width: 38, height: 10 },
