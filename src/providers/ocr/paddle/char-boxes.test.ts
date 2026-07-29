@@ -100,6 +100,80 @@ describe("charBoxes", () => {
     );
   });
 
+  it("gives each character a box that follows a tilted line", () => {
+    // The same 100x20 line, turned 20 degrees about its centre.
+    const angle = (20 * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const tilted = ([
+      [-50, -10],
+      [50, -10],
+      [50, 10],
+      [-50, 10],
+    ] as const).map(([dx, dy]) => ({
+      x: 50 + dx * cos - dy * sin,
+      y: 10 + dx * sin + dy * cos,
+    })) as Quad;
+
+    const boxes = charBoxes({
+      chars: [
+        { char: "a", start: 5, end: 6 },
+        { char: "b", start: 15, end: 16 },
+        { char: "c", start: 25, end: 26 },
+        { char: "d", start: 35, end: 36 },
+      ],
+      timeSteps: 40,
+      quad: tilted,
+      padding: 0,
+      rotated: false,
+    });
+
+    for (const box of boxes) {
+      // Every slice carries the line's tilt and its full thickness, where the
+      // axis-aligned box had to grow well past the glyph to hold the same slice.
+      expect((box.oriented!.angle * 180) / Math.PI).toBeCloseTo(20, 3);
+      expect(box.oriented!.rect.height).toBeCloseTo(20, 3);
+      expect(box.oriented!.rect.width).toBeLessThan(box.bbox.width);
+    }
+    // The slices still run the length of the line, in order.
+    const widths = boxes.map((box) => box.oriented!.rect.width);
+    expect(widths.reduce((sum, w) => sum + w, 0)).toBeCloseTo(100, 3);
+  });
+
+  it("keeps the tilted slices of a vertical column running down it", () => {
+    const angle = (-10 * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const column = ([
+      [-10, -50],
+      [10, -50],
+      [10, 50],
+      [-10, 50],
+    ] as const).map(([dx, dy]) => ({
+      x: 10 + dx * cos - dy * sin,
+      y: 50 + dx * sin + dy * cos,
+    })) as Quad;
+
+    const boxes = charBoxes({
+      chars: [
+        { char: "x", start: 5, end: 6 },
+        { char: "y", start: 15, end: 16 },
+      ],
+      timeSteps: 20,
+      quad: column,
+      padding: 0,
+      rotated: true,
+    });
+
+    for (const box of boxes) {
+      expect((box.oriented!.angle * 180) / Math.PI).toBeCloseTo(-10, 3);
+      // Across the column is its thickness; along it, the slice.
+      expect(box.oriented!.rect.width).toBeCloseTo(20, 3);
+    }
+    // Slices go down the column, so the second starts below the first.
+    expect(boxes[1].oriented!.rect.y).toBeGreaterThan(boxes[0].oriented!.rect.y);
+  });
+
   it("returns nothing without characters or timesteps", () => {
     expect(
       charBoxes({ chars: [], timeSteps: 40, quad: line, padding: 0, rotated: false }),

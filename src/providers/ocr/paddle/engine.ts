@@ -24,6 +24,7 @@ import {
 import { ctcGreedyDecode, reverseArabicCtcText } from "./ctc";
 import { extractBoxes, type DbConfig, type DetectedBox } from "./db-postprocess";
 import { makeCharAt, parseDict } from "./dict";
+import { orientedRectOfQuad } from "./geometry";
 import {
   createSession,
   configureOrt,
@@ -462,6 +463,11 @@ export class PaddleEngine {
       if (recognized.text.length > 0) {
         lines.push({
           bbox: box.bbox,
+          // Padded like the bbox is, so the two bound the same text and an
+          // upright line's tilted box comes out the same size as its bbox.
+          oriented: orientedRectOfQuad(
+            padQuad(box.quad, this.detector.padding),
+          ),
           text: recognized.text,
           confidence: recognized.confidence,
           ...(recognized.chars ? { chars: recognized.chars } : {}),

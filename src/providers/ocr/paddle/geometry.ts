@@ -1,6 +1,8 @@
 // Pure 2D geometry helpers for detector post-processing. No browser or ORT
 // dependencies so this module is unit-testable under vitest's node env.
 
+import type { OrientedRect } from "../../../shared/types";
+
 export interface Point {
   x: number;
   y: number;
@@ -167,6 +169,32 @@ export function minAreaRect(points: Point[]): MinAreaRect {
   // best is always set because at least one edge has non-zero length for a
   // hull of >= 2 distinct points; fall back defensively.
   return best ?? minAreaRect([points[0] ?? { x: 0, y: 0 }]);
+}
+
+/** The snug rotated box around a quad, in whichever of its two frames sits
+ * nearest upright: the angle folds into (-45°, 45°], so the returned rect's
+ * width still runs across the box and its height down it, the way an unrotated
+ * rect's do. Text at an angle needs one of these — an axis-aligned box has to
+ * grow well past the glyphs to hold the same line. */
+export function orientedRectOfQuad(quad: Quad): OrientedRect {
+  const { center, width, height, angle } = minAreaRect(quad);
+  const folded = foldAxisAngle(angle);
+  // The two axes are a quarter turn apart, so exactly one of them folds inside
+  // the quarter turn around upright.
+  const upright = Math.abs(folded) <= Math.PI / 4;
+  const w = upright ? width : height;
+  const h = upright ? height : width;
+  return {
+    rect: { x: center.x - w / 2, y: center.y - h / 2, width: w, height: h },
+    angle: upright ? folded : foldAxisAngle(angle + Math.PI / 2),
+  };
+}
+
+/** Fold a direction into (-90°, 90°]. A box axis and its reverse are the same
+ * axis, so directions half a turn apart are equivalent. */
+function foldAxisAngle(angle: number): number {
+  const folded = angle - Math.PI * Math.round(angle / Math.PI);
+  return folded <= -Math.PI / 2 ? folded + Math.PI : folded;
 }
 
 /** Intersection of the infinite lines through (p1,p2) and (p3,p4). Returns null

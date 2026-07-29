@@ -9,7 +9,7 @@
 
 import type { OcrChar, Rect } from "../../../shared/types";
 import type { CtcChar } from "./ctc";
-import type { Point, Quad } from "./geometry";
+import { orientedRectOfQuad, type Point, type Quad } from "./geometry";
 
 // CTC peaks are narrow: a character usually wins one or two timesteps and the
 // rest go to blank. Character boundaries are therefore placed midway between
@@ -40,9 +40,11 @@ export function charBoxes(args: {
 
   return chars.map((entry, index) => {
     const [from, to] = bounds[index];
+    const corners = sliceQuad(quad, from, to, rotated);
     return {
       text: entry.char,
-      bbox: sliceQuad(quad, from, to, rotated),
+      bbox: boundingRect(corners),
+      oriented: orientedRectOfQuad(corners),
     };
   });
 }
@@ -83,14 +85,15 @@ function charBounds(centers: number[]): Array<[number, number]> {
   });
 }
 
-/** The bounding box of the quad's slice between two fractions along the reading
- * direction. */
+/** The quad's slice between two fractions along the reading direction, as its
+ * own four corners. Kept as corners rather than bounds so a tilted line's
+ * characters can carry a box that follows the tilt. */
 function sliceQuad(
   quad: Quad,
   from: number,
   to: number,
   rotated: boolean,
-): Rect {
+): Quad {
   const [topLeft, topRight, bottomRight, bottomLeft] = quad;
   // Reading across the quad (normal lines) walks the top and bottom edges;
   // reading down it (rotated crops) walks the left and right edges.
@@ -98,12 +101,12 @@ function sliceQuad(
     ? [topLeft, bottomLeft, topRight, bottomRight]
     : [topLeft, topRight, bottomLeft, bottomRight];
 
-  return boundingRect([
+  return [
     lerp(startA, endA, from),
     lerp(startA, endA, to),
-    lerp(startB, endB, from),
     lerp(startB, endB, to),
-  ]);
+    lerp(startB, endB, from),
+  ];
 }
 
 function boundingRect(points: Point[]): Rect {

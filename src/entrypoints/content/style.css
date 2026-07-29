@@ -823,6 +823,10 @@
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: auto;
+  /* Text at an angle gets a box tilted to match, which the script rotates about
+     its centre. Stated rather than left to the initial value, since the script
+     positions the box by that centre. */
+  transform-origin: 50% 50%;
 }
 
 /* Original view: a semi-transparent marker of where recognized text sits,

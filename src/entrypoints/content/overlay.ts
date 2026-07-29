@@ -17,6 +17,7 @@ import { CHEVRON_ICON, createLanguagePill } from "./language-picker";
 import {
   buildOverlayLayout,
   moveOverlayLayout,
+  rotatedBounds,
   type OverlayLayout,
   type OverlayLine,
 } from "./overlay-layout";
@@ -40,6 +41,8 @@ let toolbar: HTMLElement | undefined;
 let toggleButton: HTMLButtonElement | undefined;
 let boxes: HTMLElement[] = [];
 let boxRects: Rect[] = [];
+// Each box's tilt, in radians, matching boxRects. Zero for upright text.
+let boxAngles: number[] = [];
 // Both texts for each box, so the popover can show them together.
 let boxContents: Array<{ original: string; translated: string }> = [];
 // Floating panel showing one box's text. It opens when the pointer is over the
@@ -343,6 +346,7 @@ export function closeOverlay(): void {
   toggleButton = undefined;
   boxes = [];
   boxRects = [];
+  boxAngles = [];
   boxContents = [];
   teardownPopover();
   regionBackdrop = undefined;
@@ -440,6 +444,7 @@ function mountChip(chip: HTMLElement): void {
   }
   boxes = [];
   boxRects = [];
+  boxAngles = [];
   boxContents = [];
   teardownPopover();
   toolbar = undefined;
@@ -907,6 +912,7 @@ function renderBoxes(): void {
   }
   boxes = [];
   boxRects = [];
+  boxAngles = [];
   boxContents = [];
   hidePopover();
 
@@ -915,6 +921,19 @@ function renderBoxes(): void {
   } else {
     renderSourceBoxes(currentLayout, container);
   }
+  applyBoxAngles();
+}
+
+// Tilts go on last, after every box has been fitted. Both fits measure with
+// getBoundingClientRect, which reports the wider bounds a rotated element covers
+// rather than the box itself, and would size the text to those instead.
+function applyBoxAngles(): void {
+  boxes.forEach((box, index) => {
+    const angle = boxAngles[index] ?? 0;
+    if (angle !== 0) {
+      box.style.transform = `rotate(${angle}rad)`;
+    }
+  });
 }
 
 // The translation view: opaque boxes carrying the translated text, sized to fill
@@ -936,6 +955,7 @@ function renderTranslationBoxes(
     overlayContainer.append(box);
     boxes.push(box);
     boxRects.push(layout.combinedRect);
+    boxAngles.push(0);
     boxContents.push({
       original: currentOriginalText,
       translated: layout.combinedTranslation,
@@ -950,6 +970,9 @@ function renderTranslationBoxes(
       overlayContainer.append(box);
       boxes.push(box);
       boxRects.push(paragraph.translationRect);
+      // The painted panel tilts with its box, so the translation lies along the
+      // source text rather than across it.
+      boxAngles.push(paragraph.angle);
       boxContents.push({
         original: paragraph.original,
         translated: paragraph.translated ?? "",
@@ -976,10 +999,12 @@ function renderSourceBoxes(
       currentOriginalText,
       layout.paragraphs.flatMap((paragraph) => paragraph.lines),
       0,
+      0,
     );
     overlayContainer.append(box);
     boxes.push(box);
     boxRects.push(layout.combinedSourceRect);
+    boxAngles.push(0);
     boxContents.push({
       original: currentOriginalText,
       translated: layout.combinedTranslation,
@@ -987,10 +1012,17 @@ function renderSourceBoxes(
   } else {
     layout.paragraphs.forEach((paragraph, index) => {
       const rect = paragraph.sourceRect;
-      const box = createBox(rect, paragraph.original, paragraph.lines, index);
+      const box = createBox(
+        rect,
+        paragraph.original,
+        paragraph.lines,
+        index,
+        paragraph.angle,
+      );
       overlayContainer.append(box);
       boxes.push(box);
       boxRects.push(rect);
+      boxAngles.push(paragraph.angle);
       boxContents.push({
         original: paragraph.original,
         translated: paragraph.translated ?? "",
@@ -1100,6 +1132,7 @@ function createBox(
   text: string,
   lines: OverlayLine[],
   index: number,
+  angle: number,
 ): HTMLElement {
   const box = document.createElement("div");
   box.className = "ocr-translate-overlay-box ocr-translate-overlay-frame-box";
@@ -1119,7 +1152,7 @@ function createBox(
   if (currentSourceLang) {
     label.lang = currentSourceLang;
   }
-  box.append(label, createTextLayer(lines, rect));
+  box.append(label, createTextLayer(lines, rect, angle));
   attachBoxPopoverTriggers(box, index);
   return box;
 }
@@ -1287,7 +1320,11 @@ function syncBoxPopoverStates(): void {
 // each takes its own line's orientation: one box can gather lines of both, when
 // a translation that didn't split per paragraph puts the whole capture in the
 // combined box.
-function createTextLayer(lines: OverlayLine[], boxRect: Rect): HTMLElement {
+function createTextLayer(
+  lines: OverlayLine[],
+  boxRect: Rect,
+  angle: number,
+): HTMLElement {
   const layer = document.createElement("div");
   layer.className = "ocr-translate-overlay-text-layer";
   layer.addEventListener("pointerdown", () => {
@@ -1300,40 +1337,80 @@ function createTextLayer(lines: OverlayLine[], boxRect: Rect): HTMLElement {
     if (!line.text) {
       continue;
     }
-    // One span per character when the recognizer located them, so a selection
-    // covers exactly the glyphs it crosses. Otherwise the whole line goes in one
-    // span, stretched to fit, and lands only roughly.
-    const pieces = line.chars?.length
-      ? line.chars
-      : [{ rect: line.rect, text: line.text }];
-    for (const piece of pieces) {
+    for (const piece of textLayerPieces(line, boxRect, angle)) {
       if (!piece.text) {
         continue;
       }
-      layer.append(createTextLayerPiece(piece, boxRect, line.vertical));
+      layer.append(createTextLayerPiece(piece, line.vertical));
     }
   }
   return layer;
 }
 
+// Where each piece of a line sits inside the box element, whose own frame a tilt
+// turns away from the page's.
+//
+// One span per character when the recognizer located them, so a selection covers
+// exactly the glyphs it crosses. Otherwise the whole line goes in one span,
+// stretched to fit, and lands only roughly. A tilted box reads the pieces' own
+// tilted boxes, which follow the glyphs where the axis-aligned ones have grown
+// around the tilt, and places them in the box's frame.
+function textLayerPieces(
+  line: OverlayLine,
+  boxRect: Rect,
+  angle: number,
+): Array<{ rect: Rect; text: string }> {
+  const pieces = line.chars?.length
+    ? line.chars
+    : [{ rect: line.rect, oriented: line.oriented, text: line.text }];
+  if (angle !== 0) {
+    return pieces.map((piece) => ({
+      rect: toBoxFrame(piece.oriented?.rect ?? piece.rect, boxRect, angle),
+      text: piece.text,
+    }));
+  }
+  return pieces.map((piece) => ({
+    rect: {
+      ...piece.rect,
+      x: piece.rect.x - boxRect.x,
+      y: piece.rect.y - boxRect.y,
+    },
+    text: piece.text,
+  }));
+}
+
+/** A page rect in the coordinates of a box tilted by `angle`, which the browser
+ * rotates about its centre — the one point the two frames share. */
+function toBoxFrame(rect: Rect, boxRect: Rect, angle: number): Rect {
+  const dx = rect.x + rect.width / 2 - (boxRect.x + boxRect.width / 2);
+  const dy = rect.y + rect.height / 2 - (boxRect.y + boxRect.height / 2);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: dx * cos + dy * sin + boxRect.width / 2 - rect.width / 2,
+    y: dy * cos - dx * sin + boxRect.height / 2 - rect.height / 2,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 function createTextLayerPiece(
   piece: { rect: Rect; text: string },
-  boxRect: Rect,
   vertical: boolean,
 ): HTMLElement {
   const span = document.createElement("span");
   span.className = "ocr-translate-overlay-text-layer-line";
   span.textContent = piece.text;
-  span.style.left = `${piece.rect.x - boxRect.x}px`;
-  span.style.top = `${piece.rect.y - boxRect.y}px`;
+  span.style.left = `${piece.rect.x}px`;
+  span.style.top = `${piece.rect.y}px`;
   // Starting size: the piece's thickness. `fitTextLayers` corrects it once it
   // can measure what the font actually paints.
   span.style.fontSize = `${vertical ? piece.rect.width : piece.rect.height}px`;
   if (vertical) {
     span.classList.add("is-vertical");
   }
-  span.dataset.x = `${piece.rect.x - boxRect.x}`;
-  span.dataset.y = `${piece.rect.y - boxRect.y}`;
+  span.dataset.x = `${piece.rect.x}`;
+  span.dataset.y = `${piece.rect.y}`;
   span.dataset.width = `${piece.rect.width}`;
   span.dataset.height = `${piece.rect.height}`;
   return span;
@@ -1833,7 +1910,11 @@ function positionPopoverView(view: PopoverView): void {
   if (!pageRect) {
     return;
   }
-  const rect = pageToViewportRect(pageRect);
+  // Against what the box covers on screen, so a tilted one's corners don't end
+  // up underneath the popover.
+  const rect = pageToViewportRect(
+    rotatedBounds(pageRect, boxAngles[view.boxIndex] ?? 0),
+  );
   // Widen to the box before measuring: a wide box gets a wide popover, which is
   // what keeps a long paragraph from turning into a narrow column of many lines.
   view.el.style.maxWidth = `${popoverMaxWidth(rect.width, window.innerWidth)}px`;

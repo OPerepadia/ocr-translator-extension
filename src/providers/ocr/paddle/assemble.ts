@@ -3,12 +3,16 @@
 import type {
   OcrBlock,
   OcrChar,
+  OrientedRect,
   PipelineOcrResult,
   Rect,
 } from "../../../shared/types";
 
 export interface RecognizedLine {
   bbox: Rect;
+  /** The detector's tilted box for this line, when it found one. Grouping works
+   * off `bbox` throughout; this rides along for the overlay to draw. */
+  oriented?: OrientedRect;
   text: string;
   confidence: number;
   chars?: OcrChar[];
@@ -115,6 +119,7 @@ function assembleHorizontal(
           blocks.push({
             text: member.text,
             bbox: member.bbox,
+            ...(member.oriented ? { oriented: member.oriented } : {}),
             ...(member.chars ? { chars: member.chars } : {}),
             confidence: member.confidence,
             paragraph: paragraphIndex,
@@ -226,6 +231,7 @@ function assembleVertical(
       blocks.push({
         text: member.text,
         bbox: member.bbox,
+        ...(member.oriented ? { oriented: member.oriented } : {}),
         ...(member.chars ? { chars: member.chars } : {}),
         confidence: member.confidence,
         paragraph: blockIndex,

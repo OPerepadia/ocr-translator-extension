@@ -253,6 +253,33 @@ describe("assembleResult", () => {
   });
 });
 
+describe("assembleResult tilted boxes", () => {
+  const oriented = {
+    rect: { x: 12, y: 11, width: 38, height: 10 },
+    angle: 0.2,
+  };
+
+  it("carries a line's tilted box onto its block", () => {
+    const result = assembleResult([{ ...line("hello", 10, 10), oriented }]);
+    expect(result.blocks?.[0].oriented).toEqual(oriented);
+  });
+
+  it("carries it through the vertical path too", () => {
+    const result = assembleResult([
+      { ...vcol("最初", 709, 221), oriented },
+      vcol("最後", 602, 257),
+    ]);
+    const tilted = result.blocks?.find((b) => b.text === "最初");
+    expect(result.orientation).toBe("vertical");
+    expect(tilted?.oriented).toEqual(oriented);
+  });
+
+  it("leaves the field off when the provider reports none", () => {
+    const result = assembleResult([line("hello", 10, 10)]);
+    expect(result.blocks?.[0]).not.toHaveProperty("oriented");
+  });
+});
+
 // A vertical column box: centred at (cx, cy), narrow and tall.
 function vcol(
   text: string,

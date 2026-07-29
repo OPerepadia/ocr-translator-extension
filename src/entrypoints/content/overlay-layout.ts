@@ -2,13 +2,17 @@
 // result (block bboxes in cropped-image pixels + the joined paragraph texts)
 // into page-positioned boxes over the selection rect.
 
-import type { OcrBlock, OcrChar, Rect } from "@/shared/types";
+import type { OcrBlock, OcrChar, OrientedRect, Rect } from "@/shared/types";
 
 /** One detected OCR line of the source image: its text and where it sits on the
  * page. Used to lay an invisible, selectable copy of the original text over the
  * image glyphs, so selecting it highlights them. */
 export interface OverlayLine {
   rect: Rect;
+  /** The line's own tilted box over the page, when the provider reported one.
+   * The text layer lays a tilted paragraph's spans out from these, since `rect`
+   * has grown around the tilt and no longer tracks the glyphs. */
+  oriented?: OrientedRect;
   text: string;
   /** True when this line reads top-to-bottom, from its paragraph. Per line
    * because one box can gather lines of both orientations (a manga page mixes
@@ -17,7 +21,7 @@ export interface OverlayLine {
   /** Per-character boxes over the page, when the recognizer located them. The
    * text layer then places one span per character instead of stretching the
    * whole line, so a selection lands on the right glyphs. */
-  chars?: Array<{ rect: Rect; text: string }>;
+  chars?: Array<{ rect: Rect; oriented?: OrientedRect; text: string }>;
 }
 
 export interface OverlayParagraph {
@@ -27,6 +31,9 @@ export interface OverlayParagraph {
   /** Position the translated text is painted at in the translation view. May be
    * wider than `sourceRect` for vertical source text. */
   translationRect: Rect;
+  /** Tilt of both rects, about their own centre, in radians. Zero for upright
+   * text, which is every paragraph the detector reports no tilted boxes for. */
+  angle: number;
   /** The recognized original text for this paragraph. For vertical paragraphs
    * the detected columns are separated by newlines, so the original view breaks
    * columns where the source image does. Display-only: the translation input
@@ -74,6 +81,10 @@ export interface BuildOverlayInput {
 
 const VERTICAL_TRANSLATION_ASPECT_RATIO = 2.0;
 const VERTICAL_TRANSLATION_MIN_WIDTH = 120;
+// A line only votes on tilt if it is clearly oblong, the same bar the OCR
+// assembler sets for reading orientation.
+const ANGLE_VOTE_MIN_ASPECT = 1.5;
+const ANGLE_SNAP_RADIANS = (2 * Math.PI) / 180;
 
 export function getRenderedImageRect(args: {
   elementRect: Rect;
@@ -128,6 +139,9 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
   texts: string[];
   /** Each block's own bbox, in the same order as `texts`. */
   lineBboxes: Rect[];
+  /** Each block's tilted box, in the same order as `texts`. Falls back to the
+   * block's own bbox, untilted, when the provider reports none. */
+  lineOriented: OrientedRect[];
   /** Each block's character boxes, in the same order as `texts`. */
   lineChars: Array<OcrChar[] | undefined>;
   orientation?: "horizontal" | "vertical";
@@ -136,6 +150,7 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
     number,
     {
       rects: Rect[];
+      oriented: OrientedRect[];
       texts: string[];
       chars: Array<OcrChar[] | undefined>;
       orientation?: "horizontal" | "vertical";
@@ -145,14 +160,17 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
     // Fall back to a per-block key when paragraph is missing, offset past real
     // indices so it can't collide with a genuine paragraph 0.
     const key = block.paragraph ?? blocks.length + index;
+    const oriented = block.oriented ?? { rect: block.bbox, angle: 0 };
     const group = groups.get(key);
     if (group) {
       group.rects.push(block.bbox);
+      group.oriented.push(oriented);
       group.texts.push(block.text);
       group.chars.push(block.chars);
     } else {
       groups.set(key, {
         rects: [block.bbox],
+        oriented: [oriented],
         texts: [block.text],
         chars: [block.chars],
         orientation: block.orientation,
@@ -166,6 +184,7 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
       bbox: unionRect(group.rects),
       texts: group.texts,
       lineBboxes: group.rects,
+      lineOriented: group.oriented,
       lineChars: group.chars,
       orientation: group.orientation,
     }))
@@ -190,6 +209,109 @@ export function mapBboxToPage(
   };
 }
 
+/** Map a tilt from image space onto the page. Only matters when the capture is
+ * scaled by different factors on the two axes, which shears the angle. */
+export function mapAngleToPage(angle: number, sx: number, sy: number): number {
+  return Math.atan2(sy * Math.sin(angle), sx * Math.cos(angle));
+}
+
+/** The axis-aligned box a tilted rect covers, for the things that still work in
+ * page space: the frame the popover is placed against, and the union that gives
+ * a mixed-tilt capture its one combined box. */
+export function rotatedBounds(rect: Rect, angle: number): Rect {
+  if (angle === 0) {
+    return { ...rect };
+  }
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  const width = rect.width * cos + rect.height * sin;
+  const height = rect.width * sin + rect.height * cos;
+  return {
+    x: rect.x + (rect.width - width) / 2,
+    y: rect.y + (rect.height - height) / 2,
+    width,
+    height,
+  };
+}
+
+/** How far a paragraph is tilted: its lines' angles, each weighted by how long
+ * the line is, with near-square lines abstaining — a single short word's box has
+ * no dependable direction to report. Small angles come back as none: the
+ * detector's boxes wander a degree or two on upright text, and tilting a whole
+ * capture by that would only look careless. */
+export function paragraphAngle(lines: OrientedRect[]): number {
+  let weighted = 0;
+  let total = 0;
+  for (const line of lines) {
+    const long = Math.max(line.rect.width, line.rect.height);
+    const short = Math.max(1, Math.min(line.rect.width, line.rect.height));
+    if (long / short < ANGLE_VOTE_MIN_ASPECT) {
+      continue;
+    }
+    weighted += line.angle * long;
+    total += long;
+  }
+  if (total === 0) {
+    return 0;
+  }
+  const angle = weighted / total;
+  return Math.abs(angle) < ANGLE_SNAP_RADIANS ? 0 : angle;
+}
+
+/** The snug box around a paragraph's lines, measured in a frame tilted by
+ * `angle` so it hugs the text instead of growing around the tilt. */
+function orientedParagraphRect(lines: OrientedRect[], angle: number): Rect {
+  const corners = lines.flatMap((line) =>
+    orientedCorners(line).map((point) => rotatePoint(point, -angle)),
+  );
+  const minX = Math.min(...corners.map((p) => p.x));
+  const minY = Math.min(...corners.map((p) => p.y));
+  const maxX = Math.max(...corners.map((p) => p.x));
+  const maxY = Math.max(...corners.map((p) => p.y));
+  const width = maxX - minX;
+  const height = maxY - minY;
+  // The centre is the one point the tilted frame and the page agree on.
+  const center = rotatePoint(
+    { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+    angle,
+  );
+  return {
+    x: center.x - width / 2,
+    y: center.y - height / 2,
+    width,
+    height,
+  };
+}
+
+function orientedCorners(oriented: OrientedRect): Array<{ x: number; y: number }> {
+  const { rect, angle } = oriented;
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  const halfWidth = rect.width / 2;
+  const halfHeight = rect.height / 2;
+  return [
+    [-halfWidth, -halfHeight],
+    [halfWidth, -halfHeight],
+    [halfWidth, halfHeight],
+    [-halfWidth, halfHeight],
+  ].map(([dx, dy]) => {
+    const corner = rotatePoint({ x: dx, y: dy }, angle);
+    return { x: cx + corner.x, y: cy + corner.y };
+  });
+}
+
+function rotatePoint(
+  point: { x: number; y: number },
+  angle: number,
+): { x: number; y: number } {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: point.x * cos - point.y * sin,
+    y: point.x * sin + point.y * cos,
+  };
+}
+
 export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
   const groups = groupParagraphs(input.blocks);
   const originalLines = input.ocrText.split("\n");
@@ -204,28 +326,41 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
     translatedLines.length >= paragraphLineCount;
 
   const defaultVertical = input.orientation === "vertical";
+  const scaleX = input.rect.width / input.imageWidth;
+  const scaleY = input.rect.height / input.imageHeight;
   const paragraphs: OverlayParagraph[] = groups.map((group) => {
-    const sourceRect = mapBboxToPage(
-      group.bbox,
-      input.imageWidth,
-      input.imageHeight,
-      input.rect,
-    );
     const vertical = group.orientation
       ? group.orientation === "vertical"
       : defaultVertical;
     const toPage = (bbox: Rect): Rect =>
       mapBboxToPage(bbox, input.imageWidth, input.imageHeight, input.rect);
+    const orientedToPage = (oriented: OrientedRect): OrientedRect => ({
+      rect: toPage(oriented.rect),
+      angle: mapAngleToPage(oriented.angle, scaleX, scaleY),
+    });
+    const orientedLines = group.lineOriented.map(orientedToPage);
+    const angle = paragraphAngle(orientedLines);
+    // Upright paragraphs keep the plain union of their lines' boxes, so nothing
+    // about an ordinary capture shifts; only a tilted one needs the snug box
+    // measured in its own frame.
+    const sourceRect =
+      angle === 0
+        ? toPage(group.bbox)
+        : orientedParagraphRect(orientedLines, angle);
     const lines = group.lineBboxes.map((bbox, index) => {
       const chars = group.lineChars[index];
       return {
         rect: toPage(bbox),
+        oriented: orientedLines[index],
         text: group.texts[index] ?? "",
         vertical,
         ...(chars
           ? {
               chars: chars.map((char) => ({
                 rect: toPage(char.bbox),
+                ...(char.oriented
+                  ? { oriented: orientedToPage(char.oriented) }
+                  : {}),
                 text: char.text,
               })),
             }
@@ -238,6 +373,7 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
       translationRect: translated
         ? buildTranslationRect(sourceRect, input.rect, translated)
         : sourceRect,
+      angle,
       original: vertical
         ? group.texts.join("\n")
         : (originalLines[group.paragraph] ?? ""),
@@ -246,9 +382,11 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
       vertical,
     };
   });
+  // The combined box gathers paragraphs that may each be tilted their own way,
+  // so it has no single frame to sit in and stays upright around all of them.
   const combinedSourceRect =
     paragraphs.length > 0
-      ? unionRect(paragraphs.map((p) => p.sourceRect))
+      ? unionRect(paragraphs.map((p) => rotatedBounds(p.sourceRect, p.angle)))
       : { ...input.rect };
 
   return {
@@ -291,11 +429,17 @@ export function moveOverlayLayout(
       lines: paragraph.lines.map((line) => ({
         ...line,
         rect: move(line.rect),
+        ...(line.oriented
+          ? { oriented: { ...line.oriented, rect: move(line.oriented.rect) } }
+          : {}),
         ...(line.chars
           ? {
               chars: line.chars.map((char) => ({
                 ...char,
                 rect: move(char.rect),
+                ...(char.oriented
+                  ? { oriented: { ...char.oriented, rect: move(char.oriented.rect) } }
+                  : {}),
               })),
             }
           : {}),

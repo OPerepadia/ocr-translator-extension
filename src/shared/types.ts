@@ -5,6 +5,15 @@ export interface Rect {
   height: number;
 }
 
+/** A rect that sits at an angle: `rect` is the box before rotation, `angle` the
+ * rotation about its centre, in radians. Normalized to the quarter turn nearest
+ * upright — (-45°, 45°] — so `rect`'s width and height keep meaning what they
+ * do on an unrotated one. */
+export interface OrientedRect {
+  rect: Rect;
+  angle: number;
+}
+
 /**
  * Visible viewport size in CSS pixels, reported by the content script. The
  * background derives the effective device-pixel ratio from the captured
@@ -24,11 +33,18 @@ export type LangCode = string;
 export interface OcrChar {
   text: string;
   bbox: Rect;
+  /** The character's slice of the line's tilted box. `bbox` bounds the same
+   * slice axis-aligned, which for tilted text is a good deal larger. */
+  oriented?: OrientedRect;
 }
 
 export interface OcrBlock {
   text: string;
   bbox: Rect;
+  /** The tilted box the detector found for this line, when the provider reports
+   * one. `bbox` bounds the same text axis-aligned, so anything that does not
+   * handle rotation keeps working off that. */
+  oriented?: OrientedRect;
   /** Per-character boxes for this line, in reading order, when the recognizer
    * could locate them. */
   chars?: OcrChar[];
