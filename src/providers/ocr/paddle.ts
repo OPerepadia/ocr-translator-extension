@@ -10,9 +10,7 @@ import type { OcrProvider, OcrStatus } from "./types";
 const WASM_DIR = "ort/";
 const DEFAULT_RECOGNITION_TIMEOUT_MS = 60_000;
 
-// TEMPORARY: on so the worker logs every detected box alongside the overlay
-// diagnostics. Drop this commit once the vertical-selection report is settled.
-const DEBUG_PPOCR = true;
+const DEBUG_PPOCR = false;
 
 export interface PaddleModelConfig {
   id: string;
