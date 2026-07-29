@@ -25,6 +25,11 @@ import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 
 const OVERLAY_SPEECH_OWNER = "overlay";
 
+// TEMPORARY: diagnostics for the vertical-selection report. Logs what the OCR
+// result said about each block's reading orientation, what the layout made of
+// it, and how every text-layer span ended up. Drop this commit once settled.
+const DEBUG_OVERLAY = true;
+
 const PANEL_ICON =
   '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
   '<rect x="4" y="4" width="16" height="16" rx="2.4" stroke="currentColor" stroke-width="1.8"/>' +
@@ -278,10 +283,56 @@ export function showOverlay(args: {
     rect,
     orientation: result.ocr.orientation,
   });
+  logOverlayDebug(result, currentLayout);
   // With nothing to paint, the translation view has no reason to exist.
   mode = hasTranslationText ? defaultMode : "original";
 
   render();
+}
+
+function degreesOf(radians: number): number {
+  return Math.round(((radians * 180) / Math.PI) * 10) / 10;
+}
+
+function sizeOf(rect: Rect): string {
+  return `${Math.round(rect.width)}x${Math.round(rect.height)} @${Math.round(rect.x)},${Math.round(rect.y)}`;
+}
+
+function logOverlayDebug(result: PipelineResult, layout: OverlayLayout): void {
+  if (!DEBUG_OVERLAY) {
+    return;
+  }
+  const blocks = result.ocr.blocks ?? [];
+  console.log(
+    `[OCR overlay] page orientation=${result.ocr.orientation} blocks=${blocks.length} image=${result.ocr.imageWidth}x${result.ocr.imageHeight}`,
+  );
+  console.table(
+    blocks.map((block, index) => ({
+      i: index,
+      text: block.text.slice(0, 14),
+      paragraph: block.paragraph ?? "(none)",
+      orientation: block.orientation ?? "(UNSET)",
+      bbox: sizeOf(block.bbox),
+      oriented: block.oriented
+        ? `${Math.round(block.oriented.rect.width)}x${Math.round(block.oriented.rect.height)} ${degreesOf(block.oriented.angle)}deg`
+        : "(none)",
+      chars: block.chars?.length ?? 0,
+    })),
+  );
+  // What the overlay made of it. `vertical` is what drives the text layer.
+  console.table(
+    layout.paragraphs.map((paragraph, index) => ({
+      i: index,
+      vertical: paragraph.vertical,
+      angleDeg: degreesOf(paragraph.angle),
+      sourceRect: sizeOf(paragraph.sourceRect),
+      lines: paragraph.lines.length,
+      text: paragraph.original.slice(0, 18),
+    })),
+  );
+  console.log(
+    `[OCR overlay] segmented=${layout.segmented} (false means one combined box, which is never tilted)`,
+  );
 }
 
 /** Show a spinner with the current pipeline stage, centered over the region.
@@ -1453,6 +1504,23 @@ function fitTextLayers(): void {
     const offset = (thickness - nextFontSize) / 2;
     return { fontSize: nextFontSize, scale, offset, vertical };
   });
+
+  if (DEBUG_OVERLAY) {
+    console.log(`[OCR overlay] text layer: ${spans.length} span(s)`);
+    console.table(
+      spans.map((span, index) => {
+        const fit = fits[index];
+        return {
+          text: (span.textContent ?? "").slice(0, 14),
+          vertical: span.classList.contains("is-vertical"),
+          writingMode: getComputedStyle(span).writingMode,
+          piece: `${Math.round(Number(span.dataset.width))}x${Math.round(Number(span.dataset.height))} @${Math.round(Number(span.dataset.x))},${Math.round(Number(span.dataset.y))}`,
+          fontSize: fit ? Math.round(fit.fontSize) : "(unfitted)",
+          stretch: fit ? Math.round(fit.scale * 100) / 100 : "(unfitted)",
+        };
+      }),
+    );
+  }
 
   spans.forEach((span, index) => {
     const fit = fits[index];
