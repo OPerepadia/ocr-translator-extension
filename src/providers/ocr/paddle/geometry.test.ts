@@ -80,12 +80,15 @@ describe("orientedRectOfQuad", () => {
   }
 
   it("leaves an upright quad untilted", () => {
-    const oriented = orientedRectOfQuad([
-      { x: 10, y: 20 },
-      { x: 110, y: 20 },
-      { x: 110, y: 50 },
-      { x: 10, y: 50 },
-    ]);
+    const oriented = orientedRectOfQuad(
+      [
+        { x: 10, y: 20 },
+        { x: 110, y: 20 },
+        { x: 110, y: 50 },
+        { x: 10, y: 50 },
+      ],
+      false,
+    );
     expect(oriented.angle).toBeCloseTo(0, 6);
     expect(oriented.rect.x).toBeCloseTo(10, 6);
     expect(oriented.rect.y).toBeCloseTo(20, 6);
@@ -95,7 +98,7 @@ describe("orientedRectOfQuad", () => {
 
   it("recovers the tilt and the snug size of a turned line", () => {
     const angle = (15 * Math.PI) / 180;
-    const oriented = orientedRectOfQuad(tilted(200, 100, 250, 30, angle));
+    const oriented = orientedRectOfQuad(tilted(200, 100, 250, 30, angle), false);
     expect(oriented.angle).toBeCloseTo(angle, 4);
     expect(oriented.rect.width).toBeCloseTo(250, 3);
     expect(oriented.rect.height).toBeCloseTo(30, 3);
@@ -106,27 +109,30 @@ describe("orientedRectOfQuad", () => {
 
   it("keeps the tilt signed, so the two directions stay apart", () => {
     const angle = (-12 * Math.PI) / 180;
-    const oriented = orientedRectOfQuad(tilted(0, 0, 120, 20, angle));
+    const oriented = orientedRectOfQuad(tilted(0, 0, 120, 20, angle), false);
     expect(oriented.angle).toBeCloseTo(angle, 4);
   });
 
-  it("folds a past-quarter-turn frame back onto upright", () => {
-    // A line turned 70 degrees: measured the other way round it is a tall box
-    // turned -20, which is the frame the rect's width and height belong to.
-    const oriented = orientedRectOfQuad(
-      tilted(50, 50, 200, 40, (70 * Math.PI) / 180),
-    );
-    expect((oriented.angle * 180) / Math.PI).toBeCloseTo(-20, 3);
-    expect(oriented.rect.width).toBeCloseTo(40, 3);
-    expect(oriented.rect.height).toBeCloseTo(200, 3);
+  // A line at 45 degrees has two frames of equal area, so anything that picks
+  // between them by angle alone is a coin flip. Squaring to the reading
+  // direction leaves one answer, and neighbouring tilts agree with it.
+  it("stays on the reading direction either side of a quarter turn", () => {
+    for (const degrees of [44, 44.9, 45, 45.1, 46, 70, 89]) {
+      const angle = (degrees * Math.PI) / 180;
+      const oriented = orientedRectOfQuad(tilted(50, 50, 200, 40, angle), false);
+      expect((oriented.angle * 180) / Math.PI).toBeCloseTo(degrees, 3);
+      expect(oriented.rect.width).toBeCloseTo(200, 3);
+      expect(oriented.rect.height).toBeCloseTo(40, 3);
+    }
   });
 
-  it("bounds a tall column the same way a vertical line reads", () => {
+  it("reads a tall column down its length", () => {
     const angle = (8 * Math.PI) / 180;
-    const oriented = orientedRectOfQuad(tilted(0, 0, 24, 300, angle));
-    expect(oriented.angle).toBeCloseTo(angle, 4);
-    expect(oriented.rect.width).toBeCloseTo(24, 3);
-    expect(oriented.rect.height).toBeCloseTo(300, 3);
+    const oriented = orientedRectOfQuad(tilted(0, 0, 24, 300, angle), true);
+    // Down the column is a quarter turn on from the column's own tilt.
+    expect((oriented.angle * 180) / Math.PI).toBeCloseTo(98, 3);
+    expect(oriented.rect.width).toBeCloseTo(300, 3);
+    expect(oriented.rect.height).toBeCloseTo(24, 3);
   });
 });
 

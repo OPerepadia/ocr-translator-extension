@@ -215,6 +215,33 @@ export function mapAngleToPage(angle: number, sx: number, sy: number): number {
   return Math.atan2(sy * Math.sin(angle), sx * Math.cos(angle));
 }
 
+/** Turn a box from the frame the provider reports it in — squared to the
+ * direction the text advances — into the one it is laid out in. They are the
+ * same for ordinary text; a paragraph set vertically runs its text down the box
+ * instead of across it, so its boxes turn a quarter to match. */
+export function toWritingFrame(
+  oriented: OrientedRect,
+  vertical: boolean,
+): OrientedRect {
+  if (!vertical) {
+    return oriented;
+  }
+  const { rect, angle } = oriented;
+  // A rect turned a quarter about its own centre covers the same ground with
+  // its sides swapped.
+  const width = rect.height;
+  const height = rect.width;
+  return {
+    rect: {
+      x: rect.x + rect.width / 2 - width / 2,
+      y: rect.y + rect.height / 2 - height / 2,
+      width,
+      height,
+    },
+    angle: angle - Math.PI / 2,
+  };
+}
+
 /** The axis-aligned box a tilted rect covers, for the things that still work in
  * page space: the frame the popover is placed against, and the union that gives
  * a mixed-tilt capture its one combined box. */
@@ -240,7 +267,11 @@ export function rotatedBounds(rect: Rect, angle: number): Rect {
  * detector's boxes wander a degree or two on upright text, and tilting a whole
  * capture by that would only look careless. */
 export function paragraphAngle(lines: OrientedRect[]): number {
-  let weighted = 0;
+  // Averaged as doubled angles, so the mean is taken over box orientations
+  // rather than over raw numbers: a box turned by half a turn is the same box,
+  // and its angle may be reported either way round.
+  let x = 0;
+  let y = 0;
   let total = 0;
   for (const line of lines) {
     const long = Math.max(line.rect.width, line.rect.height);
@@ -248,13 +279,14 @@ export function paragraphAngle(lines: OrientedRect[]): number {
     if (long / short < ANGLE_VOTE_MIN_ASPECT) {
       continue;
     }
-    weighted += line.angle * long;
+    x += Math.cos(2 * line.angle) * long;
+    y += Math.sin(2 * line.angle) * long;
     total += long;
   }
   if (total === 0) {
     return 0;
   }
-  const angle = weighted / total;
+  const angle = Math.atan2(y, x) / 2;
   return Math.abs(angle) < ANGLE_SNAP_RADIANS ? 0 : angle;
 }
 
@@ -334,10 +366,14 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
       : defaultVertical;
     const toPage = (bbox: Rect): Rect =>
       mapBboxToPage(bbox, input.imageWidth, input.imageHeight, input.rect);
-    const orientedToPage = (oriented: OrientedRect): OrientedRect => ({
-      rect: toPage(oriented.rect),
-      angle: mapAngleToPage(oriented.angle, scaleX, scaleY),
-    });
+    const orientedToPage = (oriented: OrientedRect): OrientedRect =>
+      toWritingFrame(
+        {
+          rect: toPage(oriented.rect),
+          angle: mapAngleToPage(oriented.angle, scaleX, scaleY),
+        },
+        vertical,
+      );
     const orientedLines = group.lineOriented.map(orientedToPage);
     const angle = paragraphAngle(orientedLines);
     // Upright paragraphs keep the plain union of their lines' boxes, so nothing

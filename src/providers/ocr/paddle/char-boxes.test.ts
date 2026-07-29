@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { charBoxes } from "./char-boxes";
-import type { Quad } from "./geometry";
+import { readingAngleOfQuad, type Quad } from "./geometry";
+
+/** charBoxes with the frame the engine derives for the same quad. */
+function cut({
+  rotated,
+  ...args
+}: Omit<Parameters<typeof charBoxes>[0], "angle"> & { rotated: boolean }) {
+  return charBoxes({ ...args, angle: readingAngleOfQuad(args.quad, rotated) });
+}
 
 // A 100x20 line, upright, at the origin.
 const line: Quad = [
@@ -14,7 +22,7 @@ describe("charBoxes", () => {
   it("splits the line at the midpoints between CTC peaks", () => {
     // Four peaks spread evenly across 40 timesteps -> centres at 13.75%,
     // 38.75%, 63.75% and 88.75% of the line.
-    const boxes = charBoxes({
+    const boxes = cut({
       chars: [
         { char: "a", start: 5, end: 6 },
         { char: "b", start: 15, end: 16 },
@@ -40,7 +48,7 @@ describe("charBoxes", () => {
   });
 
   it("widens a character that won a run of timesteps", () => {
-    const boxes = charBoxes({
+    const boxes = cut({
       chars: [
         { char: "w", start: 0, end: 10 },
         { char: "i", start: 18, end: 19 },
@@ -59,7 +67,7 @@ describe("charBoxes", () => {
   it("maps fractions back off the padded crop the recognizer saw", () => {
     // The crop was padded by 10px on each side, so the recognizer's midpoint is
     // the line's midpoint, but its edges sit outside the text.
-    const boxes = charBoxes({
+    const boxes = cut({
       chars: [
         { char: "a", start: 10, end: 11 },
         { char: "b", start: 29, end: 30 },
@@ -83,7 +91,7 @@ describe("charBoxes", () => {
       { x: 20, y: 100 },
       { x: 0, y: 100 },
     ];
-    const boxes = charBoxes({
+    const boxes = cut({
       chars: [
         { char: "上", start: 5, end: 6 },
         { char: "下", start: 15, end: 16 },
@@ -115,7 +123,7 @@ describe("charBoxes", () => {
       y: 10 + dx * sin + dy * cos,
     })) as Quad;
 
-    const boxes = charBoxes({
+    const boxes = cut({
       chars: [
         { char: "a", start: 5, end: 6 },
         { char: "b", start: 15, end: 16 },
@@ -154,7 +162,7 @@ describe("charBoxes", () => {
       y: 50 + dx * sin + dy * cos,
     })) as Quad;
 
-    const boxes = charBoxes({
+    const boxes = cut({
       chars: [
         { char: "x", start: 5, end: 6 },
         { char: "y", start: 15, end: 16 },
@@ -166,20 +174,66 @@ describe("charBoxes", () => {
     });
 
     for (const box of boxes) {
-      expect((box.oriented!.angle * 180) / Math.PI).toBeCloseTo(-10, 3);
-      // Across the column is its thickness; along it, the slice.
-      expect(box.oriented!.rect.width).toBeCloseTo(20, 3);
+      // Boxes come squared to the reading direction, which for a column runs
+      // down it — a quarter turn on from the column's own tilt. The overlay
+      // turns them back when it lays a vertical paragraph out.
+      expect((box.oriented!.angle * 180) / Math.PI).toBeCloseTo(80, 3);
+      // Across the reading direction is the column's thickness.
+      expect(box.oriented!.rect.height).toBeCloseTo(20, 3);
     }
+    // Along it, the slices divide the column's length between them.
+    const lengths = boxes.map((box) => box.oriented!.rect.width);
+    expect(lengths.reduce((sum, length) => sum + length, 0)).toBeCloseTo(100, 3);
     // Slices go down the column, so the second starts below the first.
     expect(boxes[1].oriented!.rect.y).toBeGreaterThan(boxes[0].oriented!.rect.y);
   });
 
+  // A line at 45 degrees has two frames of equal area, and the quad the boxes
+  // are cut from is not the one the line's own box was measured on. Anything
+  // that picks a frame per call can lose the two differently and cut the line
+  // across its own reading direction.
+  it("cuts along the reading direction either side of a quarter turn", () => {
+    for (const tilt of [44, 44.9, 45, 45.1, 46, 70]) {
+      const angle = (tilt * Math.PI) / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const quad = ([
+        [-50, -10],
+        [50, -10],
+        [50, 10],
+        [-50, 10],
+      ] as const).map(([dx, dy]) => ({
+        x: 200 + dx * cos - dy * sin,
+        y: 200 + dx * sin + dy * cos,
+      })) as Quad;
+
+      const boxes = cut({
+        chars: [
+          { char: "a", start: 5, end: 6 },
+          { char: "b", start: 15, end: 16 },
+          { char: "c", start: 25, end: 26 },
+        ],
+        timeSteps: 30,
+        quad,
+        padding: 0,
+        rotated: false,
+      });
+
+      const tiled = boxes.reduce((sum, box) => sum + box.oriented!.rect.width, 0);
+      expect(tiled).toBeCloseTo(100, 3);
+      for (const box of boxes) {
+        expect((box.oriented!.angle * 180) / Math.PI).toBeCloseTo(tilt, 3);
+        expect(box.oriented!.rect.height).toBeCloseTo(20, 3);
+      }
+    }
+  });
+
   it("returns nothing without characters or timesteps", () => {
     expect(
-      charBoxes({ chars: [], timeSteps: 40, quad: line, padding: 0, rotated: false }),
+      cut({ chars: [], timeSteps: 40, quad: line, padding: 0, rotated: false }),
     ).toEqual([]);
     expect(
-      charBoxes({
+      cut({
         chars: [{ char: "a", start: 0, end: 1 }],
         timeSteps: 0,
         quad: line,

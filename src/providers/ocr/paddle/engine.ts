@@ -33,7 +33,7 @@ import {
   type OrtBackend,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
-import type { PipelineOcrResult } from "../../../shared/types";
+import type { OrientedRect, PipelineOcrResult } from "../../../shared/types";
 
 interface Manifest {
   detector: {
@@ -465,9 +465,7 @@ export class PaddleEngine {
           bbox: box.bbox,
           // Padded like the bbox is, so the two bound the same text and an
           // upright line's tilted box comes out the same size as its bbox.
-          oriented: orientedRectOfQuad(
-            padQuad(box.quad, this.detector.padding),
-          ),
+          oriented: this.lineFrame(box).oriented,
           text: recognized.text,
           confidence: recognized.confidence,
           ...(recognized.chars ? { chars: recognized.chars } : {}),
@@ -475,6 +473,18 @@ export class PaddleEngine {
       }
     }
     return lines;
+  }
+
+  /** The frame this line's boxes are squared to, and whether the recognizer had
+   * to turn the crop upright to read it. Derived from the detector's quad alone,
+   * so the line's own box and its characters' cannot disagree. */
+  private lineFrame(box: DetectedBox): {
+    oriented: OrientedRect;
+    readsDown: boolean;
+  } {
+    const padded = padQuad(box.quad, this.detector.padding);
+    const readsDown = isRotatedForRecognition(padded);
+    return { oriented: orientedRectOfQuad(padded, readsDown), readsDown };
   }
 
   private async getRecognizer(modelId: string): Promise<LoadedRecognizer> {
@@ -553,8 +563,9 @@ export class PaddleEngine {
     }
 
     // Ordered but unpadded: character boxes hug the detected text, while the
-    // rotation test follows the padded crop the recognizer actually saw.
+    // frame and the rotation test follow the padded crop the recognizer saw.
     const quad = padQuad(box.quad, 0);
+    const frame = this.lineFrame(box);
     return {
       text: decoded.text,
       confidence: decoded.confidence,
@@ -563,7 +574,7 @@ export class PaddleEngine {
         timeSteps,
         quad,
         padding: this.detector.padding,
-        rotated: isRotatedForRecognition(padQuad(box.quad, this.detector.padding)),
+        angle: frame.oriented.angle,
       }),
     };
   }

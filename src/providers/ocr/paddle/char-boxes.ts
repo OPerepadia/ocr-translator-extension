@@ -9,7 +9,7 @@
 
 import type { OcrChar, Rect } from "../../../shared/types";
 import type { CtcChar } from "./ctc";
-import { orientedRectOfQuad, type Point, type Quad } from "./geometry";
+import { orientedBoundsOfPoints, type Point, type Quad } from "./geometry";
 
 // CTC peaks are narrow: a character usually wins one or two timesteps and the
 // rest go to blank. Character boundaries are therefore placed midway between
@@ -23,14 +23,17 @@ export function charBoxes(args: {
   quad: Quad;
   /** How far the crop was padded out from `quad` on each side. */
   padding: number;
-  /** True when the crop was rotated upright for recognition, i.e. the line
-   * reads top-to-bottom down the quad. */
-  rotated: boolean;
+  /** The reading direction the line's own box is squared to
+   * (`readingAngleOfQuad`). Every character is measured in it, and the quad is
+   * cut along it, so a character can never come out turned a quarter from the
+   * line it belongs to. */
+  angle: number;
 }): OcrChar[] {
-  const { chars, timeSteps, quad, padding, rotated } = args;
+  const { chars, timeSteps, quad, padding, angle } = args;
   if (chars.length === 0 || timeSteps <= 0) {
     return [];
   }
+  const rotated = readsDownQuad(quad, angle);
 
   const length = quadLength(quad, rotated);
   const centers = chars.map((entry) =>
@@ -44,9 +47,22 @@ export function charBoxes(args: {
     return {
       text: entry.char,
       bbox: boundingRect(corners),
-      oriented: orientedRectOfQuad(corners),
+      oriented: orientedBoundsOfPoints(corners, angle),
     };
   });
+}
+
+/** Whether the line runs down this quad rather than across it, judged by which
+ * of the quad's two edges lies along `angle`. Read off the quad being cut, so a
+ * line at 45° — where the two edges are equally upright and any tie-break is a
+ * coin flip — cannot end up cut across the direction its box was squared to. */
+function readsDownQuad(quad: Quad, angle: number): boolean {
+  const [first, across, , down] = quad;
+  const x = Math.cos(angle);
+  const y = Math.sin(angle);
+  const alongAcross = Math.abs((across.x - first.x) * x + (across.y - first.y) * y);
+  const alongDown = Math.abs((down.x - first.x) * x + (down.y - first.y) * y);
+  return alongDown > alongAcross;
 }
 
 /** Re-base a fraction of the padded crop onto the unpadded quad. */

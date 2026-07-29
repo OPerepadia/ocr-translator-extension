@@ -171,30 +171,67 @@ export function minAreaRect(points: Point[]): MinAreaRect {
   return best ?? minAreaRect([points[0] ?? { x: 0, y: 0 }]);
 }
 
-/** The snug rotated box around a quad, in whichever of its two frames sits
- * nearest upright: the angle folds into (-45°, 45°], so the returned rect's
- * width still runs across the box and its height down it, the way an unrotated
- * rect's do. Text at an angle needs one of these — an axis-aligned box has to
- * grow well past the glyphs to hold the same line. */
-export function orientedRectOfQuad(quad: Quad): OrientedRect {
-  const { center, width, height, angle } = minAreaRect(quad);
-  const folded = foldAxisAngle(angle);
-  // The two axes are a quarter turn apart, so exactly one of them folds inside
-  // the quarter turn around upright.
-  const upright = Math.abs(folded) <= Math.PI / 4;
-  const w = upright ? width : height;
-  const h = upright ? height : width;
+/**
+ * The direction a line of text advances in, in radians.
+ *
+ * `quad` must be ordered as `padQuad` returns it, so the first corner leads to
+ * the second across the line and to the fourth down it. `readsDown` marks the
+ * lines whose crop the recognizer turned upright to read, which run down the
+ * quad rather than across it.
+ *
+ * Taking the frame from the reading direction rather than from whichever axis
+ * happens to sit nearest upright is what keeps it single-valued: a line at 45°
+ * has two equally upright frames, and choosing between them by angle alone comes
+ * down to a coin flip that separate calls lose differently.
+ */
+export function readingAngleOfQuad(quad: Quad, readsDown: boolean): number {
+  const [first, across, , down] = quad;
+  const along = readsDown
+    ? { x: down.x - first.x, y: down.y - first.y }
+    : { x: across.x - first.x, y: across.y - first.y };
+  return Math.atan2(along.y, along.x);
+}
+
+/** The snug box around a point set, measured in a frame turned by `angle`. Text
+ * at an angle needs one of these — an axis-aligned box has to grow well past the
+ * glyphs to hold the same line. */
+export function orientedBoundsOfPoints(
+  points: Point[],
+  angle: number,
+): OrientedRect {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  let minU = Infinity;
+  let maxU = -Infinity;
+  let minV = Infinity;
+  let maxV = -Infinity;
+  for (const point of points) {
+    const u = point.x * cos + point.y * sin;
+    const v = point.y * cos - point.x * sin;
+    if (u < minU) minU = u;
+    if (u > maxU) maxU = u;
+    if (v < minV) minV = v;
+    if (v > maxV) maxV = v;
+  }
+
+  const width = maxU - minU;
+  const height = maxV - minV;
+  const u = (minU + maxU) / 2;
+  const v = (minV + maxV) / 2;
+  // The centre is the one point the turned frame and the page agree on.
+  const x = u * cos - v * sin;
+  const y = u * sin + v * cos;
   return {
-    rect: { x: center.x - w / 2, y: center.y - h / 2, width: w, height: h },
-    angle: upright ? folded : foldAxisAngle(angle + Math.PI / 2),
+    rect: { x: x - width / 2, y: y - height / 2, width, height },
+    angle,
   };
 }
 
-/** Fold a direction into (-90°, 90°]. A box axis and its reverse are the same
- * axis, so directions half a turn apart are equivalent. */
-function foldAxisAngle(angle: number): number {
-  const folded = angle - Math.PI * Math.round(angle / Math.PI);
-  return folded <= -Math.PI / 2 ? folded + Math.PI : folded;
+/** The snug box around a quad, squared to its reading direction: `rect.width`
+ * runs along the text. A paragraph set vertically is turned a quarter from this
+ * when it is laid out, where the writing mode is known. */
+export function orientedRectOfQuad(quad: Quad, readsDown: boolean): OrientedRect {
+  return orientedBoundsOfPoints(quad, readingAngleOfQuad(quad, readsDown));
 }
 
 /** Intersection of the infinite lines through (p1,p2) and (p3,p4). Returns null
