@@ -1214,12 +1214,11 @@ export function isOverlayBoxActivationKey(key: string): boolean {
   return key === "Enter" || key === " ";
 }
 
-// Hovering a box opens its popover once the pointer settles on it, and it closes
-// as soon as the pointer leaves both. The popover is placed flush against its
-// box, so the pointer is always over one of the two on the way between them, and
-// leaving is never a matter of timing.
+// Hovering a box opens its popover once the pointer settles on it. A short close
+// delay lets the pointer cross the empty corners around a tilted box.
 function attachBoxPopoverTriggers(box: HTMLElement, index: number): void {
   box.addEventListener("pointerenter", (event) => {
+    clearPopoverCloseTimer();
     // A touch has no travel across the page to settle from, and waiting would
     // just lose taps shorter than the wait.
     if (event.pointerType === "touch") {
@@ -1253,10 +1252,12 @@ const POPOVER_SETTLE_MS = 100;
 // Movement under this is a shaky hand rather than travel, and doesn't restart the
 // wait.
 const POPOVER_SETTLE_MOVE_PX = 4;
+const POPOVER_CLOSE_DELAY_MS = 200;
 
 let settleTimer: ReturnType<typeof setTimeout> | undefined;
 // Where the pointer was when the pending wait started, to measure movement from.
 let settleOrigin: { x: number; y: number } | undefined;
+let popoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
 function waitForPointerToSettle(index: number, event: PointerEvent): void {
   clearSettleTimer();
@@ -1294,6 +1295,11 @@ function clearSettleTimer(): void {
   settleOrigin = undefined;
 }
 
+function clearPopoverCloseTimer(): void {
+  clearTimeout(popoverCloseTimer);
+  popoverCloseTimer = undefined;
+}
+
 function handlePopoverPointerLeave(event: PointerEvent): void {
   // The pointer left before settling, so whatever it was about to open is off,
   // for a lifted finger as much as for a pointer moving on.
@@ -1315,7 +1321,13 @@ function handlePopoverPointerLeave(event: PointerEvent): void {
   if (isPopoverBusy()) {
     return;
   }
-  hidePopover();
+  clearPopoverCloseTimer();
+  popoverCloseTimer = setTimeout(() => {
+    popoverCloseTimer = undefined;
+    if (!isPopoverBusy()) {
+      hidePopover();
+    }
+  }, POPOVER_CLOSE_DELAY_MS);
 }
 
 // Work the popover is in the middle of outlives the hover: a selection being
@@ -1581,6 +1593,7 @@ function endSelection(): void {
 // showing that box is left alone: the pointer crossing back from the popover
 // onto its box must not rebuild the panel under it.
 function showPopover(index: number): void {
+  clearPopoverCloseTimer();
   if (activePopover?.boxIndex === index) {
     return;
   }
@@ -1626,6 +1639,7 @@ function ensurePopoverElement(): HTMLElement | undefined {
   el.addEventListener("pointerdown", () => {
     beginSelection("popover");
   });
+  el.addEventListener("pointerenter", clearPopoverCloseTimer);
   el.addEventListener("pointerleave", handlePopoverPointerLeave);
   container.append(el);
   document.addEventListener("click", handlePopoverOutsideClick);
@@ -1868,6 +1882,7 @@ async function copyPopoverText(
 // overlay can't be reopened against boxes that are gone.
 function hidePopover(): void {
   clearSettleTimer();
+  clearPopoverCloseTimer();
   if (!activePopover) {
     return;
   }
@@ -1888,6 +1903,7 @@ function hidePopover(): void {
 // element goes with the old container, so drop its references.
 function teardownPopover(): void {
   clearSettleTimer();
+  clearPopoverCloseTimer();
   for (const timer of popoverCopyResetTimers.values()) {
     clearTimeout(timer);
   }
@@ -1899,9 +1915,8 @@ function teardownPopover(): void {
 }
 
 // Gap kept between the popover and the viewport edges. There is deliberately no
-// gap against the box itself: the popover is a hover panel, and a gap would be a
-// strip where the pointer is on neither of them and the popover closes on the
-// way over.
+// added gap against the box itself; the close delay only needs to cover the
+// empty corners introduced by rotation.
 const POPOVER_MARGIN = 8;
 // A popover narrower than this reads as a column of fragments even for a narrow
 // box; wider than this the line becomes too long to scan comfortably.
