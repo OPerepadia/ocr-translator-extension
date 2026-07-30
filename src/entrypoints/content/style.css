@@ -834,9 +834,9 @@
    its text details. It holds a screen-reader label plus the selectable text
    layer, so dragging inside it selects the image's own text. */
 .ocr-translate-overlay-frame-box {
-  border: 1px solid rgba(62, 123, 214, 0.45);
+  border: 1px solid rgb(245, 128, 11);
   border-radius: 4px;
-  background: rgba(62, 123, 214, 0.06);
+  background: rgba(245, 128, 11, 0.06);
   color: transparent;
   transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
@@ -846,8 +846,8 @@
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible,
 .ocr-translate-overlay-frame-box.is-active {
-  background: rgba(62, 123, 214, 0.18);
-  border-color: rgba(62, 123, 214, 0.95);
+  background: rgba(245, 128, 11, 0.18);
+  border-color: rgb(245, 128, 11);
 }
 
 /* Only the box under the pointer or keyboard focus rises above its neighbours.
@@ -859,7 +859,7 @@
 }
 
 .ocr-translate-overlay-frame-box:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.55);
+  outline: 2px solid rgba(245, 128, 11, 0.65);
   outline-offset: 2px;
 }
 
@@ -874,9 +874,9 @@
   /* The panel truncates its own text and may hang slightly over the frame, so
      this must not clip the way the original view's frames do. */
   overflow: visible;
-  border: 1px solid rgba(62, 123, 214, 0.45);
+  border: 1px solid rgb(245, 128, 11);
   border-radius: 4px;
-  background: rgba(62, 123, 214, 0.06);
+  background: rgba(245, 128, 11, 0.06);
   /* Softens the source text showing around the panel so it reads as picture
      rather than as text competing with the translation. */
   backdrop-filter: blur(3px);
