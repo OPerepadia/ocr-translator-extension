@@ -2,6 +2,7 @@ import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
 import { browserApi } from "../shared/browser";
 import {
+  isGetCaptureSnapshotRequest,
   isGetOcrSourceLanguagesRequest,
   isGetTargetLanguagesRequest,
   isGetTranslationProvidersRequest,
@@ -13,11 +14,13 @@ import {
   isSpeakRequest,
   isStartSelectionMessage,
   isSwitchProviderRequest,
+  type CaptureSnapshotResponse,
   type OcrSourceLanguagesResponse,
   type RuntimeMessage,
   type SpeakResponse,
   type TranslationProvidersResponse,
 } from "../shared/messages";
+import { encodeSnapshot } from "../shared/image";
 import {
   findOcrSourceLanguage,
   COMMON_OCR_SOURCE_LANGUAGES,
@@ -88,6 +91,9 @@ export function startRouter(dependencies: RouterDependencies): void {
     if (isGetTranslationProvidersRequest(message)) {
       return handleGetTranslationProviders(dependencies);
     }
+    if (isGetCaptureSnapshotRequest(message)) {
+      return withKeepAlive(() => handleGetCaptureSnapshot(frameKey));
+    }
     if (isSpeakRequest(message)) {
       return withKeepAlive(() => handleSpeakRequest(dependencies, message));
     }
@@ -135,6 +141,10 @@ const withKeepAlive = createKeepAlive(
 // which case re-recognition asks the user for a fresh selection.
 interface CaptureState {
   image?: Blob;
+  /** CSS size of the region the capture covers, which sets the resolution its
+   * display copy is encoded at. Absent for a context-menu image, whose rendered
+   * size the content script keeps to itself. */
+  displaySize?: { width: number; height: number };
   sourceLanguage: string;
 }
 
@@ -147,7 +157,13 @@ async function handleOcrTranslateRequest(
   frameKey: string | undefined,
 ): Promise<PipelineResult> {
   const capture: CaptureState | undefined = frameKey
-    ? { sourceLanguage: "auto" }
+    ? {
+        sourceLanguage: "auto",
+        displaySize:
+          "rect" in message
+            ? { width: message.rect.width, height: message.rect.height }
+            : undefined,
+      }
     : undefined;
   if (frameKey && capture) {
     lastCaptures.set(frameKey, capture);
@@ -181,6 +197,28 @@ async function handleOcrTranslateRequest(
     onOcrResult: (ocr) =>
       sendPipelineOcrResult(tabId, message.requestId, ocr),
   });
+}
+
+// Hands the captured pixels to the overlay, which paints them under its boxes
+// so they stay on the image the text was recognized from. The encoded copy is
+// not kept: the overlay asks once per capture, so holding it would be megabytes
+// nobody comes back for. Reports an absent snapshot rather than throwing — the
+// overlay works without one, over whatever the page is showing now.
+async function handleGetCaptureSnapshot(
+  frameKey: string | undefined,
+): Promise<CaptureSnapshotResponse> {
+  const capture = frameKey ? lastCaptures.get(frameKey) : undefined;
+  if (!capture?.image) {
+    return {};
+  }
+
+  try {
+    return {
+      snapshot: await encodeSnapshot(capture.image, capture.displaySize),
+    };
+  } catch {
+    return {};
+  }
 }
 
 // Starts loading the OCR worker and model while the user is doing selection.

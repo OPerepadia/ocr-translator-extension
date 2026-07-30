@@ -7,10 +7,12 @@ import {
   serializeError,
 } from "@/shared/messages";
 import type {
+  CaptureSnapshotResponse,
   OcrImageSource,
   OcrSourceLanguagesResponse,
   TranslationProvidersResponse,
 } from "@/shared/messages";
+import { base64ToBlob } from "@/shared/image";
 import type {
   LangCode,
   PipelineOcrResult,
@@ -55,6 +57,7 @@ import {
   setOnShowPanel,
   setOverlayDefaultMode,
   setOverlayOcrSourceLanguages,
+  setOverlaySnapshot,
   setOverlayTargetLanguages,
   setOverlayTranslationProviders,
   setOverlayUiRoot,
@@ -89,6 +92,11 @@ let uiRoot: HTMLElement | undefined;
 let lastResult: PipelineResult | undefined;
 let lastRect: Rect | undefined;
 let lastContextImage: HTMLImageElement | undefined;
+// The captured pixels the overlay paints its region with, and a counter that
+// tells a snapshot still being fetched that its capture has been superseded.
+let lastSnapshot: ImageBitmap | undefined;
+let captureGeneration = 0;
+let requestedSnapshotGeneration = 0;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -213,9 +221,11 @@ export default defineContentScript({
         message.requestId === activeRequestId
       ) {
         // For region captures, the first status means the screenshot is taken,
-        // so it is safe to drop the selection's dim.
+        // so it is safe to drop the selection's dim — and the pixels the
+        // overlay freezes its region on are now available to ask for.
         showActiveLoading(message.status);
         releaseSelectionDim();
+        requestCaptureSnapshot();
         return undefined;
       }
       if (
@@ -224,6 +234,9 @@ export default defineContentScript({
       ) {
         pendingText = message.ocr.text;
         showActiveOcrResult(message.ocr);
+        // The pipeline always reports its OCR result, so the frozen region does
+        // not depend on a recognizer that reports no status along the way.
+        requestCaptureSnapshot();
         return undefined;
       }
       return undefined;
@@ -241,6 +254,7 @@ function closeOnNavigation(): void {
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
+  clearCaptureSnapshot();
   lastResult = undefined;
   lastRect = undefined;
   pendingText = "";
@@ -340,6 +354,7 @@ async function runCapture(
   setOverlayAvailable(false);
   // A previous overlay (if any) is for a stale region; clear it before this run.
   closeOverlay();
+  clearCaptureSnapshot();
   // Re-read the default view so a change made in Options this session is honored.
   displayMode = await getDisplayMode();
   // The overlay opens in whichever view the switch was last left in.
@@ -505,6 +520,49 @@ function carryOcrDetails(result: PipelineResult): PipelineResult {
     return result;
   }
   return { ...result, ocr: { ...lastResult.ocr, ...result.ocr } };
+}
+
+// Fetch the pixels this capture was recognized from and hand them to the
+// overlay, which paints them under its boxes
+function requestCaptureSnapshot(): void {
+  if (requestedSnapshotGeneration === captureGeneration) {
+    return;
+  }
+  const generation = captureGeneration;
+  requestedSnapshotGeneration = generation;
+
+  void (async () => {
+    try {
+      const response =
+        await browserApi.runtime.sendMessage<CaptureSnapshotResponse>({
+          type: "GET_CAPTURE_SNAPSHOT",
+        });
+      const encoded = response?.snapshot;
+      if (!encoded || generation !== captureGeneration) {
+        return;
+      }
+      const bitmap = await createImageBitmap(
+        base64ToBlob(encoded.data, encoded.mediaType),
+      );
+      if (generation !== captureGeneration) {
+        bitmap.close();
+        return;
+      }
+      lastSnapshot = bitmap;
+      setOverlaySnapshot(bitmap);
+    } catch {
+      // No frozen region for this capture; the overlay renders without one.
+    }
+  })();
+}
+
+// Drop the frozen region. The overlay lets go of the bitmap first, so nothing
+// can draw it after it is closed.
+function clearCaptureSnapshot(): void {
+  captureGeneration += 1;
+  setOverlaySnapshot(undefined);
+  lastSnapshot?.close();
+  lastSnapshot = undefined;
 }
 
 function toPageRect(rect: Rect): Rect {

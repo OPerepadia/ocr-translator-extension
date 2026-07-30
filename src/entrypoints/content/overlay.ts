@@ -60,6 +60,11 @@ let activePopover: PopoverView | undefined;
 let popoverEl: HTMLElement | undefined;
 let regionBackdrop: HTMLElement | undefined;
 let regionFrame: HTMLElement | undefined;
+// The captured pixels, painted under the boxes so the overlay keeps sitting on
+// the image it was built from. Without it the boxes are left over whatever the
+// page paints next, which for animated content is something else entirely.
+let regionSnapshot: HTMLCanvasElement | undefined;
+let currentSnapshot: ImageBitmap | undefined;
 // The loading spinner shown over the region while OCR/translation runs, and its
 // label, kept so repeated status updates patch the text without restarting the
 // spinner animation.
@@ -128,6 +133,16 @@ const CLAMP_SPILL_LINES = 0.35;
 /** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
   uiRoot = root;
+}
+
+/** Freeze the region on the pixels the capture was recognized from, so a page
+ * that repaints underneath (an animated banner, a carousel, a video) cannot
+ * leave the boxes over unrelated content. Applies to whatever is on screen and
+ * to every later render, until cleared with undefined. The caller owns the
+ * bitmap and must clear it here before closing it. */
+export function setOverlaySnapshot(snapshot: ImageBitmap | undefined): void {
+  currentSnapshot = snapshot;
+  refreshRegionSnapshot();
 }
 
 /** Set which view a new overlay opens in. */
@@ -351,6 +366,7 @@ export function closeOverlay(): void {
   teardownPopover();
   regionBackdrop = undefined;
   regionFrame = undefined;
+  regionSnapshot = undefined;
   statusChip = undefined;
   loadingLabel = undefined;
   currentLayout = undefined;
@@ -397,15 +413,9 @@ function render(): void {
   // old container, so drop the stale reference; it's recreated when next opened.
   statusChip = undefined;
   loadingLabel = undefined;
-  regionBackdrop = undefined;
-  regionFrame = undefined;
   teardownPopover();
 
-  if (currentRect) {
-    regionBackdrop = createRegionBackdrop(currentRect);
-    regionFrame = createRegionFrame(currentRect);
-    container.append(regionBackdrop, regionFrame);
-  }
+  renderRegionLayers();
   toolbar = createToolbar();
   container.append(toolbar);
   if (currentTranslationError) {
@@ -434,7 +444,7 @@ function renderLoading(status: PipelineStatus): void {
 }
 
 // Replace whatever is on screen with a fresh container holding the region
-// backdrop/frame and the given chip, centered over the region.
+// layers and the given chip, centered over the region.
 function mountChip(chip: HTMLElement): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
@@ -452,16 +462,10 @@ function mountChip(chip: HTMLElement): void {
   clearOutsideClickHandlers();
   currentLayout = undefined;
   currentTranslationError = undefined;
-  regionBackdrop = undefined;
-  regionFrame = undefined;
 
   container = document.createElement("div");
   container.className = "ocr-translate-overlay";
-  if (currentRect) {
-    regionBackdrop = createRegionBackdrop(currentRect);
-    regionFrame = createRegionFrame(currentRect);
-    container.append(regionBackdrop, regionFrame);
-  }
+  renderRegionLayers();
 
   statusChip = chip;
   container.append(statusChip);
@@ -496,6 +500,9 @@ function ensureGlobalHandlers(): void {
 }
 
 function reposition(): void {
+  if (regionSnapshot && currentRect) {
+    positionRectElement(regionSnapshot, currentRect);
+  }
   if (regionBackdrop && currentRect) {
     positionRectElement(regionBackdrop, currentRect);
   }
@@ -2043,6 +2050,45 @@ function createErrorChip(args: {
     ),
   );
   return chip;
+}
+
+function renderRegionLayers(): void {
+  regionBackdrop = undefined;
+  regionFrame = undefined;
+  if (container && currentRect) {
+    regionBackdrop = createRegionBackdrop(currentRect);
+    regionFrame = createRegionFrame(currentRect);
+    container.append(regionBackdrop, regionFrame);
+  }
+  refreshRegionSnapshot();
+}
+
+// Put the current snapshot (or none) on screen. Separate from the layers around
+// it because it also arrives on its own: it is fetched while the pipeline runs
+// and lands under whatever the overlay is already showing.
+function refreshRegionSnapshot(): void {
+  regionSnapshot?.remove();
+  regionSnapshot = undefined;
+  if (!container || !currentRect || !currentSnapshot) {
+    return;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "ocr-translate-overlay-snapshot";
+  canvas.setAttribute("aria-hidden", "true");
+  // The backing store keeps the capture's own resolution; CSS scales it to the
+  // region, so a HiDPI capture stays sharp.
+  canvas.width = currentSnapshot.width;
+  canvas.height = currentSnapshot.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return;
+  }
+  context.drawImage(currentSnapshot, 0, 0);
+  positionRectElement(canvas, currentRect);
+  // Under the boxes and the region's own layers.
+  container.prepend(canvas);
+  regionSnapshot = canvas;
 }
 
 function createRegionBackdrop(rect: Rect): HTMLElement {

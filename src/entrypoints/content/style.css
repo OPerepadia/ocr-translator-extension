@@ -1109,6 +1109,19 @@
 
 /* Softly dims the page outside the captured region while leaving the selected
    area itself transparent. */
+/* The pixels the region was recognized from, painted under the boxes. Freezing
+   them keeps the overlay matching its capture on a page that repaints
+   underneath — an animated banner, a carousel, a video. */
+.ocr-translate-overlay-snapshot {
+  position: absolute;
+  z-index: 0;
+  box-sizing: border-box;
+  border-radius: 6px;
+  /* The frozen pixels hide whatever the page is doing under them, so clicks
+     inside the region must not reach content the user can no longer see. */
+  pointer-events: auto;
+}
+
 .ocr-translate-overlay-dim {
   position: absolute;
   box-sizing: border-box;

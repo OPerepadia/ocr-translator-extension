@@ -1,4 +1,5 @@
 import type {
+  EncodedImage,
   LangCode,
   PipelineOcrResult,
   PipelineResult,
@@ -56,6 +57,13 @@ export type RuntimeMessage =
   | {
       type: "OPEN_OPTIONS";
     }
+  // Content -> background: the pixels of this frame's last capture, so the
+  // overlay can paint the region it was recognized from instead of leaving its
+  // boxes over a page that may have moved on. The response resolves to a
+  // CaptureSnapshotResponse, whose snapshot is absent once the capture is gone.
+  | {
+      type: "GET_CAPTURE_SNAPSHOT";
+    }
   // Content -> background: list the languages the active translation provider
   // can translate into. The response resolves to an array of language codes.
   | {
@@ -112,6 +120,12 @@ export interface OcrSourceLanguagesResponse {
 export interface TranslationProvidersResponse {
   providers: Array<{ id: string; label: string }>;
   currentId: string;
+}
+
+export interface CaptureSnapshotResponse {
+  /** Absent when the frame has no retained capture — the event page can unload
+   * between the capture and the request. */
+  snapshot?: EncodedImage;
 }
 
 export interface SpeakResponse {
@@ -179,6 +193,12 @@ export function isGetOcrSourceLanguagesRequest(
   value: unknown,
 ): value is Extract<RuntimeMessage, { type: "GET_OCR_SOURCE_LANGUAGES" }> {
   return isRuntimeMessage(value) && value.type === "GET_OCR_SOURCE_LANGUAGES";
+}
+
+export function isGetCaptureSnapshotRequest(
+  value: unknown,
+): value is Extract<RuntimeMessage, { type: "GET_CAPTURE_SNAPSHOT" }> {
+  return isRuntimeMessage(value) && value.type === "GET_CAPTURE_SNAPSHOT";
 }
 
 export function isGetTranslationProvidersRequest(
