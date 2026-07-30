@@ -2,7 +2,6 @@ import type {
   EncodedImage,
   LangCode,
   PipelineOcrResult,
-  PipelineResult,
   PipelineStatus,
   Rect,
   SerializedError,
@@ -21,17 +20,10 @@ export type RuntimeMessage =
       type: "START_IMAGE_TRANSLATION";
       imageUrl: string;
     }
+  // Content -> background: run the pipeline over a region or an image. The
+  // response resolves to a PipelineResult, and a failure rejects it — neither
+  // comes back as a message of its own.
   | ({ type: "OCR_TRANSLATE_REQUEST"; requestId: string } & OcrImageSource)
-  | {
-      type: "OCR_TRANSLATE_RESULT";
-      requestId: string;
-      result: PipelineResult;
-    }
-  | {
-      type: "OCR_TRANSLATE_ERROR";
-      requestId: string;
-      error: SerializedError;
-    }
   // Background -> content tab: which pipeline step is running, so the loading
   // popup can show the current status (recognizing, translating, …).
   | {
