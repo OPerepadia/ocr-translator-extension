@@ -912,19 +912,16 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 
-/* Marks the box the popover belongs to, as the original view's frames do. The
-   accent lands on the frame, not the text: the panel is opaque, so what the eye
-   is reading stays put. */
-.ocr-translate-overlay-translation-box:hover,
-.ocr-translate-overlay-translation-box:focus-visible,
-.ocr-translate-overlay-translation-box.is-active {
-  background: rgba(62, 123, 214, 0.18);
-  border-color: rgba(62, 123, 214, 0.95);
-}
-
-.ocr-translate-overlay-translation-box:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.55);
-  outline-offset: 2px;
+/* Keep interaction feedback on the foreground translation. */
+.ocr-translate-overlay-translation-box:hover
+  .ocr-translate-overlay-translation-text,
+.ocr-translate-overlay-translation-box:focus-visible
+  .ocr-translate-overlay-translation-text,
+.ocr-translate-overlay-translation-box.is-active
+  .ocr-translate-overlay-translation-text {
+  box-shadow:
+    0 1px 8px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(62, 123, 214, 0.55);
 }
 
 /* Like the frames, only the box under the pointer or keyboard focus rises above
