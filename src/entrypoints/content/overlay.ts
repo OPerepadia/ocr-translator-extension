@@ -38,7 +38,7 @@ type OverlayMode = "translation" | "original";
 let uiRoot: HTMLElement | undefined;
 let container: HTMLElement | undefined;
 let toolbar: HTMLElement | undefined;
-let toggleButton: HTMLButtonElement | undefined;
+let modeButton: HTMLButtonElement | undefined;
 let boxes: HTMLElement[] = [];
 let boxRects: Rect[] = [];
 // Each box's tilt, in radians, matching boxRects. Zero for upright text.
@@ -358,7 +358,7 @@ export function closeOverlay(): void {
   clearOutsideClickHandlers();
   container = undefined;
   toolbar = undefined;
-  toggleButton = undefined;
+  modeButton = undefined;
   boxes = [];
   boxRects = [];
   boxAngles = [];
@@ -458,7 +458,7 @@ function mountChip(chip: HTMLElement): void {
   boxContents = [];
   teardownPopover();
   toolbar = undefined;
-  toggleButton = undefined;
+  modeButton = undefined;
   clearOutsideClickHandlers();
   currentLayout = undefined;
   currentTranslationError = undefined;
@@ -546,14 +546,14 @@ function createToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "ocr-translate-overlay-toolbar";
 
-  const toggleWrapper = document.createElement("span");
-  toggleWrapper.className = "ocr-translate-overlay-toggle-wrap";
+  const modeButtonWrapper = document.createElement("span");
+  modeButtonWrapper.className = "ocr-translate-overlay-mode-button-wrap";
   if (!hasTranslationText) {
-    toggleWrapper.title = currentTranslationError
+    modeButtonWrapper.title = currentTranslationError
       ? "Translation unavailable"
       : "The text is already in target language";
   }
-  toggleWrapper.append(createModeSwitch());
+  modeButtonWrapper.append(createModeButton());
 
   const sourcePicker = createSourceLanguagePicker();
   const languagePicker = createLanguagePicker();
@@ -573,40 +573,41 @@ function createToolbar(): HTMLElement {
   divider.className = "ocr-translate-overlay-divider";
   divider.setAttribute("aria-hidden", "true");
 
-  // The switch sits between the pills: knob left shows the source, knob right
-  // the translation, so it doubles as the direction arrow.
   if (sourcePicker) {
     bar.append(sourcePicker);
   }
-  bar.append(toggleWrapper);
+  if (sourcePicker && languagePicker) {
+    const direction = document.createElement("span");
+    direction.className = "ocr-translate-overlay-direction";
+    direction.setAttribute("aria-hidden", "true");
+    direction.textContent = "→";
+    bar.append(direction);
+  }
   if (languagePicker) {
     bar.append(languagePicker);
   }
   if (providerPicker) {
     bar.append(providerPicker);
   }
+  bar.append(modeButtonWrapper);
   bar.append(selectButton, menu.element, divider, closeButton);
   return bar;
 }
 
 // Flips between the painted translation and the bare image with its selectable
 // text. Disabled when there is no translation to paint.
-function createModeSwitch(): HTMLButtonElement {
+function createModeButton(): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "ocr-translate-overlay-switch";
-  button.setAttribute("role", "switch");
+  button.className =
+    "ocr-translate-overlay-icon-button ocr-translate-overlay-mode-button";
   button.disabled = !hasTranslationText;
-
-  const knob = document.createElement("span");
-  knob.className = "ocr-translate-overlay-switch-knob";
-  knob.innerHTML = TRANSLATE_ICON;
-  button.append(knob);
-  toggleButton = button;
-  updateToggleLabel();
+  button.innerHTML = TRANSLATE_ICON;
+  modeButton = button;
+  updateModeButton();
 
   // Both views are built from the same toolbar, so only the boxes and the
-  // switch's own labels change; rebuilding the bar would replay its entry
+  // button's own state changes; rebuilding the bar would replay its entry
   // animation on every flip.
   button.addEventListener("click", () => {
     if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
@@ -616,22 +617,22 @@ function createModeSwitch(): HTMLButtonElement {
     defaultMode = mode;
     void setOverlayMode(mode);
     renderBoxes();
-    updateToggleLabel();
+    updateModeButton();
   });
 
   return button;
 }
 
-function updateToggleLabel(): void {
-  if (!toggleButton) {
+function updateModeButton(): void {
+  if (!modeButton) {
     return;
   }
   const showingTranslation = mode === "translation";
-  const label = showingTranslation ? "Hide translation overlay" : "Show translation overlay";
-  toggleButton.setAttribute("aria-checked", String(showingTranslation));
-  toggleButton.setAttribute("aria-label", label);
+  const label = "Toggle translation overlay";
+  modeButton.setAttribute("aria-pressed", String(showingTranslation));
+  modeButton.setAttribute("aria-label", label);
   if (hasTranslationText) {
-    toggleButton.title = label;
+    modeButton.title = label;
   }
 }
 
