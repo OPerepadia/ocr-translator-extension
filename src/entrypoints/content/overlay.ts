@@ -65,11 +65,11 @@ let regionFrame: HTMLElement | undefined;
 // page paints next, which for animated content is something else entirely.
 let regionSnapshot: HTMLCanvasElement | undefined;
 let currentSnapshot: ImageBitmap | undefined;
-// The loading spinner shown over the region while OCR/translation runs, and its
-// label, kept so repeated status updates patch the text without restarting the
-// spinner animation.
+// The loading spinner shown over the region while OCR/translation runs, and a
+// patcher for its label and progress bar, kept so repeated status updates don't
+// restart the spinner animation.
 let statusChip: HTMLElement | undefined;
-let loadingLabel: HTMLElement | undefined;
+let updateLoadingChip: ((status: PipelineStatus) => void) | undefined;
 let currentTranslationError:
   | {
       message: string;
@@ -307,8 +307,8 @@ export function showOverlayLoading(
 ): void {
   currentRect = rect;
 
-  if (container && loadingLabel) {
-    loadingLabel.textContent = statusMessage(status);
+  if (container && updateLoadingChip) {
+    updateLoadingChip(status);
     reposition();
     return;
   }
@@ -327,9 +327,9 @@ export function showOverlayError(args: {
 }): void {
   currentRect = args.rect;
   captureAnchor();
-  // Unlike the loading chip, there's no label to patch in place; drop the stale
-  // reference so a later showOverlayLoading rebuilds instead of patching it.
-  loadingLabel = undefined;
+  // Unlike the loading chip, there's nothing to patch in place; drop the stale
+  // patcher so a later showOverlayLoading rebuilds instead of patching it.
+  updateLoadingChip = undefined;
   mountChip(createErrorChip(args));
 }
 
@@ -368,7 +368,7 @@ export function closeOverlay(): void {
   regionFrame = undefined;
   regionSnapshot = undefined;
   statusChip = undefined;
-  loadingLabel = undefined;
+  updateLoadingChip = undefined;
   currentLayout = undefined;
   currentRect = undefined;
   hasTranslationText = false;
@@ -412,7 +412,7 @@ function render(): void {
   // A settled result replaces any loading spinner. The popover is a child of the
   // old container, so drop the stale reference; it's recreated when next opened.
   statusChip = undefined;
-  loadingLabel = undefined;
+  updateLoadingChip = undefined;
   teardownPopover();
 
   renderRegionLayers();
@@ -2000,16 +2000,34 @@ function positionToolbar(): void {
 
 function createLoadingChip(status: PipelineStatus): HTMLElement {
   const chip = document.createElement("div");
-  chip.className = "ocr-translate-overlay-status";
+  chip.className = "ocr-translate-overlay-status is-loading";
 
   const spinner = document.createElement("div");
   spinner.className = "ocr-translate-overlay-spinner";
 
-  loadingLabel = document.createElement("p");
-  loadingLabel.className = "ocr-translate-overlay-status-label";
-  loadingLabel.textContent = statusMessage(status);
+  const label = document.createElement("p");
+  label.className = "ocr-translate-overlay-status-label";
 
-  chip.append(spinner, loadingLabel, iconButton(CLOSE_ICON, "Close", closeOverlay));
+  const progress = document.createElement("div");
+  progress.className = "ocr-translate-overlay-progress";
+  const fill = document.createElement("div");
+  fill.className = "ocr-translate-overlay-progress-fill";
+  progress.append(fill);
+
+  updateLoadingChip = (next: PipelineStatus): void => {
+    label.textContent = statusMessage(next);
+    const fraction = statusProgress(next);
+    progress.hidden = fraction === undefined;
+    fill.style.transform = `scaleX(${fraction ?? 0})`;
+  };
+  updateLoadingChip(status);
+
+  chip.append(
+    spinner,
+    label,
+    iconButton(CLOSE_ICON, "Close", closeOverlay),
+    progress,
+  );
   return chip;
 }
 
@@ -2232,11 +2250,22 @@ function statusMessage(status: PipelineStatus): string {
       return "Initializing OCR engine…";
     case "recognizing":
       return status.lineCount && status.lineCount > 0
-        ? `Recognizing text… ${status.line}/${status.lineCount}`
+        ? "Recognizing text…"
         : "Analyzing image…";
     case "translating":
       return "Translating…";
   }
+}
+
+function statusProgress(status: PipelineStatus): number | undefined {
+  if (status.stage !== "recognizing") {
+    return undefined;
+  }
+  const { line, lineCount } = status;
+  if (line === undefined || !lineCount || lineCount <= 0) {
+    return undefined;
+  }
+  return clamp(line / lineCount, 0, 1);
 }
 
 function iconButton(

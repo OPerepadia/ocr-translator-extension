@@ -639,6 +639,25 @@
   font-size: 17px;
 }
 
+/* Recognition progress, filled by scaling the inner bar from 0 to 1. */
+.ocr-translate-popup-progress {
+  width: 180px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.ocr-translate-popup-progress-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #3e7bd6;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.2s ease-out;
+}
+
 .ocr-translate-popup-section-header {
   display: flex;
   align-items: center;
@@ -1176,6 +1195,29 @@
   white-space: nowrap;
 }
 
+/* The loading chip clips its progress bar to the rounded bottom edge. */
+.ocr-translate-overlay-status.is-loading {
+  overflow: hidden;
+}
+
+.ocr-translate-overlay-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.ocr-translate-overlay-progress-fill {
+  width: 100%;
+  height: 100%;
+  background: #3e7bd6;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.2s ease-out;
+}
+
 /* Error variant of the status chip: warning icon, wrapping message, actions. */
 .ocr-translate-overlay-status.is-error {
   max-width: min(440px, calc(100vw - 32px));
@@ -1558,6 +1600,14 @@
     border-top-color: #5b93e8;
   }
 
+  .ocr-translate-popup-progress {
+    background: #2a3338;
+  }
+
+  .ocr-translate-popup-progress-fill {
+    background: #5b93e8;
+  }
+
   .ocr-translate-popup-langbadge {
     border-color: rgba(91, 147, 232, 0.24);
     color: #8ab4f3;
@@ -1600,6 +1650,14 @@
   .ocr-translate-overlay-spinner {
     border-color: rgba(226, 232, 240, 0.2);
     border-top-color: #5b93e8;
+  }
+
+  .ocr-translate-overlay-progress {
+    background: rgba(226, 232, 240, 0.16);
+  }
+
+  .ocr-translate-overlay-progress-fill {
+    background: #5b93e8;
   }
 
   .ocr-translate-overlay-toolbar {
@@ -1712,7 +1770,9 @@
   .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button,
   .ocr-translate-overlay-toolbar .ocr-translate-overlay-icon-button,
   .ocr-translate-overlay-toolbar .ocr-translate-popup-menu-item,
-  .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-item {
+  .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-item,
+  .ocr-translate-overlay-progress-fill,
+  .ocr-translate-popup-progress-fill {
     transition: none;
   }
 }
