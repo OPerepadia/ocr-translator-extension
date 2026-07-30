@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { charBoxes } from "./char-boxes";
-import { readingAngleOfQuad, type Quad } from "./geometry";
+import { isRotatedForRecognition, padQuad } from "./crop";
+import {
+  orientedRectOfQuad,
+  readingAngleOfQuad,
+  type Quad,
+} from "./geometry";
 
 /** charBoxes with the frame the engine derives for the same quad. */
 function cut({
@@ -193,6 +198,8 @@ describe("charBoxes", () => {
   // that picks a frame per call can lose the two differently and cut the line
   // across its own reading direction.
   it("cuts along the reading direction either side of a quarter turn", () => {
+    const padding = 3;
+
     for (const tilt of [44, 44.9, 45, 45.1, 46, 70]) {
       const angle = (tilt * Math.PI) / 180;
       const cos = Math.cos(angle);
@@ -207,23 +214,33 @@ describe("charBoxes", () => {
         y: 200 + dx * sin + dy * cos,
       })) as Quad;
 
-      const boxes = cut({
+      const padded = padQuad(quad, padding);
+      const rotated = isRotatedForRecognition(padded);
+      const line = orientedRectOfQuad(padded, rotated);
+      const boxes = charBoxes({
         chars: [
           { char: "a", start: 5, end: 6 },
           { char: "b", start: 15, end: 16 },
           { char: "c", start: 25, end: 26 },
         ],
         timeSteps: 30,
-        quad,
-        padding: 0,
-        rotated: false,
+        quad: padQuad(quad, 0),
+        padding,
+        angle: line.angle,
       });
 
+      expect((line.angle * 180) / Math.PI).toBeCloseTo(tilt, 3);
+      expect(line.rect.width).toBeCloseTo(100 + padding * 2, 3);
+      expect(line.rect.height).toBeCloseTo(20 + padding * 2, 3);
+
       const tiled = boxes.reduce((sum, box) => sum + box.oriented!.rect.width, 0);
-      expect(tiled).toBeCloseTo(100, 3);
+      expect(tiled).toBeCloseTo(line.rect.width - padding * 2, 3);
       for (const box of boxes) {
-        expect((box.oriented!.angle * 180) / Math.PI).toBeCloseTo(tilt, 3);
-        expect(box.oriented!.rect.height).toBeCloseTo(20, 3);
+        expect(box.oriented!.angle).toBeCloseTo(line.angle, 3);
+        expect(box.oriented!.rect.height).toBeCloseTo(
+          line.rect.height - padding * 2,
+          3,
+        );
       }
     }
   });
