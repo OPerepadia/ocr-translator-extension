@@ -418,8 +418,7 @@ describe("paragraphAngle", () => {
       { rect: { x: 0, y: 0, width: 300, height: 10 }, angle: radians(10) },
       { rect: { x: 0, y: 0, width: 100, height: 10 }, angle: radians(14) },
     ]);
-    // Averaged as directions rather than as raw numbers, so it lands a hair off
-    // the arithmetic mean.
+    // The length-weighted mean: (10 * 300 + 14 * 100) / 400.
     expect(degrees(angle)).toBeCloseTo(11, 2);
   });
 

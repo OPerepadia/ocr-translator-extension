@@ -924,9 +924,9 @@ function renderBoxes(): void {
   applyBoxAngles();
 }
 
-// Tilts go on last, after every box has been fitted. Both fits measure with
-// getBoundingClientRect, which reports the wider bounds a rotated element covers
-// rather than the box itself, and would size the text to those instead.
+// Tilts go on last, after every box has been fitted. `fitTextLayers` measures
+// with getBoundingClientRect, which reports the wider bounds a rotated element
+// covers rather than the box itself, and would size the spans to those.
 function applyBoxAngles(): void {
   boxes.forEach((box, index) => {
     const angle = boxAngles[index] ?? 0;
@@ -1076,9 +1076,6 @@ function fitFontSize(box: HTMLElement): void {
   if (!(panel instanceof HTMLElement)) {
     return;
   }
-  // Truncation left from an earlier fit would hide the overflow being measured.
-  panel.style.removeProperty("-webkit-line-clamp");
-  panel.style.removeProperty("overflow-wrap");
   const cap = Math.max(
     MIN_FONT_PX,
     Math.min(MAX_FONT_PX, Math.floor(box.clientHeight)),
@@ -1115,10 +1112,18 @@ function clampToWholeLines(panel: HTMLElement, box: HTMLElement): void {
   }
   const styles = getComputedStyle(panel);
   const lineHeight = Number.parseFloat(styles.lineHeight);
+  // A unitless `line-height` may come back as the bare multiplier, not px, which
+  // parses below the font size; clamping on that would clip mid-glyph.
+  const fontSize = Number.parseFloat(styles.fontSize);
   const padding =
     Number.parseFloat(styles.paddingTop) +
     Number.parseFloat(styles.paddingBottom);
-  if (!Number.isFinite(lineHeight) || lineHeight <= 0 || !Number.isFinite(padding)) {
+  if (
+    !Number.isFinite(lineHeight) ||
+    !Number.isFinite(fontSize) ||
+    lineHeight < fontSize ||
+    !Number.isFinite(padding)
+  ) {
     return;
   }
   const lines = Math.floor(

@@ -9,9 +9,9 @@ import type { OcrBlock, OcrChar, OrientedRect, Rect } from "@/shared/types";
  * image glyphs, so selecting it highlights them. */
 export interface OverlayLine {
   rect: Rect;
-  /** The line's own tilted box over the page, when the provider reported one.
-   * The text layer lays a tilted paragraph's spans out from these, since `rect`
-   * has grown around the tilt and no longer tracks the glyphs. */
+  /** The line's own tilted box over the page; always set, matching `rect`
+   * untilted when the provider reported none. The text layer lays a tilted
+   * paragraph's spans out from these, since `rect` has grown around the tilt. */
   oriented?: OrientedRect;
   text: string;
   /** True when this line reads top-to-bottom, from its paragraph. Per line

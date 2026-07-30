@@ -6,9 +6,8 @@ export interface Rect {
 }
 
 /** A rect that sits at an angle: `rect` is the box before rotation, `angle` the
- * rotation about its centre, in radians. Normalized to the quarter turn nearest
- * upright — (-45°, 45°] — so `rect`'s width and height keep meaning what they
- * do on an unrotated one. */
+ * rotation about its centre, in radians. `rect.width` runs along the text, so
+ * `angle` is not folded into a quarter turn — a vertical column reports ~90°. */
 export interface OrientedRect {
   rect: Rect;
   angle: number;

@@ -463,8 +463,8 @@ export class PaddleEngine {
       if (recognized.text.length > 0) {
         lines.push({
           bbox: box.bbox,
-          // Padded like the bbox is, so the two bound the same text and an
-          // upright line's tilted box comes out the same size as its bbox.
+          // Padded like the bbox, so an upright line's box matches it. Unlike
+          // the bbox it is not clamped to the image, so an edge line runs wider.
           oriented: this.lineFrame(box).oriented,
           text: recognized.text,
           confidence: recognized.confidence,
