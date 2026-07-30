@@ -1,6 +1,8 @@
 // Pure 2D geometry helpers for detector post-processing. No browser or ORT
 // dependencies so this module is unit-testable under vitest's node env.
 
+import type { OrientedRect } from "../../../shared/types";
+
 export interface Point {
   x: number;
   y: number;
@@ -167,6 +169,69 @@ export function minAreaRect(points: Point[]): MinAreaRect {
   // best is always set because at least one edge has non-zero length for a
   // hull of >= 2 distinct points; fall back defensively.
   return best ?? minAreaRect([points[0] ?? { x: 0, y: 0 }]);
+}
+
+/**
+ * The direction a line of text advances in, in radians.
+ *
+ * `quad` must be ordered as `padQuad` returns it, so the first corner leads to
+ * the second across the line and to the fourth down it. `readsDown` marks the
+ * lines whose crop the recognizer turned upright to read, which run down the
+ * quad rather than across it.
+ *
+ * Taking the frame from the reading direction rather than from whichever axis
+ * happens to sit nearest upright is what keeps it single-valued: a line at 45°
+ * has two equally upright frames, and choosing between them by angle alone comes
+ * down to a coin flip that separate calls lose differently.
+ */
+export function readingAngleOfQuad(quad: Quad, readsDown: boolean): number {
+  const [first, across, , down] = quad;
+  const along = readsDown
+    ? { x: down.x - first.x, y: down.y - first.y }
+    : { x: across.x - first.x, y: across.y - first.y };
+  return Math.atan2(along.y, along.x);
+}
+
+/** The snug box around a point set, measured in a frame turned by `angle`. Text
+ * at an angle needs one of these — an axis-aligned box has to grow well past the
+ * glyphs to hold the same line. */
+export function orientedBoundsOfPoints(
+  points: Point[],
+  angle: number,
+): OrientedRect {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  let minU = Infinity;
+  let maxU = -Infinity;
+  let minV = Infinity;
+  let maxV = -Infinity;
+  for (const point of points) {
+    const u = point.x * cos + point.y * sin;
+    const v = point.y * cos - point.x * sin;
+    if (u < minU) minU = u;
+    if (u > maxU) maxU = u;
+    if (v < minV) minV = v;
+    if (v > maxV) maxV = v;
+  }
+
+  const width = maxU - minU;
+  const height = maxV - minV;
+  const u = (minU + maxU) / 2;
+  const v = (minV + maxV) / 2;
+  // The centre is the one point the turned frame and the page agree on.
+  const x = u * cos - v * sin;
+  const y = u * sin + v * cos;
+  return {
+    rect: { x: x - width / 2, y: y - height / 2, width, height },
+    angle,
+  };
+}
+
+/** The snug box around a quad, squared to its reading direction: `rect.width`
+ * runs along the text. A paragraph set vertically is turned a quarter from this
+ * when it is laid out, where the writing mode is known. */
+export function orientedRectOfQuad(quad: Quad, readsDown: boolean): OrientedRect {
+  return orientedBoundsOfPoints(quad, readingAngleOfQuad(quad, readsDown));
 }
 
 /** Intersection of the infinite lines through (p1,p2) and (p3,p4). Returns null

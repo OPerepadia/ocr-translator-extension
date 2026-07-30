@@ -24,6 +24,7 @@ import {
 import { ctcGreedyDecode, reverseArabicCtcText } from "./ctc";
 import { extractBoxes, type DbConfig, type DetectedBox } from "./db-postprocess";
 import { makeCharAt, parseDict } from "./dict";
+import { orientedRectOfQuad } from "./geometry";
 import {
   createSession,
   configureOrt,
@@ -32,7 +33,7 @@ import {
   type OrtBackend,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
-import type { PipelineOcrResult } from "../../../shared/types";
+import type { OrientedRect, PipelineOcrResult } from "../../../shared/types";
 
 interface Manifest {
   detector: {
@@ -462,6 +463,9 @@ export class PaddleEngine {
       if (recognized.text.length > 0) {
         lines.push({
           bbox: box.bbox,
+          // Padded like the bbox, so an upright line's box matches it. Unlike
+          // the bbox it is not clamped to the image, so an edge line runs wider.
+          oriented: this.lineFrame(box).oriented,
           text: recognized.text,
           confidence: recognized.confidence,
           ...(recognized.chars ? { chars: recognized.chars } : {}),
@@ -469,6 +473,18 @@ export class PaddleEngine {
       }
     }
     return lines;
+  }
+
+  /** The frame this line's boxes are squared to, and whether the recognizer had
+   * to turn the crop upright to read it. Derived from the detector's quad alone,
+   * so the line's own box and its characters' cannot disagree. */
+  private lineFrame(box: DetectedBox): {
+    oriented: OrientedRect;
+    readsDown: boolean;
+  } {
+    const padded = padQuad(box.quad, this.detector.padding);
+    const readsDown = isRotatedForRecognition(padded);
+    return { oriented: orientedRectOfQuad(padded, readsDown), readsDown };
   }
 
   private async getRecognizer(modelId: string): Promise<LoadedRecognizer> {
@@ -547,8 +563,9 @@ export class PaddleEngine {
     }
 
     // Ordered but unpadded: character boxes hug the detected text, while the
-    // rotation test follows the padded crop the recognizer actually saw.
+    // frame and the rotation test follow the padded crop the recognizer saw.
     const quad = padQuad(box.quad, 0);
+    const frame = this.lineFrame(box);
     return {
       text: decoded.text,
       confidence: decoded.confidence,
@@ -557,7 +574,7 @@ export class PaddleEngine {
         timeSteps,
         quad,
         padding: this.detector.padding,
-        rotated: isRotatedForRecognition(padQuad(box.quad, this.detector.padding)),
+        angle: frame.oriented.angle,
       }),
     };
   }

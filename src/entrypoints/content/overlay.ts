@@ -17,6 +17,7 @@ import { CHEVRON_ICON, createLanguagePill } from "./language-picker";
 import {
   buildOverlayLayout,
   moveOverlayLayout,
+  rotatedBounds,
   type OverlayLayout,
   type OverlayLine,
 } from "./overlay-layout";
@@ -40,6 +41,8 @@ let toolbar: HTMLElement | undefined;
 let toggleButton: HTMLButtonElement | undefined;
 let boxes: HTMLElement[] = [];
 let boxRects: Rect[] = [];
+// Each box's tilt, in radians, matching boxRects. Zero for upright text.
+let boxAngles: number[] = [];
 // Both texts for each box, so the popover can show them together.
 let boxContents: Array<{ original: string; translated: string }> = [];
 // Floating panel showing one box's text. It opens when the pointer is over the
@@ -115,8 +118,12 @@ let anchor:
   | undefined;
 
 // Smallest/largest font the auto-fit will use inside a painted box.
-const MIN_FONT_PX = 10;
+const MIN_FONT_PX = 12;
 const MAX_FONT_PX = 24;
+// How far past its frame a panel may spill, in fractions of a line, so a last
+// line that only just misses is kept rather than dropped. The frame is only an
+// approximate OCR box, so a slight overhang beats losing a line.
+const CLAMP_SPILL_LINES = 0.35;
 
 /** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
@@ -339,6 +346,7 @@ export function closeOverlay(): void {
   toggleButton = undefined;
   boxes = [];
   boxRects = [];
+  boxAngles = [];
   boxContents = [];
   teardownPopover();
   regionBackdrop = undefined;
@@ -436,6 +444,7 @@ function mountChip(chip: HTMLElement): void {
   }
   boxes = [];
   boxRects = [];
+  boxAngles = [];
   boxContents = [];
   teardownPopover();
   toolbar = undefined;
@@ -903,6 +912,7 @@ function renderBoxes(): void {
   }
   boxes = [];
   boxRects = [];
+  boxAngles = [];
   boxContents = [];
   hidePopover();
 
@@ -911,6 +921,19 @@ function renderBoxes(): void {
   } else {
     renderSourceBoxes(currentLayout, container);
   }
+  applyBoxAngles();
+}
+
+// Tilts go on last, after every box has been fitted. `fitTextLayers` measures
+// with getBoundingClientRect, which reports the wider bounds a rotated element
+// covers rather than the box itself, and would size the spans to those.
+function applyBoxAngles(): void {
+  boxes.forEach((box, index) => {
+    const angle = boxAngles[index] ?? 0;
+    if (angle !== 0) {
+      box.style.transform = `rotate(${angle}rad)`;
+    }
+  });
 }
 
 // The translation view: opaque boxes carrying the translated text, sized to fill
@@ -932,6 +955,7 @@ function renderTranslationBoxes(
     overlayContainer.append(box);
     boxes.push(box);
     boxRects.push(layout.combinedRect);
+    boxAngles.push(0);
     boxContents.push({
       original: currentOriginalText,
       translated: layout.combinedTranslation,
@@ -946,6 +970,9 @@ function renderTranslationBoxes(
       overlayContainer.append(box);
       boxes.push(box);
       boxRects.push(paragraph.translationRect);
+      // The painted panel tilts with its box, so the translation lies along the
+      // source text rather than across it.
+      boxAngles.push(paragraph.angle);
       boxContents.push({
         original: paragraph.original,
         translated: paragraph.translated ?? "",
@@ -972,10 +999,12 @@ function renderSourceBoxes(
       currentOriginalText,
       layout.paragraphs.flatMap((paragraph) => paragraph.lines),
       0,
+      0,
     );
     overlayContainer.append(box);
     boxes.push(box);
     boxRects.push(layout.combinedSourceRect);
+    boxAngles.push(0);
     boxContents.push({
       original: currentOriginalText,
       translated: layout.combinedTranslation,
@@ -983,10 +1012,17 @@ function renderSourceBoxes(
   } else {
     layout.paragraphs.forEach((paragraph, index) => {
       const rect = paragraph.sourceRect;
-      const box = createBox(rect, paragraph.original, paragraph.lines, index);
+      const box = createBox(
+        rect,
+        paragraph.original,
+        paragraph.lines,
+        index,
+        paragraph.angle,
+      );
       overlayContainer.append(box);
       boxes.push(box);
       boxRects.push(rect);
+      boxAngles.push(paragraph.angle);
       boxContents.push({
         original: paragraph.original,
         translated: paragraph.translated ?? "",
@@ -1010,11 +1046,18 @@ function createTranslationBox(
   box.setAttribute("aria-controls", POPOVER_ID);
   setBoxPopoverState(box, false);
   positionRectElement(box, rect);
-  box.textContent = text;
-  box.dir = "auto";
+
+  // The box outlines the whole paragraph; only this panel is painted, so it
+  // covers no more of the picture than the translation needs.
+  const panel = document.createElement("span");
+  panel.className = "ocr-translate-overlay-translation-text";
+  panel.textContent = text;
+  panel.dir = "auto";
   if (currentTargetLang) {
-    box.lang = currentTargetLang;
+    panel.lang = currentTargetLang;
   }
+  box.append(panel);
+
   // Dragging out of the box would otherwise run the selection on into the page.
   box.addEventListener("pointerdown", () => {
     beginSelection("box");
@@ -1023,9 +1066,16 @@ function createTranslationBox(
   return box;
 }
 
-// Shrink the font with a binary search until the text fits the box, flooring at
-// MIN_FONT_PX (the box then scrolls internally if it still overflows).
+// Shrink the font with a binary search until the translation fits, flooring at
+// MIN_FONT_PX (`clampToWholeLines` truncates whatever still overflows). The two
+// axes measure different things: the panel is capped at the box's width, so a
+// word too wide overflows the panel rather than widening it; its height is its
+// own, so that one is measured against the box.
 function fitFontSize(box: HTMLElement): void {
+  const panel = box.firstElementChild;
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
   const cap = Math.max(
     MIN_FONT_PX,
     Math.min(MAX_FONT_PX, Math.floor(box.clientHeight)),
@@ -1037,8 +1087,8 @@ function fitFontSize(box: HTMLElement): void {
     const mid = Math.floor((lo + hi) / 2);
     box.style.fontSize = `${mid}px`;
     if (
-      box.scrollHeight <= box.clientHeight &&
-      box.scrollWidth <= box.clientWidth
+      panel.offsetHeight <= box.clientHeight &&
+      panel.scrollWidth <= panel.clientWidth
     ) {
       best = mid;
       lo = mid + 1;
@@ -1047,6 +1097,39 @@ function fitFontSize(box: HTMLElement): void {
     }
   }
   box.style.fontSize = `${best}px`;
+  clampToWholeLines(panel, box);
+}
+
+// Cut a too-long translation to whole lines with an ellipsis rather than at
+// whatever glyph the box edge lands on; the popover still carries it in full.
+// Set on every box, since one that already fits is under the limit anyway.
+function clampToWholeLines(panel: HTMLElement, box: HTMLElement): void {
+  // Firefox ignores `text-overflow` on the legacy box the clamp needs, so a word
+  // too wide for a line is broken instead. Read before clamping, while the panel
+  // still reports its untruncated width.
+  if (panel.scrollWidth > panel.clientWidth) {
+    panel.style.overflowWrap = "anywhere";
+  }
+  const styles = getComputedStyle(panel);
+  const lineHeight = Number.parseFloat(styles.lineHeight);
+  // A unitless `line-height` may come back as the bare multiplier, not px, which
+  // parses below the font size; clamping on that would clip mid-glyph.
+  const fontSize = Number.parseFloat(styles.fontSize);
+  const padding =
+    Number.parseFloat(styles.paddingTop) +
+    Number.parseFloat(styles.paddingBottom);
+  if (
+    !Number.isFinite(lineHeight) ||
+    !Number.isFinite(fontSize) ||
+    lineHeight < fontSize ||
+    !Number.isFinite(padding)
+  ) {
+    return;
+  }
+  const lines = Math.floor(
+    (box.clientHeight - padding) / lineHeight + CLAMP_SPILL_LINES,
+  );
+  panel.style.setProperty("-webkit-line-clamp", `${Math.max(1, lines)}`);
 }
 
 function createBox(
@@ -1054,6 +1137,7 @@ function createBox(
   text: string,
   lines: OverlayLine[],
   index: number,
+  angle: number,
 ): HTMLElement {
   const box = document.createElement("div");
   box.className = "ocr-translate-overlay-box ocr-translate-overlay-frame-box";
@@ -1073,7 +1157,7 @@ function createBox(
   if (currentSourceLang) {
     label.lang = currentSourceLang;
   }
-  box.append(label, createTextLayer(lines, rect));
+  box.append(label, createTextLayer(lines, rect, angle));
   attachBoxPopoverTriggers(box, index);
   return box;
 }
@@ -1084,12 +1168,11 @@ export function isOverlayBoxActivationKey(key: string): boolean {
   return key === "Enter" || key === " ";
 }
 
-// Hovering a box opens its popover once the pointer settles on it, and it closes
-// as soon as the pointer leaves both. The popover is placed flush against its
-// box, so the pointer is always over one of the two on the way between them, and
-// leaving is never a matter of timing.
+// Hovering a box opens its popover once the pointer settles on it. A short close
+// delay lets the pointer cross the empty corners around a tilted box.
 function attachBoxPopoverTriggers(box: HTMLElement, index: number): void {
   box.addEventListener("pointerenter", (event) => {
+    clearPopoverCloseTimer();
     // A touch has no travel across the page to settle from, and waiting would
     // just lose taps shorter than the wait.
     if (event.pointerType === "touch") {
@@ -1123,10 +1206,12 @@ const POPOVER_SETTLE_MS = 100;
 // Movement under this is a shaky hand rather than travel, and doesn't restart the
 // wait.
 const POPOVER_SETTLE_MOVE_PX = 4;
+const POPOVER_CLOSE_DELAY_MS = 200;
 
 let settleTimer: ReturnType<typeof setTimeout> | undefined;
 // Where the pointer was when the pending wait started, to measure movement from.
 let settleOrigin: { x: number; y: number } | undefined;
+let popoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
 function waitForPointerToSettle(index: number, event: PointerEvent): void {
   clearSettleTimer();
@@ -1164,6 +1249,11 @@ function clearSettleTimer(): void {
   settleOrigin = undefined;
 }
 
+function clearPopoverCloseTimer(): void {
+  clearTimeout(popoverCloseTimer);
+  popoverCloseTimer = undefined;
+}
+
 function handlePopoverPointerLeave(event: PointerEvent): void {
   // The pointer left before settling, so whatever it was about to open is off,
   // for a lifted finger as much as for a pointer moving on.
@@ -1185,7 +1275,13 @@ function handlePopoverPointerLeave(event: PointerEvent): void {
   if (isPopoverBusy()) {
     return;
   }
-  hidePopover();
+  clearPopoverCloseTimer();
+  popoverCloseTimer = setTimeout(() => {
+    popoverCloseTimer = undefined;
+    if (!isPopoverBusy()) {
+      hidePopover();
+    }
+  }, POPOVER_CLOSE_DELAY_MS);
 }
 
 // Work the popover is in the middle of outlives the hover: a selection being
@@ -1241,7 +1337,11 @@ function syncBoxPopoverStates(): void {
 // each takes its own line's orientation: one box can gather lines of both, when
 // a translation that didn't split per paragraph puts the whole capture in the
 // combined box.
-function createTextLayer(lines: OverlayLine[], boxRect: Rect): HTMLElement {
+function createTextLayer(
+  lines: OverlayLine[],
+  boxRect: Rect,
+  angle: number,
+): HTMLElement {
   const layer = document.createElement("div");
   layer.className = "ocr-translate-overlay-text-layer";
   layer.addEventListener("pointerdown", () => {
@@ -1254,40 +1354,80 @@ function createTextLayer(lines: OverlayLine[], boxRect: Rect): HTMLElement {
     if (!line.text) {
       continue;
     }
-    // One span per character when the recognizer located them, so a selection
-    // covers exactly the glyphs it crosses. Otherwise the whole line goes in one
-    // span, stretched to fit, and lands only roughly.
-    const pieces = line.chars?.length
-      ? line.chars
-      : [{ rect: line.rect, text: line.text }];
-    for (const piece of pieces) {
+    for (const piece of textLayerPieces(line, boxRect, angle)) {
       if (!piece.text) {
         continue;
       }
-      layer.append(createTextLayerPiece(piece, boxRect, line.vertical));
+      layer.append(createTextLayerPiece(piece, line.vertical));
     }
   }
   return layer;
 }
 
+// Where each piece of a line sits inside the box element, whose own frame a tilt
+// turns away from the page's.
+//
+// One span per character when the recognizer located them, so a selection covers
+// exactly the glyphs it crosses. Otherwise the whole line goes in one span,
+// stretched to fit, and lands only roughly. A tilted box reads the pieces' own
+// tilted boxes, which follow the glyphs where the axis-aligned ones have grown
+// around the tilt, and places them in the box's frame.
+function textLayerPieces(
+  line: OverlayLine,
+  boxRect: Rect,
+  angle: number,
+): Array<{ rect: Rect; text: string }> {
+  const pieces = line.chars?.length
+    ? line.chars
+    : [{ rect: line.rect, oriented: line.oriented, text: line.text }];
+  if (angle !== 0) {
+    return pieces.map((piece) => ({
+      rect: toBoxFrame(piece.oriented?.rect ?? piece.rect, boxRect, angle),
+      text: piece.text,
+    }));
+  }
+  return pieces.map((piece) => ({
+    rect: {
+      ...piece.rect,
+      x: piece.rect.x - boxRect.x,
+      y: piece.rect.y - boxRect.y,
+    },
+    text: piece.text,
+  }));
+}
+
+/** A page rect in the coordinates of a box tilted by `angle`, which the browser
+ * rotates about its centre — the one point the two frames share. */
+function toBoxFrame(rect: Rect, boxRect: Rect, angle: number): Rect {
+  const dx = rect.x + rect.width / 2 - (boxRect.x + boxRect.width / 2);
+  const dy = rect.y + rect.height / 2 - (boxRect.y + boxRect.height / 2);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: dx * cos + dy * sin + boxRect.width / 2 - rect.width / 2,
+    y: dy * cos - dx * sin + boxRect.height / 2 - rect.height / 2,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 function createTextLayerPiece(
   piece: { rect: Rect; text: string },
-  boxRect: Rect,
   vertical: boolean,
 ): HTMLElement {
   const span = document.createElement("span");
   span.className = "ocr-translate-overlay-text-layer-line";
   span.textContent = piece.text;
-  span.style.left = `${piece.rect.x - boxRect.x}px`;
-  span.style.top = `${piece.rect.y - boxRect.y}px`;
+  span.style.left = `${piece.rect.x}px`;
+  span.style.top = `${piece.rect.y}px`;
   // Starting size: the piece's thickness. `fitTextLayers` corrects it once it
   // can measure what the font actually paints.
   span.style.fontSize = `${vertical ? piece.rect.width : piece.rect.height}px`;
   if (vertical) {
     span.classList.add("is-vertical");
   }
-  span.dataset.x = `${piece.rect.x - boxRect.x}`;
-  span.dataset.y = `${piece.rect.y - boxRect.y}`;
+  span.dataset.x = `${piece.rect.x}`;
+  span.dataset.y = `${piece.rect.y}`;
   span.dataset.width = `${piece.rect.width}`;
   span.dataset.height = `${piece.rect.height}`;
   return span;
@@ -1390,6 +1530,7 @@ function endSelection(): void {
 // showing that box is left alone: the pointer crossing back from the popover
 // onto its box must not rebuild the panel under it.
 function showPopover(index: number): void {
+  clearPopoverCloseTimer();
   if (activePopover?.boxIndex === index) {
     return;
   }
@@ -1435,6 +1576,7 @@ function ensurePopoverElement(): HTMLElement | undefined {
   el.addEventListener("pointerdown", () => {
     beginSelection("popover");
   });
+  el.addEventListener("pointerenter", clearPopoverCloseTimer);
   el.addEventListener("pointerleave", handlePopoverPointerLeave);
   container.append(el);
   document.addEventListener("click", handlePopoverOutsideClick);
@@ -1677,6 +1819,7 @@ async function copyPopoverText(
 // overlay can't be reopened against boxes that are gone.
 function hidePopover(): void {
   clearSettleTimer();
+  clearPopoverCloseTimer();
   if (!activePopover) {
     return;
   }
@@ -1697,6 +1840,7 @@ function hidePopover(): void {
 // element goes with the old container, so drop its references.
 function teardownPopover(): void {
   clearSettleTimer();
+  clearPopoverCloseTimer();
   for (const timer of popoverCopyResetTimers.values()) {
     clearTimeout(timer);
   }
@@ -1708,9 +1852,8 @@ function teardownPopover(): void {
 }
 
 // Gap kept between the popover and the viewport edges. There is deliberately no
-// gap against the box itself: the popover is a hover panel, and a gap would be a
-// strip where the pointer is on neither of them and the popover closes on the
-// way over.
+// added gap against the box itself; the close delay only needs to cover the
+// empty corners introduced by rotation.
 const POPOVER_MARGIN = 8;
 // A popover narrower than this reads as a column of fragments even for a narrow
 // box; wider than this the line becomes too long to scan comfortably.
@@ -1787,7 +1930,11 @@ function positionPopoverView(view: PopoverView): void {
   if (!pageRect) {
     return;
   }
-  const rect = pageToViewportRect(pageRect);
+  // Against what the box covers on screen, so a tilted one's corners don't end
+  // up underneath the popover.
+  const rect = pageToViewportRect(
+    rotatedBounds(pageRect, boxAngles[view.boxIndex] ?? 0),
+  );
   // Widen to the box before measuring: a wide box gets a wide popover, which is
   // what keeps a long paragraph from turning into a narrow column of many lines.
   view.el.style.maxWidth = `${popoverMaxWidth(rect.width, window.innerWidth)}px`;

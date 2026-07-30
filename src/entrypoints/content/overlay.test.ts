@@ -94,8 +94,8 @@ describe("popoverMaxWidth", () => {
 describe("popoverVerticalPlacement", () => {
   const viewportHeight = 800;
 
-  // No gap on either side: the pointer has to reach the popover without leaving
-  // the box first, or the hover that opened it ends on the way.
+  // No intentional gap on either side; the close delay only has to bridge the
+  // empty corners around tilted boxes.
   it("sits flush below the box when the text fits there", () => {
     const placement = popoverVerticalPlacement({
       boxY: 100,
