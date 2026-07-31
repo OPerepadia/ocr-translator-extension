@@ -7,10 +7,12 @@ import {
   serializeError,
 } from "@/shared/messages";
 import type {
+  CaptureSnapshotResponse,
   OcrImageSource,
   OcrSourceLanguagesResponse,
   TranslationProvidersResponse,
 } from "@/shared/messages";
+import { base64ToBlob } from "@/shared/image";
 import type {
   LangCode,
   PipelineOcrResult,
@@ -55,6 +57,7 @@ import {
   setOnShowPanel,
   setOverlayDefaultMode,
   setOverlayOcrSourceLanguages,
+  setOverlaySnapshot,
   setOverlayTargetLanguages,
   setOverlayTranslationProviders,
   setOverlayUiRoot,
@@ -89,6 +92,11 @@ let uiRoot: HTMLElement | undefined;
 let lastResult: PipelineResult | undefined;
 let lastRect: Rect | undefined;
 let lastContextImage: HTMLImageElement | undefined;
+// The captured pixels the overlay paints its region with, and a counter that
+// tells a snapshot still being fetched that its capture has been superseded.
+let lastSnapshot: ImageBitmap | undefined;
+let captureGeneration = 0;
+let requestedSnapshotGeneration = 0;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -131,25 +139,17 @@ export default defineContentScript({
       true,
     );
 
-    // Closing the popup drops the in-flight id so late status messages and the
-    // eventual result no longer reopen it.
     setOnClose(() => {
       activeRequestId = null;
     });
 
-    // "Select new region" in the popup menu restarts the capture.
     setOnNewSelection(() => {
       startNewSelection();
     });
 
-    // The "Show as overlay" / "Show panel" buttons switch the current result
-    // between the two views for this result only; the default for fresh captures
-    // is set in Options.
     setOnShowOverlay(() => switchToOverlay());
     setOnShowPanel(() => switchToPanel());
 
-    // The overlay's "Select new region" restarts the capture; closing it drops
-    // the in-flight ids like the panel does.
     setOnOverlayNewSelection(() => {
       startNewSelection();
     });
@@ -157,7 +157,6 @@ export default defineContentScript({
       activeRequestId = null;
     });
 
-    // Changing the target language in the popup re-translates the same text.
     setOnTargetLangChange((targetLang) => {
       void runRetranslate(targetLang);
     });
@@ -176,7 +175,6 @@ export default defineContentScript({
       void runRerecognize(sourceLang);
     });
 
-    // Picking a different translation provider re-translates the current text.
     setOnProviderChange((providerId) => {
       setOverlayTranslationProviders(translationProviderList, providerId);
       void runSwitchProvider(providerId);
@@ -186,8 +184,6 @@ export default defineContentScript({
       void runSwitchProvider(providerId);
     });
 
-    // The Translate button re-translates the edited recognized text into the
-    // current target language.
     setOnTranslateRequest((text, targetLang) => {
       pendingText = text;
       if (targetLang) {
@@ -213,9 +209,11 @@ export default defineContentScript({
         message.requestId === activeRequestId
       ) {
         // For region captures, the first status means the screenshot is taken,
-        // so it is safe to drop the selection's dim.
+        // so it is safe to drop the selection's dim — and the pixels the
+        // overlay freezes its region on are now available to ask for.
         showActiveLoading(message.status);
         releaseSelectionDim();
+        requestCaptureSnapshot();
         return undefined;
       }
       if (
@@ -224,6 +222,9 @@ export default defineContentScript({
       ) {
         pendingText = message.ocr.text;
         showActiveOcrResult(message.ocr);
+        // The pipeline always reports its OCR result, so the frozen region does
+        // not depend on a recognizer that reports no status along the way.
+        requestCaptureSnapshot();
         return undefined;
       }
       return undefined;
@@ -241,6 +242,7 @@ function closeOnNavigation(): void {
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
+  clearCaptureSnapshot();
   lastResult = undefined;
   lastRect = undefined;
   pendingText = "";
@@ -338,18 +340,14 @@ async function runCapture(
   lastRect = viewportRect ? toPageRect(viewportRect) : undefined;
   lastResult = undefined;
   setOverlayAvailable(false);
-  // A previous overlay (if any) is for a stale region; clear it before this run.
   closeOverlay();
-  // Re-read the default view so a change made in Options this session is honored.
+  clearCaptureSnapshot();
   displayMode = await getDisplayMode();
-  // The overlay opens in whichever view the switch was last left in.
   setOverlayDefaultMode(await getOverlayMode());
   // Head toward that view now so the loading spinner lands there; presentResult
   // falls back to the panel later if the result can't be drawn as an overlay.
   activeView = displayMode;
 
-  // Load the target-language list, OCR source languages, and translation providers
-  // (once each) so the popup pills can offer choices.
   void loadTargetLanguages();
   void loadOcrSourceLanguages();
   void loadTranslationProviders();
@@ -453,8 +451,6 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
   showResult(enriched);
 }
 
-// Show a pipeline error in the current view: a chip over the region in overlay
-// mode (with Retry when the failed step can be re-run), otherwise the panel.
 function presentError(
   error: ReturnType<typeof serializeError>,
   retry?: () => void,
@@ -475,9 +471,6 @@ function presentError(
   showError(error, retry);
 }
 
-// Route the loading spinner to wherever the current view lives: over the region
-// in overlay mode, otherwise the corner panel. Re-translate/re-recognize run from
-// the panel, so activeView is "panel" then and they keep showing it there.
 function showActiveLoading(status?: PipelineStatus): void {
   if (activeView === "overlay" && lastRect) {
     showOverlayLoading(lastRect, status);
@@ -507,6 +500,47 @@ function carryOcrDetails(result: PipelineResult): PipelineResult {
   return { ...result, ocr: { ...lastResult.ocr, ...result.ocr } };
 }
 
+function requestCaptureSnapshot(): void {
+  if (requestedSnapshotGeneration === captureGeneration) {
+    return;
+  }
+  const generation = captureGeneration;
+  requestedSnapshotGeneration = generation;
+
+  void (async () => {
+    try {
+      const response =
+        await browserApi.runtime.sendMessage<CaptureSnapshotResponse>({
+          type: "GET_CAPTURE_SNAPSHOT",
+        });
+      const encoded = response?.snapshot;
+      if (!encoded || generation !== captureGeneration) {
+        return;
+      }
+      const bitmap = await createImageBitmap(
+        base64ToBlob(encoded.data, encoded.mediaType),
+      );
+      if (generation !== captureGeneration) {
+        bitmap.close();
+        return;
+      }
+      lastSnapshot = bitmap;
+      setOverlaySnapshot(bitmap);
+    } catch {
+      // No frozen region for this capture; the overlay renders without one.
+    }
+  })();
+}
+
+// Drop the frozen region. The overlay lets go of the bitmap first, so nothing
+// can draw it after it is closed.
+function clearCaptureSnapshot(): void {
+  captureGeneration += 1;
+  setOverlaySnapshot(undefined);
+  lastSnapshot?.close();
+  lastSnapshot = undefined;
+}
+
 function toPageRect(rect: Rect): Rect {
   return {
     x: rect.x + window.scrollX,
@@ -516,9 +550,6 @@ function toPageRect(rect: Rect): Rect {
   };
 }
 
-// Switch the current result from the panel to the overlay. Only changes the view
-// for this result; the default for fresh captures stays as set in Options. No-op
-// if there is nothing overlayable to show.
 function switchToOverlay(): void {
   if (!lastResult || !lastRect || !isOverlayable(lastResult)) {
     return;
@@ -543,8 +574,6 @@ function showResultOverlay(result: PipelineResult, rect: Rect): void {
   });
 }
 
-// Switch the current result from the overlay back to the panel. Only changes the
-// view for this result; the default for fresh captures stays as set in Options.
 function switchToPanel(): void {
   if (!lastResult) {
     return;
@@ -555,8 +584,6 @@ function switchToPanel(): void {
   showResult(lastResult);
 }
 
-// Re-translate the current recognized text into a new target language, chosen
-// from the popup's language pill. The background persists the new default.
 async function runRetranslate(targetLang: LangCode): Promise<void> {
   if (!pendingText) {
     return;

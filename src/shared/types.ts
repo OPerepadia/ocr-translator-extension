@@ -24,6 +24,16 @@ export interface Viewport {
   height: number;
 }
 
+/**
+ * An image encoded for message passing. Runtime messages are serialized as
+ * JSON, which drops Blobs and ArrayBuffers, so the pixels travel as base64.
+ */
+export interface EncodedImage {
+  /** Base64 payload, without a `data:` prefix. */
+  data: string;
+  mediaType: string;
+}
+
 export type LangCode = string;
 
 /** One recognized character and where it sits, in the same pixel space as the

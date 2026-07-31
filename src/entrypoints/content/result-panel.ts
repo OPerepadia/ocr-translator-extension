@@ -71,13 +71,8 @@ let currentOcrText = "";
 let onClose: (() => void) | undefined;
 // Invoked when the user picks "Select new region" from the menu
 let onNewSelection: (() => void) | undefined;
-// Invoked when the user switches the current result to the overlay view.
 let onShowOverlay: (() => void) | undefined;
-// Whether the current result can be shown as an overlay; controls the visibility
-// of the "Show in overlay" menu item.
 let overlayAvailable = false;
-// Live reference to that menu item so setOverlayAvailable can toggle it while the
-// panel is open.
 let overlayMenuItemRef: HTMLButtonElement | undefined;
 // Invoked when the user picks a new target language from the language pill.
 let onTargetLangChange: ((targetLang: LangCode) => void) | undefined;
@@ -116,9 +111,9 @@ let outsideClickHandlers: Array<(event: MouseEvent) => void> = [];
 // Shadow-root container the popup is mounted into, set once the content script
 // creates the UI. Keeps page CSS from leaking into the popup.
 let uiRoot: HTMLElement | undefined;
-// Live reference to the loading-state label, so line-count updates patch it in
+// Patches the loading-state label and progress bar, so status updates apply in
 // place instead of rebuilding the spinner (which would restart its animation).
-let loadingLabelRef: HTMLElement | undefined;
+let updateLoadingRef: ((status: PipelineStatus) => void) | undefined;
 // Width/height (px) the user picked by dragging the corner resize handle.
 // Remembered across re-renders and reopens within the page session; undefined
 // means use the CSS default size.
@@ -236,12 +231,10 @@ export function setOnNewSelection(handler: () => void): void {
   onNewSelection = handler;
 }
 
-/** Register a callback invoked when the user switches to the overlay view. */
 export function setOnShowOverlay(handler: () => void): void {
   onShowOverlay = handler;
 }
 
-/** Show or hide the "Show in overlay" menu item (set per result). */
 export function setOverlayAvailable(value: boolean): void {
   overlayAvailable = value;
   if (overlayMenuItemRef) {
@@ -346,7 +339,7 @@ export function closePopup(options: ClosePopupOptions = {}): void {
   }
   popup.remove();
   popup = undefined;
-  loadingLabelRef = undefined;
+  updateLoadingRef = undefined;
   recognizedBoxRef = undefined;
   overlayMenuItemRef = undefined;
   if (options.notify !== false) {
@@ -371,13 +364,13 @@ export function showLoading(
   // The spinner is a CSS animation on a DOM node; rebuilding that node on every
   // line-count update would restart it and make it stutter. Once the loading
   // view is up, just patch the label text in place.
-  if (loadingLabelRef) {
-    loadingLabelRef.textContent = statusMessage(status);
+  if (updateLoadingRef) {
+    updateLoadingRef(status);
     return;
   }
   const loading = createLoading(status);
   renderPopup([loading.element]);
-  loadingLabelRef = loading.label;
+  updateLoadingRef = loading.update;
 }
 
 export function showRecognizedTextWhileTranslating(
@@ -397,18 +390,32 @@ function statusMessage(status: PipelineStatus): string {
       return "Initializing OCR engine…";
     case "recognizing":
       return status.lineCount && status.lineCount > 0
-        ? `Recognizing text… ${status.line}/${status.lineCount}`
+        ? "Recognizing text…"
         : "Analyzing image…";
     case "translating":
       return "Translating…";
   }
 }
 
-// A centered loading state: a spinner with the current stage shown below it.
-// Returns the label too so callers can patch its text without a re-render.
+// Fraction of recognized lines, or undefined while the stage has no line counts
+// to report and the progress bar should stay hidden.
+function statusProgress(status: PipelineStatus): number | undefined {
+  if (status.stage !== "recognizing") {
+    return undefined;
+  }
+  const { line, lineCount } = status;
+  if (line === undefined || !lineCount || lineCount <= 0) {
+    return undefined;
+  }
+  return Math.min(Math.max(line / lineCount, 0), 1);
+}
+
+// A centered loading state: a spinner with the current stage below it, plus a
+// progress bar while lines are being recognized. Returns a patcher so callers
+// can update it without a re-render.
 function createLoading(status: PipelineStatus): {
   element: HTMLElement;
-  label: HTMLElement;
+  update: (status: PipelineStatus) => void;
 } {
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-loading";
@@ -418,10 +425,23 @@ function createLoading(status: PipelineStatus): {
 
   const label = document.createElement("p");
   label.className = "ocr-translate-popup-loading-label";
-  label.textContent = statusMessage(status);
 
-  wrapper.append(spinner, label);
-  return { element: wrapper, label };
+  const progress = document.createElement("div");
+  progress.className = "ocr-translate-popup-progress";
+  const fill = document.createElement("div");
+  fill.className = "ocr-translate-popup-progress-fill";
+  progress.append(fill);
+
+  const update = (next: PipelineStatus): void => {
+    label.textContent = statusMessage(next);
+    const fraction = statusProgress(next);
+    progress.hidden = fraction === undefined;
+    fill.style.transform = `scaleX(${fraction ?? 0})`;
+  };
+  update(status);
+
+  wrapper.append(spinner, label, progress);
+  return { element: wrapper, update };
 }
 
 export function showResult(result: PipelineResult): void {
@@ -475,9 +495,9 @@ export function showError(
 
 // Reuse the popup shell across updates and only swap the body content.
 function renderPopup(content: Node[]): void {
-  // Any full re-render replaces the loading element, so its in-place reference
+  // Any full re-render replaces the loading element, so its in-place patcher
   // is no longer valid.
-  loadingLabelRef = undefined;
+  updateLoadingRef = undefined;
   const body = ensurePopup();
   body.replaceChildren(...content);
 }

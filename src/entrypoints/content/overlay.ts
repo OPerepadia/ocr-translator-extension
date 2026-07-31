@@ -38,33 +38,31 @@ type OverlayMode = "translation" | "original";
 let uiRoot: HTMLElement | undefined;
 let container: HTMLElement | undefined;
 let toolbar: HTMLElement | undefined;
-let toggleButton: HTMLButtonElement | undefined;
+let modeButton: HTMLButtonElement | undefined;
 let boxes: HTMLElement[] = [];
 let boxRects: Rect[] = [];
-// Each box's tilt, in radians, matching boxRects. Zero for upright text.
 let boxAngles: number[] = [];
-// Both texts for each box, so the popover can show them together.
 let boxContents: Array<{ original: string; translated: string }> = [];
-// Floating panel showing one box's text. It opens when the pointer is over the
-// box or the panel itself, and is interactive (selectable, with controls) as
-// long as the pointer stays on it.
 type PopoverView = {
   el: HTMLElement;
-  // The scrolling text area, set by renderPopover.
   body?: HTMLElement;
   boxIndex: number;
-  // Speak buttons by the text they read, so the right one shows as playing.
   speechButtons: Partial<Record<OverlayMode, HTMLButtonElement>>;
 };
 let activePopover: PopoverView | undefined;
 let popoverEl: HTMLElement | undefined;
 let regionBackdrop: HTMLElement | undefined;
 let regionFrame: HTMLElement | undefined;
-// The loading spinner shown over the region while OCR/translation runs, and its
-// label, kept so repeated status updates patch the text without restarting the
-// spinner animation.
+// The captured pixels, painted under the boxes so the overlay keeps sitting on
+// the image it was built from. Without it the boxes are left over whatever the
+// page paints next, which for animated content is something else entirely.
+let regionSnapshot: HTMLCanvasElement | undefined;
+let currentSnapshot: ImageBitmap | undefined;
+// The loading spinner shown over the region while OCR/translation runs, and a
+// patcher for its label and progress bar, kept so repeated status updates don't
+// restart the spinner animation.
 let statusChip: HTMLElement | undefined;
-let loadingLabel: HTMLElement | undefined;
+let updateLoadingChip: ((status: PipelineStatus) => void) | undefined;
 let currentTranslationError:
   | {
       message: string;
@@ -79,10 +77,8 @@ let currentRect: Rect | undefined;
 // alone behind transparent frames, and the text is read from the popover and
 // selected off the picture itself.
 let mode: OverlayMode = "translation";
-// The view a fresh overlay opens in: whichever one was last used.
 let defaultMode: OverlayMode = "translation";
 let hasTranslationText = false;
-// Full texts used by the whole-selection actions in the toolbar menu.
 let currentOriginalText = "";
 let currentDisplayText = "";
 let currentSourceLang: LangCode | undefined;
@@ -125,45 +121,47 @@ const MAX_FONT_PX = 24;
 // approximate OCR box, so a slight overhang beats losing a line.
 const CLAMP_SPILL_LINES = 0.35;
 
-/** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
   uiRoot = root;
 }
 
-/** Set which view a new overlay opens in. */
+/** Freeze the region on the pixels the capture was recognized from, so a page
+ * that repaints underneath (an animated banner, a carousel, a video) cannot
+ * leave the boxes over unrelated content. Applies to whatever is on screen and
+ * to every later render, until cleared with undefined. The caller owns the
+ * bitmap and must clear it here before closing it. */
+export function setOverlaySnapshot(snapshot: ImageBitmap | undefined): void {
+  currentSnapshot = snapshot;
+  refreshRegionSnapshot();
+}
+
 export function setOverlayDefaultMode(nextMode: OverlayMode): void {
   defaultMode = nextMode;
 }
 
-/** Register a callback invoked when the overlay is closed. */
 export function setOnOverlayClose(handler: () => void): void {
   onClose = handler;
 }
 
-/** Register a callback invoked when the user switches back to the panel. */
 export function setOnShowPanel(handler: () => void): void {
   onShowPanel = handler;
 }
 
-/** Register a callback invoked when the user picks "Select new region". */
 export function setOnOverlayNewSelection(handler: () => void): void {
   onNewSelection = handler;
 }
 
-/** Register a callback invoked when the user picks a new target language. */
 export function setOnOverlayTargetLangChange(
   handler: (targetLang: LangCode) => void,
 ): void {
   onTargetLangChange = handler;
 }
 
-/** Provide the languages the active translation provider supports (codes). */
 export function setOverlayTargetLanguages(languages: LangCode[]): void {
   targetLanguages = languages;
   rerenderToolbar();
 }
 
-/** Provide the OCR source languages and the currently selected one. */
 export function setOverlayOcrSourceLanguages(
   languages: Array<{ id: string; label: string }>,
   currentId: string,
@@ -173,14 +171,12 @@ export function setOverlayOcrSourceLanguages(
   rerenderToolbar();
 }
 
-/** Register a callback invoked when the user picks a source language. */
 export function setOnOverlaySourceLanguageChange(
   handler: (sourceLang: LangCode | "auto") => void,
 ): void {
   onSourceLanguageChange = handler;
 }
 
-/** Provide the translation providers and the currently selected one. */
 export function setOverlayTranslationProviders(
   providers: Array<{ id: string; label: string }>,
   currentId: string,
@@ -190,7 +186,6 @@ export function setOverlayTranslationProviders(
   rerenderToolbar();
 }
 
-/** Register a callback invoked when the user picks a translation provider. */
 export function setOnOverlayProviderChange(
   handler: (providerId: string) => void,
 ): void {
@@ -233,8 +228,6 @@ export function overlayTargetLanguage(
   );
 }
 
-/** Draw the translated result as boxes over the selected page region. Assumes
- * isOverlayable(result) is true. */
 export function showOverlay(args: {
   result: PipelineResult;
   rect: Rect;
@@ -278,22 +271,19 @@ export function showOverlay(args: {
     rect,
     orientation: result.ocr.orientation,
   });
-  // With nothing to paint, the translation view has no reason to exist.
   mode = hasTranslationText ? defaultMode : "original";
 
   render();
 }
 
-/** Show a spinner with the current pipeline stage, centered over the region.
- * Repeated calls patch the label in place so the spinner doesn't restart. */
 export function showOverlayLoading(
   rect: Rect,
   status: PipelineStatus = { stage: "recognizing" },
 ): void {
   currentRect = rect;
 
-  if (container && loadingLabel) {
-    loadingLabel.textContent = statusMessage(status);
+  if (container && updateLoadingChip) {
+    updateLoadingChip(status);
     reposition();
     return;
   }
@@ -302,8 +292,6 @@ export function showOverlayLoading(
   renderLoading(status);
 }
 
-/** Show an error chip over the region so a failure doesn't bounce the user to
- * the panel. Retry and Settings buttons appear when callbacks are given. */
 export function showOverlayError(args: {
   rect: Rect;
   message: string;
@@ -312,13 +300,12 @@ export function showOverlayError(args: {
 }): void {
   currentRect = args.rect;
   captureAnchor();
-  // Unlike the loading chip, there's no label to patch in place; drop the stale
-  // reference so a later showOverlayLoading rebuilds instead of patching it.
-  loadingLabel = undefined;
+  // Unlike the loading chip, there's nothing to patch in place; drop the stale
+  // patcher so a later showOverlayLoading rebuilds instead of patching it.
+  updateLoadingChip = undefined;
   mountChip(createErrorChip(args));
 }
 
-/** Remove the overlay and detach its listeners. No-op if it isn't open. */
 export function closeOverlay(): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
@@ -343,7 +330,7 @@ export function closeOverlay(): void {
   clearOutsideClickHandlers();
   container = undefined;
   toolbar = undefined;
-  toggleButton = undefined;
+  modeButton = undefined;
   boxes = [];
   boxRects = [];
   boxAngles = [];
@@ -351,8 +338,9 @@ export function closeOverlay(): void {
   teardownPopover();
   regionBackdrop = undefined;
   regionFrame = undefined;
+  regionSnapshot = undefined;
   statusChip = undefined;
-  loadingLabel = undefined;
+  updateLoadingChip = undefined;
   currentLayout = undefined;
   currentRect = undefined;
   hasTranslationText = false;
@@ -396,16 +384,10 @@ function render(): void {
   // A settled result replaces any loading spinner. The popover is a child of the
   // old container, so drop the stale reference; it's recreated when next opened.
   statusChip = undefined;
-  loadingLabel = undefined;
-  regionBackdrop = undefined;
-  regionFrame = undefined;
+  updateLoadingChip = undefined;
   teardownPopover();
 
-  if (currentRect) {
-    regionBackdrop = createRegionBackdrop(currentRect);
-    regionFrame = createRegionFrame(currentRect);
-    container.append(regionBackdrop, regionFrame);
-  }
+  renderRegionLayers();
   toolbar = createToolbar();
   container.append(toolbar);
   if (currentTranslationError) {
@@ -427,14 +409,10 @@ function render(): void {
   ensureGlobalHandlers();
 }
 
-// Show the loading spinner over the region. Rebuilds the container so it cleanly
-// replaces a stale result view; the region frame marks the captured area.
 function renderLoading(status: PipelineStatus): void {
   mountChip(createLoadingChip(status));
 }
 
-// Replace whatever is on screen with a fresh container holding the region
-// backdrop/frame and the given chip, centered over the region.
 function mountChip(chip: HTMLElement): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
@@ -448,20 +426,14 @@ function mountChip(chip: HTMLElement): void {
   boxContents = [];
   teardownPopover();
   toolbar = undefined;
-  toggleButton = undefined;
+  modeButton = undefined;
   clearOutsideClickHandlers();
   currentLayout = undefined;
   currentTranslationError = undefined;
-  regionBackdrop = undefined;
-  regionFrame = undefined;
 
   container = document.createElement("div");
   container.className = "ocr-translate-overlay";
-  if (currentRect) {
-    regionBackdrop = createRegionBackdrop(currentRect);
-    regionFrame = createRegionFrame(currentRect);
-    container.append(regionBackdrop, regionFrame);
-  }
+  renderRegionLayers();
 
   statusChip = chip;
   container.append(statusChip);
@@ -496,6 +468,9 @@ function ensureGlobalHandlers(): void {
 }
 
 function reposition(): void {
+  if (regionSnapshot && currentRect) {
+    positionRectElement(regionSnapshot, currentRect);
+  }
   if (regionBackdrop && currentRect) {
     positionRectElement(regionBackdrop, currentRect);
   }
@@ -539,14 +514,14 @@ function createToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "ocr-translate-overlay-toolbar";
 
-  const toggleWrapper = document.createElement("span");
-  toggleWrapper.className = "ocr-translate-overlay-toggle-wrap";
+  const modeButtonWrapper = document.createElement("span");
+  modeButtonWrapper.className = "ocr-translate-overlay-mode-button-wrap";
   if (!hasTranslationText) {
-    toggleWrapper.title = currentTranslationError
+    modeButtonWrapper.title = currentTranslationError
       ? "Translation unavailable"
       : "The text is already in target language";
   }
-  toggleWrapper.append(createModeSwitch());
+  modeButtonWrapper.append(createModeButton());
 
   const sourcePicker = createSourceLanguagePicker();
   const languagePicker = createLanguagePicker();
@@ -566,40 +541,39 @@ function createToolbar(): HTMLElement {
   divider.className = "ocr-translate-overlay-divider";
   divider.setAttribute("aria-hidden", "true");
 
-  // The switch sits between the pills: knob left shows the source, knob right
-  // the translation, so it doubles as the direction arrow.
   if (sourcePicker) {
     bar.append(sourcePicker);
   }
-  bar.append(toggleWrapper);
+  if (sourcePicker && languagePicker) {
+    const direction = document.createElement("span");
+    direction.className = "ocr-translate-overlay-direction";
+    direction.setAttribute("aria-hidden", "true");
+    direction.textContent = "→";
+    bar.append(direction);
+  }
   if (languagePicker) {
     bar.append(languagePicker);
   }
   if (providerPicker) {
     bar.append(providerPicker);
   }
+  bar.append(modeButtonWrapper);
   bar.append(selectButton, menu.element, divider, closeButton);
   return bar;
 }
 
-// Flips between the painted translation and the bare image with its selectable
-// text. Disabled when there is no translation to paint.
-function createModeSwitch(): HTMLButtonElement {
+function createModeButton(): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "ocr-translate-overlay-switch";
-  button.setAttribute("role", "switch");
+  button.className =
+    "ocr-translate-overlay-icon-button ocr-translate-overlay-mode-button";
   button.disabled = !hasTranslationText;
-
-  const knob = document.createElement("span");
-  knob.className = "ocr-translate-overlay-switch-knob";
-  knob.innerHTML = TRANSLATE_ICON;
-  button.append(knob);
-  toggleButton = button;
-  updateToggleLabel();
+  button.innerHTML = TRANSLATE_ICON;
+  modeButton = button;
+  updateModeButton();
 
   // Both views are built from the same toolbar, so only the boxes and the
-  // switch's own labels change; rebuilding the bar would replay its entry
+  // button's own state changes; rebuilding the bar would replay its entry
   // animation on every flip.
   button.addEventListener("click", () => {
     if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
@@ -609,22 +583,22 @@ function createModeSwitch(): HTMLButtonElement {
     defaultMode = mode;
     void setOverlayMode(mode);
     renderBoxes();
-    updateToggleLabel();
+    updateModeButton();
   });
 
   return button;
 }
 
-function updateToggleLabel(): void {
-  if (!toggleButton) {
+function updateModeButton(): void {
+  if (!modeButton) {
     return;
   }
   const showingTranslation = mode === "translation";
-  const label = showingTranslation ? "Hide translation overlay" : "Show translation overlay";
-  toggleButton.setAttribute("aria-checked", String(showingTranslation));
-  toggleButton.setAttribute("aria-label", label);
+  const label = "Toggle translation overlay";
+  modeButton.setAttribute("aria-pressed", String(showingTranslation));
+  modeButton.setAttribute("aria-label", label);
   if (hasTranslationText) {
-    toggleButton.title = label;
+    modeButton.title = label;
   }
 }
 
@@ -768,8 +742,6 @@ function speakAll(target: OverlayMode): void {
   });
 }
 
-// The source-language pill: picking one re-runs OCR on the same capture with
-// the matching recognizer. Mirrors the panel's source pill.
 function createSourceLanguagePicker(): HTMLElement | undefined {
   if (ocrSourceLanguages.length < 2) {
     return undefined;
@@ -936,10 +908,6 @@ function applyBoxAngles(): void {
   });
 }
 
-// The translation view: opaque boxes carrying the translated text, sized to fill
-// them. They stand where the translation belongs rather than exactly on the
-// source text, so no text layer goes with them — the picture is covered anyway,
-// and the painted text is real DOM text that selects on its own.
 function renderTranslationBoxes(
   layout: OverlayLayout,
   overlayContainer: HTMLElement,
@@ -970,8 +938,6 @@ function renderTranslationBoxes(
       overlayContainer.append(box);
       boxes.push(box);
       boxRects.push(paragraph.translationRect);
-      // The painted panel tilts with its box, so the translation lies along the
-      // source text rather than across it.
       boxAngles.push(paragraph.angle);
       boxContents.push({
         original: paragraph.original,
@@ -980,15 +946,11 @@ function renderTranslationBoxes(
     });
   }
 
-  // Fit fonts after all boxes are in the DOM so each measures a settled layout.
   for (const box of boxes) {
     fitFontSize(box);
   }
 }
 
-// The original view: transparent frames on the source text, each with the
-// selectable text layer over the image's glyphs and a popover carrying both
-// texts.
 function renderSourceBoxes(
   layout: OverlayLayout,
   overlayContainer: HTMLElement,
@@ -1047,8 +1009,6 @@ function createTranslationBox(
   setBoxPopoverState(box, false);
   positionRectElement(box, rect);
 
-  // The box outlines the whole paragraph; only this panel is painted, so it
-  // covers no more of the picture than the translation needs.
   const panel = document.createElement("span");
   panel.className = "ocr-translate-overlay-translation-text";
   panel.textContent = text;
@@ -1647,7 +1607,6 @@ function createPopoverText(
   return body;
 }
 
-// One text with its own speak/copy to the right.
 function createPopoverRow(
   view: PopoverView,
   textMode: OverlayMode,
@@ -1815,8 +1774,6 @@ async function copyPopoverText(
   popoverCopyResetTimers.set(button, resetTimer);
 }
 
-// Close the popover. Any pending open goes with it, so a rebuilt or closed
-// overlay can't be reopened against boxes that are gone.
 function hidePopover(): void {
   clearSettleTimer();
   clearPopoverCloseTimer();
@@ -1836,8 +1793,6 @@ function hidePopover(): void {
   syncBoxPopoverStates();
 }
 
-// Full reset when the container is rebuilt or the overlay closes: the popover
-// element goes with the old container, so drop its references.
 function teardownPopover(): void {
   clearSettleTimer();
   clearPopoverCloseTimer();
@@ -1857,8 +1812,8 @@ function teardownPopover(): void {
 const POPOVER_MARGIN = 8;
 // A popover narrower than this reads as a column of fragments even for a narrow
 // box; wider than this the line becomes too long to scan comfortably.
-const POPOVER_MIN_WIDTH = 360;
-const POPOVER_MAX_WIDTH = 720;
+const POPOVER_MIN_WIDTH = 384;
+const POPOVER_MAX_WIDTH = 640;
 // Even with room to spare, a popover taller than this much of the viewport hides
 // too much of the page, so it scrolls instead.
 const POPOVER_MAX_HEIGHT_RATIO = 0.6;
@@ -1993,16 +1948,34 @@ function positionToolbar(): void {
 
 function createLoadingChip(status: PipelineStatus): HTMLElement {
   const chip = document.createElement("div");
-  chip.className = "ocr-translate-overlay-status";
+  chip.className = "ocr-translate-overlay-status is-loading";
 
   const spinner = document.createElement("div");
   spinner.className = "ocr-translate-overlay-spinner";
 
-  loadingLabel = document.createElement("p");
-  loadingLabel.className = "ocr-translate-overlay-status-label";
-  loadingLabel.textContent = statusMessage(status);
+  const label = document.createElement("p");
+  label.className = "ocr-translate-overlay-status-label";
 
-  chip.append(spinner, loadingLabel, iconButton(CLOSE_ICON, "Close", closeOverlay));
+  const progress = document.createElement("div");
+  progress.className = "ocr-translate-overlay-progress";
+  const fill = document.createElement("div");
+  fill.className = "ocr-translate-overlay-progress-fill";
+  progress.append(fill);
+
+  updateLoadingChip = (next: PipelineStatus): void => {
+    label.textContent = statusMessage(next);
+    const fraction = statusProgress(next);
+    progress.hidden = fraction === undefined;
+    fill.style.transform = `scaleX(${fraction ?? 0})`;
+  };
+  updateLoadingChip(status);
+
+  chip.append(
+    spinner,
+    label,
+    iconButton(CLOSE_ICON, "Close", closeOverlay),
+    progress,
+  );
   return chip;
 }
 
@@ -2043,6 +2016,44 @@ function createErrorChip(args: {
     ),
   );
   return chip;
+}
+
+function renderRegionLayers(): void {
+  regionBackdrop = undefined;
+  regionFrame = undefined;
+  if (container && currentRect) {
+    regionBackdrop = createRegionBackdrop(currentRect);
+    regionFrame = createRegionFrame(currentRect);
+    container.append(regionBackdrop, regionFrame);
+  }
+  refreshRegionSnapshot();
+}
+
+// Put the current snapshot (or none) on screen. Separate from the layers around
+// it because it also arrives on its own: it is fetched while the pipeline runs
+// and lands under whatever the overlay is already showing.
+function refreshRegionSnapshot(): void {
+  regionSnapshot?.remove();
+  regionSnapshot = undefined;
+  if (!container || !currentRect || !currentSnapshot) {
+    return;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "ocr-translate-overlay-snapshot";
+  canvas.setAttribute("aria-hidden", "true");
+  // The backing store keeps the capture's own resolution; CSS scales it to the
+  // region, so a HiDPI capture stays sharp.
+  canvas.width = currentSnapshot.width;
+  canvas.height = currentSnapshot.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return;
+  }
+  context.drawImage(currentSnapshot, 0, 0);
+  positionRectElement(canvas, currentRect);
+  container.prepend(canvas);
+  regionSnapshot = canvas;
 }
 
 function createRegionBackdrop(rect: Rect): HTMLElement {
@@ -2186,11 +2197,22 @@ function statusMessage(status: PipelineStatus): string {
       return "Initializing OCR engine…";
     case "recognizing":
       return status.lineCount && status.lineCount > 0
-        ? `Recognizing text… ${status.line}/${status.lineCount}`
+        ? "Recognizing text…"
         : "Analyzing image…";
     case "translating":
       return "Translating…";
   }
+}
+
+function statusProgress(status: PipelineStatus): number | undefined {
+  if (status.stage !== "recognizing") {
+    return undefined;
+  }
+  const { line, lineCount } = status;
+  if (line === undefined || !lineCount || lineCount <= 0) {
+    return undefined;
+  }
+  return clamp(line / lineCount, 0, 1);
 }
 
 function iconButton(

@@ -160,6 +160,111 @@ describe("background router", () => {
     );
   });
 
+  it("reports no snapshot when the frame has no retained capture", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+    });
+
+    startRouter({} as RouterDependencies);
+
+    await expect(
+      listener?.({ type: "GET_CAPTURE_SNAPSHOT" }, {
+        tab: { id: 21 },
+        frameId: 0,
+      }),
+    ).resolves.toEqual({});
+  });
+
+  // The snapshot is only ever displayed, at the region's CSS size, so it is
+  // encoded at that size rather than at the capture's own device resolution.
+  it("encodes the capture at the region's displayed size", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+    const convertToBlob = vi.fn(
+      async () => new Blob([new Uint8Array([7])], { type: "image/webp" }),
+    );
+    const canvasSizes: Array<{ width: number; height: number }> = [];
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ width: 40, height: 20, close: vi.fn() })),
+    );
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(width: number, height: number) {
+          canvasSizes.push({ width, height });
+        }
+
+        getContext(): { drawImage: () => void } {
+          return { drawImage: () => {} };
+        }
+
+        convertToBlob = convertToBlob;
+      },
+    );
+
+    startRouter({
+      captureVisibleArea: async () => new Blob(["capture"]),
+      settingsRepository: {
+        get: async () => ({
+          ocr: { providerId: "test" },
+          translation: { providerId: "test", targetLang: "uk" },
+        }),
+      },
+      loadImage: async () => new Blob(["image"]),
+      createOcrProvider: () => ({
+        id: "test",
+        recognize: async () => ({ text: "Sample", lang: "en" }),
+      }),
+      createTranslationProvider: () => ({
+        id: "test",
+        translate: async (input: { targetLang: string }) => ({
+          text: "Translated",
+          targetLang: input.targetLang,
+        }),
+      }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    const sender = { tab: { id: 22 }, frameId: 0 };
+    await listener?.(
+      {
+        type: "OCR_TRANSLATE_REQUEST",
+        requestId: "snapshot-request",
+        rect: { x: 0, y: 0, width: 10, height: 5 },
+        viewport: { width: 100, height: 50 },
+      },
+      sender,
+    );
+
+    await expect(
+      listener?.({ type: "GET_CAPTURE_SNAPSHOT" }, sender),
+    ).resolves.toEqual({
+      snapshot: { data: "Bw==", mediaType: "image/webp" },
+    });
+    // A 40x20 capture of a 10x5 region is four times its displayed size; twice
+    // is all the overlay can paint.
+    expect(canvasSizes).toEqual([{ width: 20, height: 10 }]);
+  });
+
   it("keeps capture state isolated by frame and ignores stale image loads", async () => {
     let listener: MessageListener | undefined;
     vi.stubGlobal("browser", {

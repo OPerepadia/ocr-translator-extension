@@ -79,11 +79,11 @@ describe("popoverMaxWidth", () => {
   });
 
   it("keeps a readable minimum for narrow boxes", () => {
-    expect(popoverMaxWidth(120, 1280)).toBe(360);
+    expect(popoverMaxWidth(120, 1280)).toBe(384);
   });
 
   it("stops widening past the comfortable line length", () => {
-    expect(popoverMaxWidth(1100, 1600)).toBe(720);
+    expect(popoverMaxWidth(1100, 1600)).toBe(640);
   });
 
   it("never exceeds the viewport", () => {
