@@ -71,13 +71,8 @@ let currentOcrText = "";
 let onClose: (() => void) | undefined;
 // Invoked when the user picks "Select new region" from the menu
 let onNewSelection: (() => void) | undefined;
-// Invoked when the user switches the current result to the overlay view.
 let onShowOverlay: (() => void) | undefined;
-// Whether the current result can be shown as an overlay; controls the visibility
-// of the "Show in overlay" menu item.
 let overlayAvailable = false;
-// Live reference to that menu item so setOverlayAvailable can toggle it while the
-// panel is open.
 let overlayMenuItemRef: HTMLButtonElement | undefined;
 // Invoked when the user picks a new target language from the language pill.
 let onTargetLangChange: ((targetLang: LangCode) => void) | undefined;
@@ -236,12 +231,10 @@ export function setOnNewSelection(handler: () => void): void {
   onNewSelection = handler;
 }
 
-/** Register a callback invoked when the user switches to the overlay view. */
 export function setOnShowOverlay(handler: () => void): void {
   onShowOverlay = handler;
 }
 
-/** Show or hide the "Show in overlay" menu item (set per result). */
 export function setOverlayAvailable(value: boolean): void {
   overlayAvailable = value;
   if (overlayMenuItemRef) {

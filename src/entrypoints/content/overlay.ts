@@ -41,19 +41,12 @@ let toolbar: HTMLElement | undefined;
 let modeButton: HTMLButtonElement | undefined;
 let boxes: HTMLElement[] = [];
 let boxRects: Rect[] = [];
-// Each box's tilt, in radians, matching boxRects. Zero for upright text.
 let boxAngles: number[] = [];
-// Both texts for each box, so the popover can show them together.
 let boxContents: Array<{ original: string; translated: string }> = [];
-// Floating panel showing one box's text. It opens when the pointer is over the
-// box or the panel itself, and is interactive (selectable, with controls) as
-// long as the pointer stays on it.
 type PopoverView = {
   el: HTMLElement;
-  // The scrolling text area, set by renderPopover.
   body?: HTMLElement;
   boxIndex: number;
-  // Speak buttons by the text they read, so the right one shows as playing.
   speechButtons: Partial<Record<OverlayMode, HTMLButtonElement>>;
 };
 let activePopover: PopoverView | undefined;
@@ -84,10 +77,8 @@ let currentRect: Rect | undefined;
 // alone behind transparent frames, and the text is read from the popover and
 // selected off the picture itself.
 let mode: OverlayMode = "translation";
-// The view a fresh overlay opens in: whichever one was last used.
 let defaultMode: OverlayMode = "translation";
 let hasTranslationText = false;
-// Full texts used by the whole-selection actions in the toolbar menu.
 let currentOriginalText = "";
 let currentDisplayText = "";
 let currentSourceLang: LangCode | undefined;
@@ -130,7 +121,6 @@ const MAX_FONT_PX = 24;
 // approximate OCR box, so a slight overhang beats losing a line.
 const CLAMP_SPILL_LINES = 0.35;
 
-/** Provide the shadow-root container the overlay renders into. */
 export function setOverlayUiRoot(root: HTMLElement): void {
   uiRoot = root;
 }
@@ -145,40 +135,33 @@ export function setOverlaySnapshot(snapshot: ImageBitmap | undefined): void {
   refreshRegionSnapshot();
 }
 
-/** Set which view a new overlay opens in. */
 export function setOverlayDefaultMode(nextMode: OverlayMode): void {
   defaultMode = nextMode;
 }
 
-/** Register a callback invoked when the overlay is closed. */
 export function setOnOverlayClose(handler: () => void): void {
   onClose = handler;
 }
 
-/** Register a callback invoked when the user switches back to the panel. */
 export function setOnShowPanel(handler: () => void): void {
   onShowPanel = handler;
 }
 
-/** Register a callback invoked when the user picks "Select new region". */
 export function setOnOverlayNewSelection(handler: () => void): void {
   onNewSelection = handler;
 }
 
-/** Register a callback invoked when the user picks a new target language. */
 export function setOnOverlayTargetLangChange(
   handler: (targetLang: LangCode) => void,
 ): void {
   onTargetLangChange = handler;
 }
 
-/** Provide the languages the active translation provider supports (codes). */
 export function setOverlayTargetLanguages(languages: LangCode[]): void {
   targetLanguages = languages;
   rerenderToolbar();
 }
 
-/** Provide the OCR source languages and the currently selected one. */
 export function setOverlayOcrSourceLanguages(
   languages: Array<{ id: string; label: string }>,
   currentId: string,
@@ -188,14 +171,12 @@ export function setOverlayOcrSourceLanguages(
   rerenderToolbar();
 }
 
-/** Register a callback invoked when the user picks a source language. */
 export function setOnOverlaySourceLanguageChange(
   handler: (sourceLang: LangCode | "auto") => void,
 ): void {
   onSourceLanguageChange = handler;
 }
 
-/** Provide the translation providers and the currently selected one. */
 export function setOverlayTranslationProviders(
   providers: Array<{ id: string; label: string }>,
   currentId: string,
@@ -205,7 +186,6 @@ export function setOverlayTranslationProviders(
   rerenderToolbar();
 }
 
-/** Register a callback invoked when the user picks a translation provider. */
 export function setOnOverlayProviderChange(
   handler: (providerId: string) => void,
 ): void {
@@ -248,8 +228,6 @@ export function overlayTargetLanguage(
   );
 }
 
-/** Draw the translated result as boxes over the selected page region. Assumes
- * isOverlayable(result) is true. */
 export function showOverlay(args: {
   result: PipelineResult;
   rect: Rect;
@@ -293,14 +271,11 @@ export function showOverlay(args: {
     rect,
     orientation: result.ocr.orientation,
   });
-  // With nothing to paint, the translation view has no reason to exist.
   mode = hasTranslationText ? defaultMode : "original";
 
   render();
 }
 
-/** Show a spinner with the current pipeline stage, centered over the region.
- * Repeated calls patch the label in place so the spinner doesn't restart. */
 export function showOverlayLoading(
   rect: Rect,
   status: PipelineStatus = { stage: "recognizing" },
@@ -317,8 +292,6 @@ export function showOverlayLoading(
   renderLoading(status);
 }
 
-/** Show an error chip over the region so a failure doesn't bounce the user to
- * the panel. Retry and Settings buttons appear when callbacks are given. */
 export function showOverlayError(args: {
   rect: Rect;
   message: string;
@@ -333,7 +306,6 @@ export function showOverlayError(args: {
   mountChip(createErrorChip(args));
 }
 
-/** Remove the overlay and detach its listeners. No-op if it isn't open. */
 export function closeOverlay(): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
@@ -437,14 +409,10 @@ function render(): void {
   ensureGlobalHandlers();
 }
 
-// Show the loading spinner over the region. Rebuilds the container so it cleanly
-// replaces a stale result view; the region frame marks the captured area.
 function renderLoading(status: PipelineStatus): void {
   mountChip(createLoadingChip(status));
 }
 
-// Replace whatever is on screen with a fresh container holding the region
-// layers and the given chip, centered over the region.
 function mountChip(chip: HTMLElement): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
@@ -594,8 +562,6 @@ function createToolbar(): HTMLElement {
   return bar;
 }
 
-// Flips between the painted translation and the bare image with its selectable
-// text. Disabled when there is no translation to paint.
 function createModeButton(): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
@@ -776,8 +742,6 @@ function speakAll(target: OverlayMode): void {
   });
 }
 
-// The source-language pill: picking one re-runs OCR on the same capture with
-// the matching recognizer. Mirrors the panel's source pill.
 function createSourceLanguagePicker(): HTMLElement | undefined {
   if (ocrSourceLanguages.length < 2) {
     return undefined;
@@ -944,10 +908,6 @@ function applyBoxAngles(): void {
   });
 }
 
-// The translation view: opaque boxes carrying the translated text, sized to fill
-// them. They stand where the translation belongs rather than exactly on the
-// source text, so no text layer goes with them — the picture is covered anyway,
-// and the painted text is real DOM text that selects on its own.
 function renderTranslationBoxes(
   layout: OverlayLayout,
   overlayContainer: HTMLElement,
@@ -978,8 +938,6 @@ function renderTranslationBoxes(
       overlayContainer.append(box);
       boxes.push(box);
       boxRects.push(paragraph.translationRect);
-      // The painted panel tilts with its box, so the translation lies along the
-      // source text rather than across it.
       boxAngles.push(paragraph.angle);
       boxContents.push({
         original: paragraph.original,
@@ -988,15 +946,11 @@ function renderTranslationBoxes(
     });
   }
 
-  // Fit fonts after all boxes are in the DOM so each measures a settled layout.
   for (const box of boxes) {
     fitFontSize(box);
   }
 }
 
-// The original view: transparent frames on the source text, each with the
-// selectable text layer over the image's glyphs and a popover carrying both
-// texts.
 function renderSourceBoxes(
   layout: OverlayLayout,
   overlayContainer: HTMLElement,
@@ -1055,8 +1009,6 @@ function createTranslationBox(
   setBoxPopoverState(box, false);
   positionRectElement(box, rect);
 
-  // The box outlines the whole paragraph; only this panel is painted, so it
-  // covers no more of the picture than the translation needs.
   const panel = document.createElement("span");
   panel.className = "ocr-translate-overlay-translation-text";
   panel.textContent = text;
@@ -1655,7 +1607,6 @@ function createPopoverText(
   return body;
 }
 
-// One text with its own speak/copy to the right.
 function createPopoverRow(
   view: PopoverView,
   textMode: OverlayMode,
@@ -1823,8 +1774,6 @@ async function copyPopoverText(
   popoverCopyResetTimers.set(button, resetTimer);
 }
 
-// Close the popover. Any pending open goes with it, so a rebuilt or closed
-// overlay can't be reopened against boxes that are gone.
 function hidePopover(): void {
   clearSettleTimer();
   clearPopoverCloseTimer();
@@ -1844,8 +1793,6 @@ function hidePopover(): void {
   syncBoxPopoverStates();
 }
 
-// Full reset when the container is rebuilt or the overlay closes: the popover
-// element goes with the old container, so drop its references.
 function teardownPopover(): void {
   clearSettleTimer();
   clearPopoverCloseTimer();
@@ -2105,7 +2052,6 @@ function refreshRegionSnapshot(): void {
   }
   context.drawImage(currentSnapshot, 0, 0);
   positionRectElement(canvas, currentRect);
-  // Under the boxes and the region's own layers.
   container.prepend(canvas);
   regionSnapshot = canvas;
 }

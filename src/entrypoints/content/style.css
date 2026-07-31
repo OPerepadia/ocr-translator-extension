@@ -824,9 +824,7 @@
   cursor: default;
 }
 
-/* In-place overlay: boxes drawn over the selected region. The container spans
-   the viewport but lets page interaction through; only the boxes and toolbar
-   capture clicks. */
+/* In-place translation overlay. */
 .ocr-translate-overlay {
   position: fixed;
   inset: 0;
@@ -834,8 +832,6 @@
   pointer-events: none;
 }
 
-/* One box per paragraph, positioned (in viewport pixels) over the capture. The
-   toolbar switch decides which of the two kinds below is on screen. */
 .ocr-translate-overlay-box {
   position: absolute;
   z-index: 1;
@@ -848,10 +844,6 @@
   transform-origin: 50% 50%;
 }
 
-/* Original view: a semi-transparent marker of where recognized text sits,
-   leaving the picture readable. Clicking, tapping or using the keyboard opens
-   its text details. It holds a screen-reader label plus the selectable text
-   layer, so dragging inside it selects the image's own text. */
 .ocr-translate-overlay-frame-box {
   border: 1px solid #ff2d95;
   border-radius: 4px;
@@ -860,8 +852,6 @@
   transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
 
-/* Emphasize the box while it's hovered, holding keyboard focus or showing its
-   text, so the source of the visible popover is clear. */
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible,
 .ocr-translate-overlay-frame-box.is-active {
@@ -882,10 +872,6 @@
   outline-offset: 2px;
 }
 
-/* Translation view: the paragraph keeps the same frame the original view draws,
-   so switching views doesn't move the boxes, and the translation is painted on
-   the panel below rather than across the whole frame. Resting the pointer on it
-   opens its popover, the same way the frames do. */
 .ocr-translate-overlay-translation-box {
   display: flex;
   align-items: center;
@@ -904,11 +890,6 @@
   transition: opacity 0.12s ease;
 }
 
-/* The only painted part: an opaque panel sized by its own text, wrapping at the
-   frame's width and centered on the source paragraph, so a short translation
-   masks a label's worth of picture instead of the whole region. The script
-   auto-fits the font, inherited from the box. Ordinary DOM text, so it selects
-   like any other. */
 .ocr-translate-overlay-translation-text {
   box-sizing: border-box;
   max-width: 100%;
@@ -978,8 +959,6 @@
   overflow-wrap: break-word;
 }
 
-/* Text that outgrows the height cap scrolls here, and the wheel doesn't carry on
-   to the page at the ends. */
 .ocr-translate-overlay-popover-body {
   display: flex;
   flex-direction: column;
@@ -991,10 +970,6 @@
   scrollbar-color: rgba(15, 23, 42, 0.28) transparent;
 }
 
-/* One row per text: the text, then its own controls in the same place on every
-   row. The translation leads in both views; the original follows below the
-   divider, muted and slightly smaller, so the translation reads as the main
-   text wherever the popover was opened from. */
 .ocr-translate-overlay-popover-row {
   display: flex;
   align-items: flex-start;
@@ -1114,8 +1089,6 @@
   white-space: nowrap;
 }
 
-/* Softly dims the page outside the captured region while leaving the selected
-   area itself transparent. */
 /* The pixels the region was recognized from, painted under the boxes. Freezing
    them keeps the overlay matching its capture on a page that repaints
    underneath — an animated banner, a carousel, a video. */
@@ -1138,8 +1111,6 @@
   pointer-events: none;
 }
 
-/* Outline of the captured region, kept visible in overlay mode so the user can
-   see the exact selection behind the translated boxes. */
 .ocr-translate-overlay-region {
   position: absolute;
   box-sizing: border-box;
@@ -1151,7 +1122,6 @@
   pointer-events: none;
 }
 
-/* Loading spinner chip, centered over the region while the pipeline runs. */
 .ocr-translate-overlay-status {
   position: absolute;
   z-index: 2;
@@ -1206,7 +1176,6 @@
   transition: transform 0.2s ease-out;
 }
 
-/* Error variant of the status chip: warning icon, wrapping message, actions. */
 .ocr-translate-overlay-status.is-error {
   max-width: min(440px, calc(100vw - 32px));
 }

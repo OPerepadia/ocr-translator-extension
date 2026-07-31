@@ -4,9 +4,6 @@
 
 import type { OcrBlock, OcrChar, OrientedRect, Rect } from "@/shared/types";
 
-/** One detected OCR line of the source image: its text and where it sits on the
- * page. Used to lay an invisible, selectable copy of the original text over the
- * image glyphs, so selecting it highlights them. */
 export interface OverlayLine {
   rect: Rect;
   /** The line's own tilted box over the page; always set, matching `rect`
@@ -42,8 +39,6 @@ export interface OverlayParagraph {
   /** The translated line, or null when the translation could not be split per
    * paragraph (see `segmented`). */
   translated: string | null;
-  /** The paragraph's detected lines, in reading order, positioned over the page
-   * like `sourceRect`. */
   lines: OverlayLine[];
   /** True when this paragraph's source text reads vertically; the original
    * view then renders it with a vertical writing mode. Per paragraph because a
@@ -63,7 +58,6 @@ export interface OverlayLayout {
   /** The same fallback box left on the source text, for the original view's
    * frame and popover. */
   combinedSourceRect: Rect;
-  /** The whole translation, used by the fallback combined box. */
   combinedTranslation: string;
 }
 
@@ -75,7 +69,6 @@ export interface BuildOverlayInput {
   imageHeight: number;
   /** The selection rect on the page, in page CSS pixels. */
   rect: Rect;
-  /** Reading orientation reported by the OCR provider, when known. */
   orientation?: "horizontal" | "vertical";
 }
 
@@ -137,12 +130,10 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
   paragraph: number;
   bbox: Rect;
   texts: string[];
-  /** Each block's own bbox, in the same order as `texts`. */
   lineBboxes: Rect[];
   /** Each block's tilted box, in the same order as `texts`. Falls back to the
    * block's own bbox, untilted, when the provider reports none. */
   lineOriented: OrientedRect[];
-  /** Each block's character boxes, in the same order as `texts`. */
   lineChars: Array<OcrChar[] | undefined>;
   orientation?: "horizontal" | "vertical";
 }> {
@@ -438,11 +429,7 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
   };
 }
 
-/** Shift a whole layout by the same delta, for when the page reflows under an
- * anchored capture. Every page-space rectangle moves, not just the ones on
- * screen: a rebuild (switching views) reads them all again, so any left behind
- * would put their box, or the text layer's spans inside it, back where the
- * capture was taken. */
+/** Shift every page-space rectangle after the anchored content reflows. */
 export function moveOverlayLayout(
   layout: OverlayLayout,
   dx: number,
