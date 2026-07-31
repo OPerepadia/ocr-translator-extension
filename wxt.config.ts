@@ -42,6 +42,14 @@ export default defineConfig({
     action: {
       default_title: "Screen OCR Translator",
     },
+    commands: {
+      _execute_action: {
+        suggested_key: {
+          default: "Ctrl+Shift+F",
+        },
+        description: "Translate a screen region",
+      },
+    },
     // Local OCR engine (PaddleOCR) compiles packaged WASM at runtime and runs in a
     // packaged worker. No script, worker, or WASM file is fetched remotely.
     content_security_policy: {

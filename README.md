@@ -17,6 +17,10 @@ Activate the add-on from the browser toolbar or the context menu, then select an
 > [!TIP]
 > Enable GPU acceleration in settings for faster OCR. The extension falls back to CPU processing when WebGPU is unavailable.
 
+## Keyboard shortcut
+
+Press `Ctrl+Shift+F` to select a screen region for translation. To change the shortcut, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**.
+
 ## Privacy
 
 - Screenshots never leave your device. The captured image is processed locally.
