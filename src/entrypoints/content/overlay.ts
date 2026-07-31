@@ -1812,8 +1812,8 @@ function teardownPopover(): void {
 const POPOVER_MARGIN = 8;
 // A popover narrower than this reads as a column of fragments even for a narrow
 // box; wider than this the line becomes too long to scan comfortably.
-const POPOVER_MIN_WIDTH = 360;
-const POPOVER_MAX_WIDTH = 720;
+const POPOVER_MIN_WIDTH = 384;
+const POPOVER_MAX_WIDTH = 640;
 // Even with room to spare, a popover taller than this much of the viewport hides
 // too much of the page, so it scrolls instead.
 const POPOVER_MAX_HEIGHT_RATIO = 0.6;

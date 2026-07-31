@@ -933,7 +933,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: min(360px, calc(100vw - 16px));
+  max-width: min(384px, calc(100vw - 16px));
   max-height: 60vh;
   overflow: hidden;
   padding: 6px 10px;
@@ -942,7 +942,7 @@
   background: #fff;
   color: #152034;
   font-family: system-ui, sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
   text-align: start;
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
@@ -990,7 +990,7 @@
 .ocr-translate-overlay-popover-row.is-source
   .ocr-translate-overlay-popover-text {
   color: #64748b;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .ocr-translate-overlay-popover-row-controls {
