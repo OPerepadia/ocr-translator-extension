@@ -37,6 +37,7 @@ export default defineConfig({
     name: "Screen OCR Translator",
     description:
       "Select a screen region, extract text with OCR, and translate it.",
+    homepage_url: "https://github.com/OPerepadia/ocr-translator-extension",
     permissions: ["activeTab", "contextMenus", "storage"],
     host_permissions: ["<all_urls>"],
     action: {
