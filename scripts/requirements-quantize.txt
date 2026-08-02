@@ -1,0 +1,4 @@
+# Dev-only, for scripts/quantize-models.py. Not needed to build the extension.
+numpy==2.3.5
+onnx==1.22.0
+onnxruntime==1.28.0

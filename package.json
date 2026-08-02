@@ -11,7 +11,8 @@
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify:models": "node scripts/verify-models.mjs"
+    "verify:models": "node scripts/verify-models.mjs",
+    "quantize:models": "scripts/quantize-models.sh"
   },
   "dependencies": {
     "onnxruntime-web": "^1.26.0",
