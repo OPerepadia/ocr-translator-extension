@@ -6,7 +6,7 @@ Firefox extension that uses optical character recognition (OCR) to capture text 
 
 ## How it works
 
-Activate the add-on from the browser toolbar or the context menu, then select an area of the page and click 'Run OCR'. To translate an image directly, right-click it and choose 'Translate this image'. After successful recognition, bounding boxes will appear. Hover over a text box will show the translation as well as original text that can be copied or read aloud. Translation overlay can be toggled in the toolbar.
+Activate the add-on from the browser toolbar or the context menu, then select an area of the page and click 'Run OCR'. To translate an image directly, right-click it and choose 'Translate this image'. Once recognition finishes, the translation appears as an overlay drawn on top of the original text. Hover over a text box to see the original text and the translation, which can be copied or read aloud. The overlay can be toggled from the toolbar.
 
 - **OCR** — PaddleOCR, running locally in the browser.
 - **Translation** — two options:
@@ -47,6 +47,14 @@ Built with [WXT](https://wxt.dev/) and TypeScript.
 
 ```sh
 npm ci
+npm run dev
+```
+
+Dev mode launches Firefox with the extension installed and reloads it on changes.
+
+To test a production build, run:
+
+```sh
 npm run build
 ```
 
