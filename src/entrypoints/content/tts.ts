@@ -9,6 +9,9 @@ interface SpeakRequest {
   onEnd?: () => void;
 }
 
+// Chunks decoded and scheduled ahead of the one playing
+const LOOKAHEAD = 2;
+
 let speaking = false;
 let speakingOwner: string | undefined;
 let abortController: AbortController | undefined;
@@ -27,6 +30,9 @@ export function requestSpeak(request: SpeakRequest): boolean {
     return false;
   }
 
+  // Built inside the click gesture so autoplay policy leaves it running, and
+  // before any state is committed so a failure here leaves nothing set.
+  const context = createAudioContext();
   const currentRequestId = requestId;
   const controller = new AbortController();
   abortController = controller;
@@ -41,10 +47,19 @@ export function requestSpeak(request: SpeakRequest): boolean {
       text: request.text,
       lang: request.lang || "en",
     })
-    .then((response) => playChunks(response.audioChunks, controller.signal))
+    .then((response) =>
+      playChunks(context, response.audioChunks, controller.signal),
+    )
     .then(
-      () => finish(currentRequestId, request.onEnd),
-      () => finish(currentRequestId, request.onEnd),
+      () => {
+        void context.close();
+        finish(currentRequestId, request.onEnd);
+      },
+      (error: unknown) => {
+        void context.close();
+        console.error("Screen OCR Translator: speech playback failed.", error);
+        finish(currentRequestId, request.onEnd);
+      },
     );
 
   return true;
@@ -72,51 +87,84 @@ function finish(id: number, onEnd: (() => void) | undefined): void {
   onEnd?.();
 }
 
+// A fresh context per utterance, closed once playback settles, so an idle tab
+// holds no audio thread.
+function createAudioContext(): AudioContext {
+  const context = new AudioContext();
+  if (context.state === "suspended") {
+    void context.resume();
+  }
+  return context;
+}
+
+// Web Audio rather than an <audio> element: a content script's media loads are
+// checked against the page's CSP, so a data: URL is refused where media-src is
+// restricted (github.com, diff.wikimedia.org). Decoding a buffer loads nothing.
 async function playChunks(
+  context: AudioContext,
   chunks: string[],
   signal: AbortSignal,
 ): Promise<void> {
+  // Only LOOKAHEAD chunks are decoded at once: PCM runs ~40x its mp3 size. Each
+  // buys ~12s of playback and decodes in far less, so seams stay inaudible.
+  const playing: Array<Promise<void>> = [];
+  let startAt = context.currentTime;
+
   for (const chunk of chunks) {
     if (signal.aborted) {
-      return;
+      break;
     }
-    await playChunk(chunk, signal);
+    const buffer = await decodeChunk(context, chunk);
+    if (signal.aborted) {
+      break;
+    }
+
+    // Clamped so a decode that outran the queued audio can't overlap the next.
+    startAt = Math.max(startAt, context.currentTime);
+    playing.push(playBuffer(context, buffer, startAt, signal));
+    startAt += buffer.duration;
+    if (playing.length === LOOKAHEAD) {
+      await playing.shift();
+    }
   }
+
+  await Promise.all(playing);
 }
 
-function playChunk(chunk: string, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(`data:audio/mpeg;base64,${chunk}`);
-    let settled = false;
+async function decodeChunk(
+  context: AudioContext,
+  chunk: string,
+): Promise<AudioBuffer> {
+  const binary = atob(chunk);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return context.decodeAudioData(bytes.buffer);
+}
 
-    const cleanup = (): boolean => {
-      if (settled) {
-        return false;
-      }
-      settled = true;
-      audio.onended = null;
-      audio.onerror = null;
-      signal.removeEventListener("abort", stop);
-      return true;
-    };
+function playBuffer(
+  context: AudioContext,
+  buffer: AudioBuffer,
+  startAt: number,
+  signal: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const source = context.createBufferSource();
     const finish = (): void => {
-      if (!cleanup()) {
-        return;
-      }
+      source.onended = null;
+      signal.removeEventListener("abort", stop);
       resolve();
     };
     const stop = (): void => {
-      audio.pause();
+      source.stop();
       finish();
     };
 
-    audio.onended = finish;
-    audio.onerror = finish;
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.onended = finish;
+    source.start(startAt);
     signal.addEventListener("abort", stop, { once: true });
-    audio.play().catch((error: unknown) => {
-      if (cleanup()) {
-        reject(error);
-      }
-    });
   });
 }
