@@ -40,13 +40,16 @@ korean_PP-OCRv5_mobile_rec_onnx_infer/inference.onnx -> rec.onnx
 korean_PP-OCRv5_mobile_rec_onnx_infer/inference.yml  -> source for dict.txt and recognizer settings in manifest.json
 ```
 
-Packaged file SHA-256:
+Packaged file SHA-256 (after quantization, see below):
 
 ```txt
-rec.onnx      92f0b7785e64fc9090106a241cf4c1eb97472824558272751b88a2a4476d3a08
+rec.onnx      3b2f9aa0dc9adc6db612100b31b8e35d3b7e0609bfc4e85c7c84feab6cf0bd72
 dict.txt      a88071c68c01707489baa79ebe0405b7beb5cca229f4fc94cc3ef992328802d7
 manifest.json 1de7a367248664e99d3631edd140a29ee50a7185223ebed98ad1b7bb9247d38b
 ```
+
+The unquantized `inference.onnx` from the archive is
+`92f0b7785e64fc9090106a241cf4c1eb97472824558272751b88a2a4476d3a08`.
 
 `dict.txt` is the `PostProcess.character_dict` list from `inference.yml`, written
 one character per line in the same order (11,945 entries: Hangul, Latin,
@@ -62,10 +65,25 @@ mean/std 0.5). The model output is already softmaxed.
 Korean, plus English and common symbols. See the official model card:
 https://huggingface.co/PaddlePaddle/korean_PP-OCRv5_mobile_rec
 
+## Quantization
+
+The packaged `rec.onnx` is not the archive file verbatim. It is weight-only
+int8: each Conv/MatMul weight over 4096 elements is stored as a
+per-output-channel int8 tensor plus a `DequantizeLinear` node, while activations
+and the compute ops stay float32. Smaller weights stay float32, since the scale
+and zero-point tensors would cancel out the saving. This cuts the file from
+13.42 MB to 3.63 MB and leaves the graph a float graph, so the WebGPU path in
+`ort-env.ts` still runs. The conversion also rewrites the export from opset 7 to
+13 and moves its `Constant`-node weights into initializers.
+
+Run `npm run quantize:models` to reproduce it. See `../README.md` for why the
+usual int8 recipes (`quantize_dynamic`, static QDQ) are not used here.
+
 ## Updating
 
 1. Replace `rec.onnx` and `dict.txt` from the new archive (URL above).
 2. Update `manifest.json` from the new model's `inference.yml`.
-3. Refresh the checksums above (`sha256sum rec.onnx dict.txt manifest.json`).
-4. Run `npm run verify:models -- src/public/assets/ocr/korean-v5`.
-5. Run `npm test && npm run build`.
+3. Re-quantize: `npm run quantize:models -- --in-place src/public/assets/ocr/korean-v5`.
+4. Refresh the checksums above (`sha256sum rec.onnx dict.txt manifest.json`).
+5. Run `npm run verify:models -- src/public/assets/ocr/korean-v5`.
+6. Run `npm test && npm run build`.

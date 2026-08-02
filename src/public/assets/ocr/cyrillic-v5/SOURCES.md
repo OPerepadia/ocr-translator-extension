@@ -40,13 +40,16 @@ cyrillic_PP-OCRv5_mobile_rec_onnx_infer/inference.onnx -> rec.onnx
 cyrillic_PP-OCRv5_mobile_rec_onnx_infer/inference.yml  -> source for dict.txt and recognizer settings in manifest.json
 ```
 
-Packaged file SHA-256:
+Packaged file SHA-256 (after quantization, see below):
 
 ```txt
-rec.onnx      5371ee1ddaa7983cc62d0818d99e982b6804638c85e4f960d59a574094e172e5
+rec.onnx      3873c7da60d186d4eda418228c37e961a1136c03e94ff25376fe7f7c261e315a
 dict.txt      db40aa52ceb112055be80c694afdf655d5d2c4f7873704524cc16a447ca913ba
 manifest.json 9608c7d4ebaf05e60b5bd7358a3f687943bd6cd59cd317f3f8186d6c161e6243
 ```
+
+The unquantized `inference.onnx` from the archive is
+`5371ee1ddaa7983cc62d0818d99e982b6804638c85e4f960d59a574094e172e5`.
 
 `dict.txt` is the `PostProcess.character_dict` list from `inference.yml`, written
 one character per line in the same order (850 entries: Latin, Greek, Cyrillic,
@@ -63,10 +66,25 @@ Russian, Belarusian, Ukrainian, Serbian (Cyrillic), Bulgarian, Mongolian,
 Macedonian, Kazakh, and other Cyrillic-script languages, plus English. See the
 official model card: https://huggingface.co/PaddlePaddle/cyrillic_PP-OCRv5_mobile_rec
 
+## Quantization
+
+The packaged `rec.onnx` is not the archive file verbatim. It is weight-only
+int8: each Conv/MatMul weight over 4096 elements is stored as a
+per-output-channel int8 tensor plus a `DequantizeLinear` node, while activations
+and the compute ops stay float32. Smaller weights stay float32, since the scale
+and zero-point tensors would cancel out the saving. This cuts the file from
+8.05 MB to 2.20 MB and leaves the graph a float graph, so the WebGPU path in
+`ort-env.ts` still runs. The conversion also rewrites the export from opset 7 to
+13 and moves its `Constant`-node weights into initializers.
+
+Run `npm run quantize:models` to reproduce it. See `../README.md` for why the
+usual int8 recipes (`quantize_dynamic`, static QDQ) are not used here.
+
 ## Updating
 
 1. Replace `rec.onnx` and `dict.txt` from the new archive (URL above).
 2. Update `manifest.json` from the new model's `inference.yml`.
-3. Refresh the checksums above (`sha256sum rec.onnx dict.txt manifest.json`).
-4. Run `npm run verify:models -- src/public/assets/ocr/cyrillic-v5`.
-5. Run `npm test && npm run build`.
+3. Re-quantize: `npm run quantize:models -- --in-place src/public/assets/ocr/cyrillic-v5`.
+4. Refresh the checksums above (`sha256sum rec.onnx dict.txt manifest.json`).
+5. Run `npm run verify:models -- src/public/assets/ocr/cyrillic-v5`.
+6. Run `npm test && npm run build`.
