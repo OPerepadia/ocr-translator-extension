@@ -17,6 +17,20 @@ Activate the add-on from the browser toolbar or the context menu, then select an
 > [!TIP]
 > Enable GPU acceleration in settings for faster OCR. The extension falls back to CPU processing when WebGPU is unavailable.
 
+## Supported languages
+
+The extension bundles several recognizers. By default, it uses [PP-OCRv6](https://www.paddleocr.ai/main/en/version3.x/algorithm/PP-OCRv6/PP-OCRv6.html), which supports 50 languages and offers the best accuracy. Scripts that PP-OCRv6 doesn't cover (Cyrillic, Korean and others) use PP-OCRv5 recognizers.
+
+| Script model | Recognized languages |
+|---|---|
+| Latin / Chinese / Japanese *(default)* | Afrikaans, Albanian, Azerbaijani, Basque, Bosnian, Catalan, Chinese (Simplified & Traditional), Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Hungarian, Icelandic, Indonesian, Irish, Italian, Japanese, Latvian, Lithuanian, Malay, Norwegian, Polish, Portuguese, Romanian, Serbian (Latin), Slovak, Slovenian, Spanish, Swahili, Swedish, Tagalog, Turkish, Uzbek, Vietnamese, Welsh |
+| Cyrillic | Belarusian, Bulgarian, Kazakh, Macedonian, Mongolian, Russian, Serbian (Cyrillic), Ukrainian |
+| Korean | Korean |
+| Arabic | Arabic, Pashto, Persian, Urdu |
+| Devanagari | Hindi, Marathi, Nepali |
+
+Translations can target any of 70+ languages supported by Google Translate, or any language your configured LLM supports.
+
 ## Keyboard shortcut
 
 Press `Ctrl+Shift+F` to select a screen region for translation. To change the shortcut, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**.
