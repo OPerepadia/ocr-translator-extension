@@ -134,7 +134,7 @@ describe("background router", () => {
       detectLanguage: async () => undefined,
     } as unknown as RouterDependencies);
 
-    await listener?.(
+    const response = await listener?.(
       {
         type: "OCR_TRANSLATE_REQUEST",
         requestId: "request-1",
@@ -145,6 +145,9 @@ describe("background router", () => {
 
     expect(loadImage).toHaveBeenCalledWith("https://example.com/sample.png");
     expect(captureVisibleArea).not.toHaveBeenCalled();
+    expect(response).toEqual(
+      expect.objectContaining({ image, result: expect.any(Object) }),
+    );
     expect(recognize).toHaveBeenCalledWith(
       { image, sourceLang: "auto" },
       undefined,
@@ -157,6 +160,99 @@ describe("background router", () => {
     expect(sendMessage).toHaveBeenCalledWith(
       7,
       expect.objectContaining({ type: "OCR_TRANSLATE_STATUS" }),
+    );
+  });
+
+  it("restores capture state when re-recognizing a supplied image", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+    const image = new Blob(["capture"]);
+    const recognize = vi.fn(async () => ({ text: "Sample" }));
+    const translate = vi.fn(async (input: { targetLang: string }) => ({
+      text: "Translated",
+      targetLang: input.targetLang,
+    }));
+    let settings = {
+      ocr: { providerId: "test" },
+      translation: { providerId: "test", targetLang: "uk" },
+    };
+
+    startRouter({
+      settingsRepository: {
+        get: async () => settings,
+        set: async (next: typeof settings) => {
+          settings = next;
+        },
+      },
+      createOcrProvider: () => ({ id: "test", recognize }),
+      createTranslationProvider: () => ({
+        id: "test",
+        translate,
+      }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    const sender = { tab: { id: 31 }, frameId: 0 };
+    const response = await listener?.(
+      {
+        type: "RERECOGNIZE_REQUEST",
+        requestId: "rerecognize-after-restart",
+        sourceLang: "ja",
+        image,
+      },
+      sender,
+    );
+
+    expect(recognize).toHaveBeenCalledWith(
+      { image, sourceLang: "ja" },
+      undefined,
+      expect.any(Function),
+    );
+    expect(response).toEqual({
+      image,
+      result: {
+        ocr: { text: "Sample", lang: "ja" },
+        translation: { text: "Translated", targetLang: "uk" },
+        translationStatus: { state: "ok" },
+      },
+    });
+
+    await listener?.(
+      {
+        type: "RETRANSLATE_REQUEST",
+        requestId: "retranslate-after-restart",
+        text: "Sample",
+        targetLang: "fr",
+      },
+      sender,
+    );
+    expect(translate).toHaveBeenLastCalledWith(
+      { text: "Sample", sourceLang: "ja", targetLang: "fr" },
+      undefined,
+    );
+
+    await listener?.(
+      {
+        type: "SWITCH_PROVIDER_REQUEST",
+        requestId: "switch-provider-after-restart",
+        providerId: "alternate",
+        text: "Sample",
+      },
+      sender,
+    );
+    expect(translate).toHaveBeenLastCalledWith(
+      { text: "Sample", sourceLang: "ja", targetLang: "fr" },
+      undefined,
     );
   });
 

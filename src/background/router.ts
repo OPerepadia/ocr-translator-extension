@@ -15,6 +15,7 @@ import {
   isStartSelectionMessage,
   isSwitchProviderRequest,
   type CaptureSnapshotResponse,
+  type OcrPipelineResponse,
   type OcrSourceLanguagesResponse,
   type RuntimeMessage,
   type SpeakResponse,
@@ -135,10 +136,8 @@ const withKeepAlive = createKeepAlive(
   KEEPALIVE_INTERVAL_MS,
 );
 
-// The most recent captured image per frame, kept so a recognizer switch can re-run
-// OCR on the same pixels instead of recapturing (which could differ if the page
-// scrolled, resized, or its content changed). Lost if the event page unloads, in
-// which case re-recognition asks the user for a fresh selection.
+// Kept for the display snapshot and for a source-language change made before the
+// initial request has returned the image to the content script.
 interface CaptureState {
   image?: Blob;
   /** CSS size of the region the capture covers, which sets the resolution its
@@ -155,7 +154,7 @@ async function handleOcrTranslateRequest(
   message: Extract<RuntimeMessage, { type: "OCR_TRANSLATE_REQUEST" }>,
   tabId: number | undefined,
   frameKey: string | undefined,
-): Promise<PipelineResult> {
+): Promise<OcrPipelineResponse> {
   const capture: CaptureState | undefined = frameKey
     ? {
         sourceLanguage: "auto",
@@ -185,7 +184,7 @@ async function handleOcrTranslateRequest(
     capture.image = image;
   }
 
-  return runPipeline({
+  const result = await runPipeline({
     image,
     ocrProvider,
     translationProvider,
@@ -197,6 +196,7 @@ async function handleOcrTranslateRequest(
     onOcrResult: (ocr) =>
       sendPipelineOcrResult(tabId, message.requestId, ocr),
   });
+  return { result, image };
 }
 
 // Hands the captured pixels to the overlay, which paints them under its boxes
@@ -237,19 +237,16 @@ async function handlePreloadOcrRequest(
 // source language. The selection lasts only for the current capture.
 async function handleRerecognizeRequest(
   dependencies: RouterDependencies,
-  message: {
-    requestId: string;
-    sourceLang: LangCode | "auto";
-  },
+  message: Extract<RuntimeMessage, { type: "RERECOGNIZE_REQUEST" }>,
   tabId: number | undefined,
   frameKey: string | undefined,
-): Promise<PipelineResult> {
+): Promise<OcrPipelineResponse> {
   const capture = frameKey ? lastCaptures.get(frameKey) : undefined;
   const selection = findOcrSourceLanguage(message.sourceLang);
   if (!selection) {
     throw new Error(`Unsupported OCR source language: ${message.sourceLang}`);
   }
-  const image = capture?.image;
+  const image = message.image ?? capture?.image;
   if (!image) {
     throw new Error(
       "The captured image is no longer available. Please select the region again.",
@@ -258,6 +255,11 @@ async function handleRerecognizeRequest(
 
   if (frameKey && capture && lastCaptures.get(frameKey) === capture) {
     capture.sourceLanguage = selection.id;
+  } else if (frameKey && message.image && !capture) {
+    lastCaptures.set(frameKey, {
+      image,
+      sourceLanguage: selection.id,
+    });
   }
 
   const settings = await dependencies.settingsRepository.get();
@@ -270,7 +272,7 @@ async function handleRerecognizeRequest(
     settings.translation,
   );
 
-  return runPipeline({
+  const result = await runPipeline({
     image,
     ocrProvider,
     translationProvider,
@@ -282,6 +284,7 @@ async function handleRerecognizeRequest(
     onOcrResult: (ocrResult) =>
       sendPipelineOcrResult(tabId, message.requestId, ocrResult),
   });
+  return { result, image };
 }
 
 function sendPipelineStatus(
