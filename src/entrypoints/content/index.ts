@@ -142,7 +142,7 @@ export default defineContentScript({
     );
 
     setOnClose(() => {
-      activeRequestId = null;
+      cancelActiveRequest();
       clearCapture();
     });
 
@@ -157,7 +157,7 @@ export default defineContentScript({
       startNewSelection();
     });
     setOnOverlayClose(() => {
-      activeRequestId = null;
+      cancelActiveRequest();
       if (activeView === "overlay") {
         clearCapture();
       }
@@ -243,7 +243,7 @@ export default defineContentScript({
 // our UI stays up, so drop everything and let the in-flight request finish
 // unseen.
 function closeOnNavigation(): void {
-  activeRequestId = null;
+  cancelActiveRequest();
   cancelSelectionOverlay();
   releaseSelectionDim();
   closePopup({ notify: false });
@@ -252,6 +252,18 @@ function closeOnNavigation(): void {
   lastResult = undefined;
   lastRect = undefined;
   pendingText = "";
+}
+
+// Drops the in-flight request and tells the background to abort it.
+function cancelActiveRequest(): void {
+  const requestId = activeRequestId;
+  activeRequestId = null;
+  if (!requestId) {
+    return;
+  }
+  void browserApi.runtime
+    .sendMessage({ type: "CANCEL_REQUEST", requestId })
+    .catch(() => {});
 }
 
 async function runSelectionFlow(): Promise<void> {
@@ -366,6 +378,7 @@ async function runCapture(
   setOverlayOcrSourceLanguages(ocrSourceLanguageList, "auto");
   pendingText = "";
 
+  cancelActiveRequest();
   const requestId = createRequestId();
   activeRequestId = requestId;
   // For region captures, keep the loading panel hidden until the background has
@@ -605,6 +618,7 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
     return;
   }
 
+  cancelActiveRequest();
   const requestId = createRequestId();
   activeRequestId = requestId;
   showActiveLoading({ stage: "translating" });
@@ -636,6 +650,7 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
 // Re-run OCR on the last captured image for a different source language. The
 // background chooses the recognizer for the current capture only.
 async function runRerecognize(sourceLang: LangCode | "auto"): Promise<void> {
+  cancelActiveRequest();
   const requestId = createRequestId();
   const generation = captureGeneration;
   activeRequestId = requestId;
@@ -682,6 +697,7 @@ async function runSwitchProvider(providerId: string): Promise<void> {
     return;
   }
 
+  cancelActiveRequest();
   const requestId = createRequestId();
   activeRequestId = requestId;
   showActiveLoading({ stage: "translating" });

@@ -2,6 +2,7 @@ import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
 import { browserApi } from "../shared/browser";
 import {
+  isCancelRequest,
   isGetCaptureSnapshotRequest,
   isGetOcrSourceLanguagesRequest,
   isGetTargetLanguagesRequest,
@@ -71,9 +72,21 @@ export function startRouter(dependencies: RouterDependencies): void {
       }
       return undefined;
     }
+    if (isCancelRequest(message)) {
+      inFlight.get(message.requestId)?.abort();
+      return undefined;
+    }
     if (isOcrTranslateRequest(message)) {
       return withKeepAlive(() =>
-        handleOcrTranslateRequest(dependencies, message, tabId, frameKey),
+        withAbort(message.requestId, (signal) =>
+          handleOcrTranslateRequest(
+            dependencies,
+            message,
+            tabId,
+            frameKey,
+            signal,
+          ),
+        ),
       );
     }
     if (isPreloadOcrRequest(message)) {
@@ -100,17 +113,41 @@ export function startRouter(dependencies: RouterDependencies): void {
     }
     if (isRetranslateRequest(message)) {
       return withKeepAlive(() =>
-        handleRetranslateRequest(dependencies, message, tabId, frameKey),
+        withAbort(message.requestId, (signal) =>
+          handleRetranslateRequest(
+            dependencies,
+            message,
+            tabId,
+            frameKey,
+            signal,
+          ),
+        ),
       );
     }
     if (isSwitchProviderRequest(message)) {
       return withKeepAlive(() =>
-        handleSwitchProviderRequest(dependencies, message, tabId, frameKey),
+        withAbort(message.requestId, (signal) =>
+          handleSwitchProviderRequest(
+            dependencies,
+            message,
+            tabId,
+            frameKey,
+            signal,
+          ),
+        ),
       );
     }
     if (isRerecognizeRequest(message)) {
       return withKeepAlive(() =>
-        handleRerecognizeRequest(dependencies, message, tabId, frameKey),
+        withAbort(message.requestId, (signal) =>
+          handleRerecognizeRequest(
+            dependencies,
+            message,
+            tabId,
+            frameKey,
+            signal,
+          ),
+        ),
       );
     }
     return undefined;
@@ -136,6 +173,25 @@ const withKeepAlive = createKeepAlive(
   KEEPALIVE_INTERVAL_MS,
 );
 
+// Pipeline requests the content script can still cancel, by request id.
+const inFlight = new Map<string, AbortController>();
+
+async function withAbort<T>(
+  requestId: string,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  inFlight.set(requestId, controller);
+  try {
+    return await run(controller.signal);
+  } finally {
+    // Only clear our own entry; a retry reusing the id owns the map by then.
+    if (inFlight.get(requestId) === controller) {
+      inFlight.delete(requestId);
+    }
+  }
+}
+
 // Kept for the display snapshot and for a source-language change made before the
 // initial request has returned the image to the content script.
 interface CaptureState {
@@ -154,6 +210,7 @@ async function handleOcrTranslateRequest(
   message: Extract<RuntimeMessage, { type: "OCR_TRANSLATE_REQUEST" }>,
   tabId: number | undefined,
   frameKey: string | undefined,
+  signal: AbortSignal,
 ): Promise<OcrPipelineResponse> {
   const capture: CaptureState | undefined = frameKey
     ? {
@@ -184,6 +241,8 @@ async function handleOcrTranslateRequest(
     capture.image = image;
   }
 
+  signal.throwIfAborted();
+
   const result = await runPipeline({
     image,
     ocrProvider,
@@ -191,6 +250,7 @@ async function handleOcrTranslateRequest(
     sourceLang: "auto",
     targetLang: settings.translation.targetLang,
     detectLanguage: dependencies.detectLanguage,
+    signal,
     onStatus: (status) =>
       sendPipelineStatus(tabId, message.requestId, status),
     onOcrResult: (ocr) =>
@@ -240,6 +300,7 @@ async function handleRerecognizeRequest(
   message: Extract<RuntimeMessage, { type: "RERECOGNIZE_REQUEST" }>,
   tabId: number | undefined,
   frameKey: string | undefined,
+  signal: AbortSignal,
 ): Promise<OcrPipelineResponse> {
   const capture = frameKey ? lastCaptures.get(frameKey) : undefined;
   const selection = findOcrSourceLanguage(message.sourceLang);
@@ -279,6 +340,7 @@ async function handleRerecognizeRequest(
     sourceLang: selection.sourceLang,
     targetLang: settings.translation.targetLang,
     detectLanguage: dependencies.detectLanguage,
+    signal,
     onStatus: (status) =>
       sendPipelineStatus(tabId, message.requestId, status),
     onOcrResult: (ocrResult) =>
@@ -374,6 +436,7 @@ async function handleRetranslateRequest(
   },
   tabId: number | undefined,
   frameKey: string | undefined,
+  signal: AbortSignal,
 ): Promise<PipelineResult> {
   const settings = await dependencies.settingsRepository.get();
   const nextTranslation = {
@@ -395,6 +458,7 @@ async function handleRetranslateRequest(
     detectLanguage: dependencies.detectLanguage,
     onStatus: (status) =>
       sendPipelineStatus(tabId, message.requestId, status),
+    signal,
   });
 
   // The recognized text is unchanged, so echo it back; only the translation is
@@ -415,6 +479,7 @@ async function handleSwitchProviderRequest(
   },
   tabId: number | undefined,
   frameKey: string | undefined,
+  signal: AbortSignal,
 ): Promise<PipelineResult> {
   const settings = await dependencies.settingsRepository.get();
   const nextTranslation = {
@@ -438,6 +503,7 @@ async function handleSwitchProviderRequest(
     detectLanguage: dependencies.detectLanguage,
     onStatus: (status) =>
       sendPipelineStatus(tabId, message.requestId, status),
+    signal,
   });
 
   return { ocr: { text: message.text }, translation, translationStatus };

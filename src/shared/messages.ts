@@ -104,6 +104,12 @@ export type RuntimeMessage =
       requestId: string;
       providerId: string;
       text: string;
+    }
+  // Content -> background: abort the in-flight pipeline
+  // so an abandoned recognition stops occupying the single OCR worker.
+  | {
+      type: "CANCEL_REQUEST";
+      requestId: string;
     };
 
 export interface OcrSourceLanguagesResponse {
@@ -228,6 +234,12 @@ export function isRerecognizeRequest(
   value: unknown,
 ): value is Extract<RuntimeMessage, { type: "RERECOGNIZE_REQUEST" }> {
   return isRuntimeMessage(value) && value.type === "RERECOGNIZE_REQUEST";
+}
+
+export function isCancelRequest(
+  value: unknown,
+): value is Extract<RuntimeMessage, { type: "CANCEL_REQUEST" }> {
+  return isRuntimeMessage(value) && value.type === "CANCEL_REQUEST";
 }
 
 export function serializeError(error: unknown): SerializedError {

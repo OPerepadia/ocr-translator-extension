@@ -150,7 +150,7 @@ describe("background router", () => {
     );
     expect(recognize).toHaveBeenCalledWith(
       { image, sourceLang: "auto" },
-      undefined,
+      expect.any(AbortSignal),
       expect.any(Function),
     );
     expect(sendMessage).toHaveBeenCalledWith(
@@ -215,7 +215,7 @@ describe("background router", () => {
 
     expect(recognize).toHaveBeenCalledWith(
       { image, sourceLang: "ja" },
-      undefined,
+      expect.any(AbortSignal),
       expect.any(Function),
     );
     expect(response).toEqual({
@@ -238,7 +238,7 @@ describe("background router", () => {
     );
     expect(translate).toHaveBeenLastCalledWith(
       { text: "Sample", sourceLang: "ja", targetLang: "fr" },
-      undefined,
+      expect.any(AbortSignal),
     );
 
     await listener?.(
@@ -252,7 +252,7 @@ describe("background router", () => {
     );
     expect(translate).toHaveBeenLastCalledWith(
       { text: "Sample", sourceLang: "ja", targetLang: "fr" },
-      undefined,
+      expect.any(AbortSignal),
     );
   });
 
@@ -446,7 +446,7 @@ describe("background router", () => {
 
     expect(recognize).toHaveBeenLastCalledWith(
       { image: frameOneImage, sourceLang: "ja" },
-      undefined,
+      expect.any(AbortSignal),
       expect.any(Function),
     );
 
@@ -473,8 +473,139 @@ describe("background router", () => {
 
     expect(recognize).toHaveBeenLastCalledWith(
       { image: fastImage, sourceLang: "en" },
-      undefined,
+      expect.any(AbortSignal),
       expect.any(Function),
     );
+  });
+
+  // A closed panel (or a superseding capture) must free the OCR worker instead
+  // of letting the abandoned recognition run to completion.
+  it("aborts an in-flight pipeline when the content script cancels it", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+
+    let recognizeSignal: AbortSignal | undefined;
+    const recognize = vi.fn(
+      (_input: unknown, signal: AbortSignal) =>
+        new Promise<never>((_resolve, reject) => {
+          recognizeSignal = signal;
+          signal.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+    const translate = vi.fn();
+
+    startRouter({
+      settingsRepository: {
+        get: async () => ({
+          ocr: { providerId: "test" },
+          translation: { providerId: "test", targetLang: "uk" },
+        }),
+      },
+      loadImage: async () => new Blob(["image"]),
+      createOcrProvider: () => ({ id: "test", recognize }),
+      createTranslationProvider: () => ({ id: "test", translate }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    // Keep the rejection handled from the start; the cancel below arrives while
+    // this request is still open.
+    const settled = (
+      listener?.(
+        {
+          type: "OCR_TRANSLATE_REQUEST",
+          requestId: "cancel-me",
+          imageUrl: "https://example.com/sample.png",
+        },
+        { tab: { id: 7 }, frameId: 4 },
+      ) as Promise<unknown>
+    ).catch((error: unknown) => error);
+
+    await vi.waitFor(() => expect(recognize).toHaveBeenCalled());
+    await listener?.(
+      { type: "CANCEL_REQUEST", requestId: "cancel-me" },
+      { tab: { id: 7 }, frameId: 4 },
+    );
+
+    expect(recognizeSignal?.aborted).toBe(true);
+    expect((await settled) as Error).toHaveProperty("name", "AbortError");
+    expect(translate).not.toHaveBeenCalled();
+  });
+
+  it("cancels only the named request", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+
+    const signals: AbortSignal[] = [];
+    const recognize = vi.fn(
+      (_input: unknown, signal: AbortSignal) =>
+        new Promise<never>((_resolve, reject) => {
+          signals.push(signal);
+          signal.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+
+    startRouter({
+      settingsRepository: {
+        get: async () => ({
+          ocr: { providerId: "test" },
+          translation: { providerId: "test", targetLang: "uk" },
+        }),
+      },
+      loadImage: async () => new Blob(["image"]),
+      createOcrProvider: () => ({ id: "test", recognize }),
+      createTranslationProvider: () => ({ id: "test", translate: vi.fn() }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    const capture = (requestId: string, frameId: number) =>
+      (
+        listener?.(
+          {
+            type: "OCR_TRANSLATE_REQUEST",
+            requestId,
+            imageUrl: "https://example.com/sample.png",
+          },
+          { tab: { id: 7 }, frameId },
+        ) as Promise<unknown>
+      ).catch((error: unknown) => error);
+
+    const first = capture("first", 4);
+    const second = capture("second", 5);
+    try {
+      await vi.waitFor(() => expect(signals).toHaveLength(2));
+
+      await listener?.({ type: "CANCEL_REQUEST", requestId: "first" }, {});
+
+      expect((await first) as Error).toHaveProperty("name", "AbortError");
+      expect(signals[1].aborted).toBe(false);
+    } finally {
+      await listener?.({ type: "CANCEL_REQUEST", requestId: "first" }, {});
+      await listener?.({ type: "CANCEL_REQUEST", requestId: "second" }, {});
+      await Promise.all([first, second]);
+    }
   });
 });
