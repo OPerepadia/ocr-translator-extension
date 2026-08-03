@@ -4,9 +4,19 @@ Firefox extension that uses optical character recognition (OCR) to capture text 
 
 <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"><img src="media/firefox-badge.png" alt="Get the add-on" width="172" height="60"></a>
 
-## How it works
+## Usage
 
-Activate the add-on from the browser toolbar or the context menu, then select an area of the page and click 'Run OCR'. To translate an image directly, right-click it and choose 'Translate this image'. Once recognition finishes, the translation appears as an overlay drawn on top of the original text. Hover over a text box to see the original text and the translation, which can be copied or read aloud. The overlay can be toggled from the toolbar.
+Install the add-on, then activate it from the browser toolbar, or the context menu, or by pressing `Ctrl+Shift+F`. Select an area of the page and click "Run OCR".
+
+To translate an image directly, right-click it and select "Translate this image".
+
+The translation appears over the original text. Hover over a text box to view the original text and its translation, which can be copied or read aloud. Use the extension toolbar to show or hide the translation overlay.
+
+## Keyboard shortcut
+
+The default shortcut is `Ctrl+Shift+F`. To change it, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**.
+
+## How it works
 
 - **OCR** — PaddleOCR, running locally in the browser.
 - **Translation** — two options:
@@ -31,9 +41,14 @@ The extension bundles several recognizers. By default, it uses [PP-OCRv6](https:
 
 Translations can target any of 70+ languages supported by Google Translate, or any language your configured LLM supports.
 
-## Keyboard shortcut
+## Limitations
 
-Press `Ctrl+Shift+F` to select a screen region for translation. To change the shortcut, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**.
+The recognized text boxes are grouped into paragraphs using geometric heuristics. It accounts for spacing, box size, alignment, and reading direction, and tries to separate columns. Dense or irregular layouts can still confuse it:
+
+- Tables or multi-column layouts: cells may get grouped or read in the wrong order.
+- Dense manga or comic pages: sound effects and background text can get mixed into nearby speech bubbles.
+
+If that happens, try selecting a smaller area with only the text you want to translate.
 
 ## Privacy
 
