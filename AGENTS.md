@@ -13,6 +13,11 @@ rsvg-convert -w 48 -h 48 ocr_icon_big.svg -o 48.png
 rsvg-convert -w 128 -h 128 ocr_icon_big.svg -o 128.png
 ```
 
+## OCR models
+
+See `src/public/assets/ocr/README.md` before replacing or re-converting the
+packaged models.
+
 ## Tests
 
 Use generic, fictional text in test fixtures. Do not add real names, places, quoted dialogue, news excerpts, or text copied from screenshots or other source material; common greetings and neutral examples are fine.

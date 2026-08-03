@@ -3,3 +3,7 @@ node_modules/
 # WXT generated output and types
 .output/
 .wxt/
+
+# Python virtualenv for scripts/quantize-models.py
+scripts/.venv/
+scripts/__pycache__/
