@@ -13,6 +13,17 @@ interface BrowserTab {
 
 interface BrowserEvent<TListener> {
   addListener(listener: TListener): void;
+  removeListener?(listener: TListener): void;
+}
+
+/** A long-lived connection. Used for the OCR relay, whose traffic is too
+ * chatty and too ordered for one-off messages. */
+export interface BrowserPort {
+  name?: string;
+  postMessage(message: unknown): void;
+  disconnect(): void;
+  onMessage: BrowserEvent<(message: unknown) => void>;
+  onDisconnect: BrowserEvent<() => void>;
 }
 
 export interface BrowserApi {
@@ -28,6 +39,19 @@ export interface BrowserApi {
     getURL(path: string): string;
     // Opens the extension's options page.
     openOptionsPage(): Promise<void>;
+    connect(info?: { name?: string }): BrowserPort;
+    onConnect: BrowserEvent<(port: BrowserPort) => void>;
+  };
+  /** Chrome only: hosts a DOM context for what a service worker cannot do
+   * itself. Absent on Firefox, whose background is already a document. */
+  offscreen?: {
+    createDocument(parameters: {
+      url: string;
+      reasons: string[];
+      justification: string;
+    }): Promise<void>;
+    closeDocument(): Promise<void>;
+    hasDocument?(): Promise<boolean>;
   };
   storage: {
     local: {

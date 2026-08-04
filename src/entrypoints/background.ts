@@ -1,6 +1,10 @@
 import { captureVisibleArea, loadImage } from "@/background/capture";
 import { createCaptureStore } from "@/background/capture-store";
 import { startContextMenu } from "@/background/context-menu";
+import {
+  canHostWorker,
+  createOffscreenWorker,
+} from "@/background/offscreen-host";
 import { startRouter } from "@/background/router";
 import {
   OCR_MODELS,
@@ -62,6 +66,9 @@ function createOcrProvider(settings: Settings["ocr"]): OcrProvider {
     model,
     autoModels: isAutoOcr(settings) ? OCR_MODELS : undefined,
     resolveUrl: (path: string) => browserApi.runtime.getURL(path),
+    // A Chrome service worker cannot spawn the worker itself, so there the
+    // engine is hosted by an offscreen document.
+    createWorker: canHostWorker() ? undefined : createOffscreenWorker,
   };
   const provider =
     ocrRegistry[settings.providerId as keyof typeof ocrRegistry]?.(config) ??

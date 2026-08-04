@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { createPaddleOcrProvider } from "./paddle";
-import type { WorkerRequest, WorkerResponse } from "./paddle/protocol";
+import type {
+  WorkerLike,
+  WorkerRequest,
+  WorkerResponse,
+} from "./paddle/protocol";
 
 /** Minimal Worker stand-in. Auto-replies "ready" to init; lets the test drive
  * recognize responses. */
-class FakeWorker {
+class FakeWorker implements WorkerLike {
   messages: WorkerRequest[] = [];
   onmessage: ((event: { data: WorkerResponse }) => void) | null = null;
   onerror: ((event: { message?: string }) => void) | null = null;
@@ -54,7 +58,7 @@ class FakeWorker {
 
 function makeProvider(fake: FakeWorker) {
   return createPaddleOcrProvider({
-    createWorker: () => fake as unknown as Worker,
+    createWorker: () => fake,
     resolveUrl: (path: string) => path,
   });
 }
@@ -133,7 +137,7 @@ describe("createPaddleOcrProvider", () => {
           script: "cyrillic",
         },
       ],
-      createWorker: () => fake as unknown as Worker,
+      createWorker: () => fake,
       resolveUrl: (path: string) => `extension://${path}`,
     });
 
@@ -294,7 +298,7 @@ describe("createPaddleOcrProvider", () => {
     try {
       const fake = new FakeWorker();
       const provider = createPaddleOcrProvider({
-        createWorker: () => fake as unknown as Worker,
+        createWorker: () => fake,
         recognitionTimeoutMs: 10,
         resolveUrl: (path: string) => path,
       });

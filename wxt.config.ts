@@ -53,6 +53,9 @@ export default defineConfig({
       ...(browser === "firefox" ? [] : ["offscreen"]),
     ],
     host_permissions: ["<all_urls>"],
+    // The content script's match_origin_as_fallback needs 119; the offscreen
+    // API and WebGPU in workers both land earlier.
+    ...(browser !== "firefox" && { minimum_chrome_version: "119" }),
     action: {
       default_title: "Screen OCR Translator",
     },

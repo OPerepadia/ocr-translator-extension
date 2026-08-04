@@ -68,6 +68,16 @@ export type WorkerResponse =
   | ProgressResponse
   | ErrorResponse;
 
+/** The parts of `Worker` the provider drives. Named separately because a
+ * Chrome service worker has no `Worker` at all and stands an offscreen-document
+ * relay in its place. */
+export interface WorkerLike {
+  postMessage(message: WorkerRequest): void;
+  onmessage: ((event: { data: WorkerResponse }) => void) | null;
+  onerror: ((event: { message?: string }) => void) | null;
+  terminate(): void;
+}
+
 // Shared with the extension's messaging layer, which crosses a boundary under
 // the same no-Error-objects constraint.
 export { deserializeError, serializeError } from "../../../shared/messages";
