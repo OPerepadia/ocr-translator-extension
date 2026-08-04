@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deserializeError } from "../shared/messages";
 import type { SerializedError } from "../shared/types";
-import { createMemoryCaptureStore, type CaptureStore } from "./capture-store";
+import {
+  createMemoryCaptureStore,
+  type CaptureRecord,
+  type CaptureStore,
+} from "./capture-store";
 import { startRouter, type RouterDependencies } from "./router";
 
 type MessageListener = (
@@ -302,6 +306,83 @@ describe("background router", () => {
       { text: "Sample", sourceLang: "ja", targetLang: "fr" },
       expect.any(AbortSignal),
     );
+  });
+
+  it("does not apply a language change to a newer capture", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+
+    const oldImage = new Blob(["old"]);
+    const newImage = new Blob(["new"]);
+    let record: CaptureRecord = {
+      requestId: "old-capture",
+      image: oldImage,
+      sourceLanguage: "auto",
+      updatedAt: 1,
+    };
+    const replacingStore: CaptureStore = {
+      get: async () => record,
+      update: async (_frameKey, mutate) => {
+        record = {
+          requestId: "new-capture",
+          image: newImage,
+          sourceLanguage: "auto",
+          updatedAt: 2,
+        };
+        const next = mutate(record);
+        if (next) {
+          record = { ...next, updatedAt: 3 };
+        }
+      },
+    };
+    const recognize = vi.fn(async () => ({ text: "Sample" }));
+
+    startRouter({
+      captureStore: replacingStore,
+      settingsRepository: {
+        get: async () => ({
+          ocr: { providerId: "test" },
+          translation: { providerId: "test", targetLang: "uk" },
+        }),
+      },
+      createOcrProvider: () => ({ id: "test", recognize }),
+      createTranslationProvider: () => ({
+        id: "test",
+        translate: async () => ({ text: "Translated", targetLang: "uk" }),
+      }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    await invoke(
+      listener,
+      {
+        type: "RERECOGNIZE_REQUEST",
+        requestId: "stale-rerecognize",
+        sourceLang: "ja",
+      },
+      { tab: { id: 31 }, frameId: 0 },
+    );
+
+    expect(recognize).toHaveBeenCalledWith(
+      { image: oldImage, sourceLang: "ja" },
+      expect.any(AbortSignal),
+      expect.any(Function),
+    );
+    expect(record).toMatchObject({
+      requestId: "new-capture",
+      image: newImage,
+      sourceLanguage: "auto",
+    });
   });
 
   // Nothing else holds the pixels now that the content script does not.

@@ -338,15 +338,17 @@ async function handleRerecognizeRequest(
   }
 
   const capture = await readCapture(dependencies, frameKey);
-  const image = capture?.image;
-  if (!image) {
+  if (!capture?.image) {
     throw new Error(
       "The captured image is no longer available. Please select the region again.",
     );
   }
+  const image = capture.image;
 
   await writeCapture(dependencies, frameKey, (current) =>
-    current ? { ...current, sourceLanguage: selection.id } : undefined,
+    current?.requestId === capture.requestId
+      ? { ...current, sourceLanguage: selection.id }
+      : undefined,
   );
 
   const settings = await dependencies.settingsRepository.get();
