@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.15",
+    "fake-indexeddb": "^6.2.5",
     "typescript": "^5.5.4",
     "vitest": "^4.1.9",
     "web-ext": "^10.4.0",

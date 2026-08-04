@@ -2,7 +2,6 @@ import type {
   EncodedImage,
   LangCode,
   PipelineOcrResult,
-  PipelineResult,
   PipelineStatus,
   Rect,
   SerializedError,
@@ -22,7 +21,7 @@ export type RuntimeMessage =
       imageUrl: string;
     }
   // Content -> background: run the pipeline over a region or an image. The
-  // response resolves to an OcrPipelineResponse, and a failure rejects it — neither
+  // response resolves to a PipelineResult, and a failure rejects it — neither
   // comes back as a message of its own.
   | ({ type: "OCR_TRANSLATE_REQUEST"; requestId: string } & OcrImageSource)
   // Background -> content tab: which pipeline step is running, so the loading
@@ -89,12 +88,13 @@ export type RuntimeMessage =
     }
   // Content -> background: re-run OCR on the last captured image for a different
   // source language, then translate. The background chooses the recognizer and
-  // keeps the language only for the current capture.
+  // keeps the language only for the current capture. The pixels stay in the
+  // background's capture store: Chrome serializes messages as JSON, so a Blob
+  // would not survive the trip.
   | {
       type: "RERECOGNIZE_REQUEST";
       requestId: string;
       sourceLang: LangCode | "auto";
-      image?: Blob;
     }
   // Content -> background: switch the active translation provider (picked in the
   // panel) and re-translate already-recognized text with it. Persists the
@@ -126,11 +126,6 @@ export interface CaptureSnapshotResponse {
   /** Absent when the frame has no retained capture — the event page can unload
    * between the capture and the request. */
   snapshot?: EncodedImage;
-}
-
-export interface OcrPipelineResponse {
-  result: PipelineResult;
-  image: Blob;
 }
 
 export interface SpeakResponse {

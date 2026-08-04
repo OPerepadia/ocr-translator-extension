@@ -16,7 +16,6 @@ import {
   isStartSelectionMessage,
   isSwitchProviderRequest,
   type CaptureSnapshotResponse,
-  type OcrPipelineResponse,
   type OcrSourceLanguagesResponse,
   type RuntimeMessage,
   type SpeakResponse,
@@ -40,11 +39,18 @@ import type {
   Settings,
   Viewport,
 } from "../shared/types";
+import type {
+  CaptureDraft,
+  CaptureRecord,
+  CaptureStore,
+} from "./capture-store";
 import { createKeepAlive } from "./keepalive";
 import { runPipeline, translateText } from "./pipeline";
 
 export interface RouterDependencies {
   settingsRepository: SettingsRepository;
+  /** Screenshots retained past the request that took them. */
+  captureStore: CaptureStore;
   captureVisibleArea(args: { rect: Rect; viewport: Viewport }): Promise<Blob>;
   loadImage(url: string): Promise<Blob>;
   createOcrProvider(settings: Settings["ocr"]): OcrProvider;
@@ -107,7 +113,9 @@ export function startRouter(dependencies: RouterDependencies): void {
       return handleGetTranslationProviders(dependencies);
     }
     if (isGetCaptureSnapshotRequest(message)) {
-      return withKeepAlive(() => handleGetCaptureSnapshot(frameKey));
+      return withKeepAlive(() =>
+        handleGetCaptureSnapshot(dependencies, frameKey),
+      );
     }
     if (isSpeakRequest(message)) {
       return withKeepAlive(() => handleSpeakRequest(dependencies, message));
@@ -193,18 +201,40 @@ async function withAbort<T>(
   }
 }
 
-// Kept for the display snapshot and for a source-language change made before the
-// initial request has returned the image to the content script.
-interface CaptureState {
-  image?: Blob;
-  /** CSS size of the region the capture covers, which sets the resolution its
-   * display copy is encoded at. Absent for a context-menu image, whose rendered
-   * size the content script keeps to itself. */
-  displaySize?: { width: number; height: number };
-  sourceLanguage: string;
+// A capture the store cannot reach reads as absent rather than failing the
+// request; both callers already handle a missing one.
+async function readCapture(
+  dependencies: RouterDependencies,
+  frameKey: string | undefined,
+): Promise<CaptureRecord | undefined> {
+  if (!frameKey) {
+    return undefined;
+  }
+  try {
+    return await dependencies.captureStore.get(frameKey);
+  } catch (error) {
+    console.error("[Screen OCR Translator] Could not read the capture", error);
+    return undefined;
+  }
 }
 
-const lastCaptures = new Map<string, CaptureState>();
+async function writeCapture(
+  dependencies: RouterDependencies,
+  frameKey: string | undefined,
+  mutate: (current: CaptureRecord | undefined) => CaptureDraft | undefined,
+): Promise<void> {
+  if (!frameKey) {
+    return;
+  }
+  try {
+    await dependencies.captureStore.update(frameKey, mutate);
+  } catch (error) {
+    console.error(
+      "[Screen OCR Translator] Could not retain the capture",
+      error,
+    );
+  }
+}
 
 async function handleOcrTranslateRequest(
   dependencies: RouterDependencies,
@@ -212,19 +242,15 @@ async function handleOcrTranslateRequest(
   tabId: number | undefined,
   frameKey: string | undefined,
   signal: AbortSignal,
-): Promise<OcrPipelineResponse> {
-  const capture: CaptureState | undefined = frameKey
-    ? {
-        sourceLanguage: "auto",
-        displaySize:
-          "rect" in message
-            ? { width: message.rect.width, height: message.rect.height }
-            : undefined,
-      }
-    : undefined;
-  if (frameKey && capture) {
-    lastCaptures.set(frameKey, capture);
-  }
+): Promise<PipelineResult> {
+  await writeCapture(dependencies, frameKey, () => ({
+    requestId: message.requestId,
+    sourceLanguage: "auto",
+    displaySize:
+      "rect" in message
+        ? { width: message.rect.width, height: message.rect.height }
+        : undefined,
+  }));
 
   const settings = await dependencies.settingsRepository.get();
   const ocrProvider = dependencies.createOcrProvider(settings.ocr);
@@ -238,9 +264,11 @@ async function handleOcrTranslateRequest(
           rect: message.rect,
           viewport: message.viewport,
         });
-  if (frameKey && capture && lastCaptures.get(frameKey) === capture) {
-    capture.image = image;
-  }
+  // A newer capture may have replaced this frame's entry while the screenshot
+  // was being taken.
+  await writeCapture(dependencies, frameKey, (current) =>
+    current?.requestId === message.requestId ? { ...current, image } : undefined,
+  );
 
   signal.throwIfAborted();
 
@@ -257,7 +285,7 @@ async function handleOcrTranslateRequest(
     onOcrResult: (ocr) =>
       sendPipelineOcrResult(tabId, message.requestId, ocr),
   });
-  return { result, image };
+  return result;
 }
 
 // Hands the captured pixels to the overlay, which paints them under its boxes
@@ -266,9 +294,10 @@ async function handleOcrTranslateRequest(
 // nobody comes back for. Reports an absent snapshot rather than throwing — the
 // overlay works without one, over whatever the page is showing now.
 async function handleGetCaptureSnapshot(
+  dependencies: RouterDependencies,
   frameKey: string | undefined,
 ): Promise<CaptureSnapshotResponse> {
-  const capture = frameKey ? lastCaptures.get(frameKey) : undefined;
+  const capture = await readCapture(dependencies, frameKey);
   if (!capture?.image) {
     return {};
   }
@@ -302,27 +331,23 @@ async function handleRerecognizeRequest(
   tabId: number | undefined,
   frameKey: string | undefined,
   signal: AbortSignal,
-): Promise<OcrPipelineResponse> {
-  const capture = frameKey ? lastCaptures.get(frameKey) : undefined;
+): Promise<PipelineResult> {
   const selection = findOcrSourceLanguage(message.sourceLang);
   if (!selection) {
     throw new Error(`Unsupported OCR source language: ${message.sourceLang}`);
   }
-  const image = message.image ?? capture?.image;
+
+  const capture = await readCapture(dependencies, frameKey);
+  const image = capture?.image;
   if (!image) {
     throw new Error(
       "The captured image is no longer available. Please select the region again.",
     );
   }
 
-  if (frameKey && capture && lastCaptures.get(frameKey) === capture) {
-    capture.sourceLanguage = selection.id;
-  } else if (frameKey && message.image && !capture) {
-    lastCaptures.set(frameKey, {
-      image,
-      sourceLanguage: selection.id,
-    });
-  }
+  await writeCapture(dependencies, frameKey, (current) =>
+    current ? { ...current, sourceLanguage: selection.id } : undefined,
+  );
 
   const settings = await dependencies.settingsRepository.get();
   const ocr = {
@@ -347,7 +372,7 @@ async function handleRerecognizeRequest(
     onOcrResult: (ocrResult) =>
       sendPipelineOcrResult(tabId, message.requestId, ocrResult),
   });
-  return { result, image };
+  return result;
 }
 
 function sendPipelineStatus(
@@ -454,7 +479,7 @@ async function handleRetranslateRequest(
   const { translation, translationStatus } = await translateText({
     text: message.text,
     translationProvider,
-    sourceLang: sourceLanguageForFrame(frameKey),
+    sourceLang: await sourceLanguageForFrame(dependencies, frameKey),
     targetLang: message.targetLang,
     detectLanguage: dependencies.detectLanguage,
     onStatus: (status) =>
@@ -499,7 +524,7 @@ async function handleSwitchProviderRequest(
   const { translation, translationStatus } = await translateText({
     text: message.text,
     translationProvider,
-    sourceLang: sourceLanguageForFrame(frameKey),
+    sourceLang: await sourceLanguageForFrame(dependencies, frameKey),
     targetLang: nextTranslation.targetLang,
     detectLanguage: dependencies.detectLanguage,
     onStatus: (status) =>
@@ -510,8 +535,10 @@ async function handleSwitchProviderRequest(
   return { ocr: { text: message.text }, translation, translationStatus };
 }
 
-function sourceLanguageForFrame(frameKey: string | undefined): string | "auto" {
-  return resolveTranslationSourceLanguage(
-    frameKey ? lastCaptures.get(frameKey)?.sourceLanguage : "auto",
-  );
+async function sourceLanguageForFrame(
+  dependencies: RouterDependencies,
+  frameKey: string | undefined,
+): Promise<string | "auto"> {
+  const capture = await readCapture(dependencies, frameKey);
+  return resolveTranslationSourceLanguage(capture?.sourceLanguage ?? "auto");
 }
