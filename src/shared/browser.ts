@@ -3,7 +3,8 @@ import type { RuntimeMessage } from "./messages";
 type RuntimeListener = (
   message: unknown,
   sender: unknown,
-) => Promise<unknown> | unknown;
+  sendResponse: (response: unknown) => void,
+) => boolean | undefined;
 
 interface BrowserTab {
   id?: number;

@@ -1,4 +1,4 @@
-import { browserApi } from "../../shared/browser";
+import { sendRequest } from "../../shared/runtime-messaging";
 import type { LangCode, PipelineResult, PipelineStatus, Rect } from "@/shared/types";
 import {
   CHECK_ICON,
@@ -700,7 +700,7 @@ function createMenu(): {
 }
 
 function openSettings(): void {
-  void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
+  void sendRequest({ type: "OPEN_OPTIONS" });
 }
 
 function dismissTranslationError(): void {

@@ -255,3 +255,14 @@ export function serializeError(error: unknown): SerializedError {
     message: String(error),
   };
 }
+
+export function deserializeError(error: SerializedError): Error {
+  const reconstructed = new Error(error.message);
+  if (error.name) {
+    reconstructed.name = error.name;
+  }
+  if (error.stack) {
+    reconstructed.stack = error.stack;
+  }
+  return reconstructed;
+}

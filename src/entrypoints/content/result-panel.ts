@@ -22,6 +22,7 @@ import {
   createLanguagePill,
   languageName,
 } from "./language-picker";
+import { sendRequest } from "@/shared/runtime-messaging";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 
 const ORIGINAL_SPEECH_OWNER = "panel-original";
@@ -58,7 +59,7 @@ const MENU_ITEMS: ReadonlyArray<{
     label: "Settings",
     icon: SETTINGS_ICON,
     onSelect: () => {
-      void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
+      void sendRequest({ type: "OPEN_OPTIONS" });
     },
   },
 ];

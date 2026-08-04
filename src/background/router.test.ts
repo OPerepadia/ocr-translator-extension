@@ -1,10 +1,40 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { deserializeError } from "../shared/messages";
+import type { SerializedError } from "../shared/types";
 import { startRouter, type RouterDependencies } from "./router";
 
 type MessageListener = (
   message: unknown,
   sender: unknown,
-) => Promise<unknown> | unknown;
+  sendResponse: (response: unknown) => void,
+) => boolean | undefined;
+
+type ResponseEnvelope =
+  | { ok: true; value: unknown }
+  | { ok: false; error: SerializedError };
+
+// Drives a listener the way the browser does, so assertions read against what
+// a sender actually observes.
+function invoke(
+  listener: MessageListener | undefined,
+  message: unknown,
+  sender: unknown,
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    if (!listener) {
+      reject(new Error("startRouter registered no message listener."));
+      return;
+    }
+    listener(message, sender, (response) => {
+      const envelope = response as ResponseEnvelope;
+      if (envelope.ok) {
+        resolve(envelope.value);
+      } else {
+        reject(deserializeError(envelope.error));
+      }
+    });
+  });
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -29,7 +59,8 @@ describe("background router", () => {
     startRouter({ speakText } as unknown as RouterDependencies);
 
     await expect(
-      listener?.(
+      invoke(
+        listener,
         { type: "SPEAK_REQUEST", text: "Hello", lang: "en" },
         {},
       ),
@@ -60,7 +91,7 @@ describe("background router", () => {
       settingsRepository: { get: async () => ({ ocr }) },
       createOcrProvider,
     } as unknown as RouterDependencies);
-    await listener?.({ type: "PRELOAD_OCR" }, {});
+    await invoke(listener, { type: "PRELOAD_OCR" }, {});
 
     expect(createOcrProvider).toHaveBeenCalledWith(ocr);
     expect(preload).toHaveBeenCalledOnce();
@@ -81,7 +112,7 @@ describe("background router", () => {
     });
 
     startRouter({} as RouterDependencies);
-    await listener?.({ type: "START_SELECTION" }, {
+    await invoke(listener, { type: "START_SELECTION" }, {
       tab: { id: 7 },
       frameId: 4,
     });
@@ -134,7 +165,8 @@ describe("background router", () => {
       detectLanguage: async () => undefined,
     } as unknown as RouterDependencies);
 
-    const response = await listener?.(
+    const response = await invoke(
+      listener,
       {
         type: "OCR_TRANSLATE_REQUEST",
         requestId: "request-1",
@@ -203,7 +235,8 @@ describe("background router", () => {
     } as unknown as RouterDependencies);
 
     const sender = { tab: { id: 31 }, frameId: 0 };
-    const response = await listener?.(
+    const response = await invoke(
+      listener,
       {
         type: "RERECOGNIZE_REQUEST",
         requestId: "rerecognize-after-restart",
@@ -227,7 +260,8 @@ describe("background router", () => {
       },
     });
 
-    await listener?.(
+    await invoke(
+      listener,
       {
         type: "RETRANSLATE_REQUEST",
         requestId: "retranslate-after-restart",
@@ -241,7 +275,8 @@ describe("background router", () => {
       expect.any(AbortSignal),
     );
 
-    await listener?.(
+    await invoke(
+      listener,
       {
         type: "SWITCH_PROVIDER_REQUEST",
         requestId: "switch-provider-after-restart",
@@ -272,7 +307,7 @@ describe("background router", () => {
     startRouter({} as RouterDependencies);
 
     await expect(
-      listener?.({ type: "GET_CAPTURE_SNAPSHOT" }, {
+      invoke(listener, { type: "GET_CAPTURE_SNAPSHOT" }, {
         tab: { id: 21 },
         frameId: 0,
       }),
@@ -341,7 +376,8 @@ describe("background router", () => {
     } as unknown as RouterDependencies);
 
     const sender = { tab: { id: 22 }, frameId: 0 };
-    await listener?.(
+    await invoke(
+      listener,
       {
         type: "OCR_TRANSLATE_REQUEST",
         requestId: "snapshot-request",
@@ -352,7 +388,7 @@ describe("background router", () => {
     );
 
     await expect(
-      listener?.({ type: "GET_CAPTURE_SNAPSHOT" }, sender),
+      invoke(listener, { type: "GET_CAPTURE_SNAPSHOT" }, sender),
     ).resolves.toEqual({
       snapshot: { data: "Bw==", mediaType: "image/webp" },
     });
@@ -420,7 +456,8 @@ describe("background router", () => {
     } as unknown as RouterDependencies);
 
     const capture = (requestId: string, imageUrl: string, frameId: number) =>
-      listener?.(
+      invoke(
+        listener,
         { type: "OCR_TRANSLATE_REQUEST", requestId, imageUrl },
         { tab: { id: 11 }, frameId },
       );
@@ -435,7 +472,8 @@ describe("background router", () => {
       "https://example.com/frame-two.png",
       5,
     );
-    await listener?.(
+    await invoke(
+      listener,
       {
         type: "RERECOGNIZE_REQUEST",
         requestId: "frame-one-rerecognize",
@@ -462,7 +500,8 @@ describe("background router", () => {
     resolveSlowImage(slowImage);
     await slowRequest;
 
-    await listener?.(
+    await invoke(
+      listener,
       {
         type: "RERECOGNIZE_REQUEST",
         requestId: "latest-rerecognize",
@@ -521,19 +560,19 @@ describe("background router", () => {
 
     // Keep the rejection handled from the start; the cancel below arrives while
     // this request is still open.
-    const settled = (
-      listener?.(
-        {
-          type: "OCR_TRANSLATE_REQUEST",
-          requestId: "cancel-me",
-          imageUrl: "https://example.com/sample.png",
-        },
-        { tab: { id: 7 }, frameId: 4 },
-      ) as Promise<unknown>
+    const settled = invoke(
+      listener,
+      {
+        type: "OCR_TRANSLATE_REQUEST",
+        requestId: "cancel-me",
+        imageUrl: "https://example.com/sample.png",
+      },
+      { tab: { id: 7 }, frameId: 4 },
     ).catch((error: unknown) => error);
 
     await vi.waitFor(() => expect(recognize).toHaveBeenCalled());
-    await listener?.(
+    await invoke(
+      listener,
       { type: "CANCEL_REQUEST", requestId: "cancel-me" },
       { tab: { id: 7 }, frameId: 4 },
     );
@@ -582,15 +621,14 @@ describe("background router", () => {
     } as unknown as RouterDependencies);
 
     const capture = (requestId: string, frameId: number) =>
-      (
-        listener?.(
-          {
-            type: "OCR_TRANSLATE_REQUEST",
-            requestId,
-            imageUrl: "https://example.com/sample.png",
-          },
-          { tab: { id: 7 }, frameId },
-        ) as Promise<unknown>
+      invoke(
+        listener,
+        {
+          type: "OCR_TRANSLATE_REQUEST",
+          requestId,
+          imageUrl: "https://example.com/sample.png",
+        },
+        { tab: { id: 7 }, frameId },
       ).catch((error: unknown) => error);
 
     const first = capture("first", 4);
@@ -598,13 +636,13 @@ describe("background router", () => {
     try {
       await vi.waitFor(() => expect(signals).toHaveLength(2));
 
-      await listener?.({ type: "CANCEL_REQUEST", requestId: "first" }, {});
+      await invoke(listener, { type: "CANCEL_REQUEST", requestId: "first" }, {});
 
       expect((await first) as Error).toHaveProperty("name", "AbortError");
       expect(signals[1].aborted).toBe(false);
     } finally {
-      await listener?.({ type: "CANCEL_REQUEST", requestId: "first" }, {});
-      await listener?.({ type: "CANCEL_REQUEST", requestId: "second" }, {});
+      await invoke(listener, { type: "CANCEL_REQUEST", requestId: "first" }, {});
+      await invoke(listener, { type: "CANCEL_REQUEST", requestId: "second" }, {});
       await Promise.all([first, second]);
     }
   });

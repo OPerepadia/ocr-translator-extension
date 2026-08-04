@@ -1,5 +1,5 @@
-import { browserApi } from "../../shared/browser";
 import type { SpeakResponse } from "../../shared/messages";
+import { sendRequest } from "../../shared/runtime-messaging";
 
 interface SpeakRequest {
   text: string;
@@ -41,12 +41,11 @@ export function requestSpeak(request: SpeakRequest): boolean {
   endHandler = request.onEnd;
   request.onStart?.();
 
-  void browserApi.runtime
-    .sendMessage<SpeakResponse>({
-      type: "SPEAK_REQUEST",
-      text: request.text,
-      lang: request.lang || "en",
-    })
+  void sendRequest<SpeakResponse>({
+    type: "SPEAK_REQUEST",
+    text: request.text,
+    lang: request.lang || "en",
+  })
     .then((response) =>
       playChunks(context, response.audioChunks, controller.signal),
     )

@@ -23,6 +23,7 @@ import {
   type TranslationProvidersResponse,
 } from "../shared/messages";
 import { encodeSnapshot } from "../shared/image";
+import { onRequest } from "../shared/runtime-messaging";
 import {
   findOcrSourceLanguage,
   COMMON_OCR_SOURCE_LANGUAGES,
@@ -56,7 +57,7 @@ export interface RouterDependencies {
 }
 
 export function startRouter(dependencies: RouterDependencies): void {
-  browserApi.runtime.onMessage.addListener((message, sender) => {
+  onRequest((message, sender) => {
     const messageSender = sender as
       | { tab?: { id?: number }; frameId?: number }
       | undefined;

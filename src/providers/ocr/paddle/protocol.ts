@@ -68,20 +68,6 @@ export type WorkerResponse =
   | ProgressResponse
   | ErrorResponse;
 
-export function serializeError(error: unknown): SerializedError {
-  if (error instanceof Error) {
-    return { message: error.message, name: error.name, stack: error.stack };
-  }
-  return { message: String(error) };
-}
-
-export function deserializeError(error: SerializedError): Error {
-  const reconstructed = new Error(error.message);
-  if (error.name) {
-    reconstructed.name = error.name;
-  }
-  if (error.stack) {
-    reconstructed.stack = error.stack;
-  }
-  return reconstructed;
-}
+// Shared with the extension's messaging layer, which crosses a boundary under
+// the same no-Error-objects constraint.
+export { deserializeError, serializeError } from "../../../shared/messages";
