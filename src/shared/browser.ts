@@ -37,6 +37,10 @@ export interface BrowserApi {
     // timer (keepalive). Any awaited extension API would do; this one is cheap.
     getPlatformInfo(): Promise<unknown>;
     getURL(path: string): string;
+    getContexts(filter: {
+      contextTypes?: string[];
+      documentUrls?: string[];
+    }): Promise<unknown[]>;
     // Opens the extension's options page.
     openOptionsPage(): Promise<void>;
     connect(info?: { name?: string }): BrowserPort;
@@ -50,8 +54,6 @@ export interface BrowserApi {
       reasons: string[];
       justification: string;
     }): Promise<void>;
-    closeDocument(): Promise<void>;
-    hasDocument?(): Promise<boolean>;
   };
   storage: {
     local: {

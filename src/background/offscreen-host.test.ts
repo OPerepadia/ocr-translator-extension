@@ -57,18 +57,20 @@ interface CreateDocumentParameters {
 function installChrome(
   options: {
     createDocument?: (parameters: CreateDocumentParameters) => Promise<void>;
-    /** Chrome below 116 has no hasDocument. */
-    withHasDocument?: boolean;
   } = {},
 ) {
   const ports: FakePort[] = [];
   const createDocument = vi.fn<
     (parameters: CreateDocumentParameters) => Promise<void>
   >(options.createDocument ?? (async () => {}));
-  const hasDocument = vi.fn(async () => createDocument.mock.calls.length > 0);
+  const getContexts = vi.fn(async () =>
+    createDocument.mock.calls.length > 0 ? [{}] : [],
+  );
 
   vi.stubGlobal("browser", {
     runtime: {
+      getURL: (path: string) => `chrome-extension://test/${path}`,
+      getContexts,
       connect: vi.fn((info: { name: string }) => {
         const port = new FakePort(info.name);
         ports.push(port);
@@ -77,12 +79,10 @@ function installChrome(
     },
     offscreen: {
       createDocument,
-      closeDocument: vi.fn(),
-      ...(options.withHasDocument === false ? {} : { hasDocument }),
     },
   });
 
-  return { ports, createDocument, hasDocument };
+  return { ports, createDocument, getContexts };
 }
 
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -105,7 +105,7 @@ describe("canHostWorker", () => {
 
 describe("createOffscreenWorker", () => {
   it("opens the document once and relays init over the port", async () => {
-    const { ports, createDocument } = installChrome();
+    const { ports, createDocument, getContexts } = installChrome();
     const relay = createOffscreenWorker();
 
     relay.postMessage({ type: "cancel", id: 1 });
@@ -115,6 +115,10 @@ describe("createOffscreenWorker", () => {
     expect(createDocument.mock.calls[0][0]).toMatchObject({
       url: "offscreen.html",
       reasons: ["WORKERS"],
+    });
+    expect(getContexts).toHaveBeenCalledWith({
+      contextTypes: ["OFFSCREEN_DOCUMENT"],
+      documentUrls: ["chrome-extension://test/offscreen.html"],
     });
     expect(ports).toHaveLength(1);
     expect(ports[0].sent).toEqual([{ type: "cancel", id: 1 }]);
@@ -196,26 +200,6 @@ describe("createOffscreenWorker", () => {
     expect(errors).toEqual(["Extension context invalidated."]);
   });
 
-  // Chrome below 116 has no hasDocument, so a document opened earlier is only
-  // discoverable by being refused a second one.
-  it("carries on when told a document already exists", async () => {
-    const { ports } = installChrome({
-      withHasDocument: false,
-      createDocument: async () => {
-        throw new Error("Only a single offscreen document may be created.");
-      },
-    });
-    const relay = createOffscreenWorker();
-    const errors: string[] = [];
-    relay.onerror = (event) => errors.push(event.message ?? "");
-
-    relay.postMessage({ type: "cancel", id: 1 });
-    await settle();
-
-    expect(errors).toEqual([]);
-    expect(ports[0].sent).toEqual([{ type: "cancel", id: 1 }]);
-  });
-
   it("reports the host going away", async () => {
     const { ports } = installChrome();
     const relay = createOffscreenWorker();
@@ -263,5 +247,19 @@ describe("createOffscreenWorker", () => {
     await settle();
 
     expect(createDocument).toHaveBeenCalledOnce();
+  });
+
+  it("shares document setup between concurrent providers", async () => {
+    const { ports, createDocument, getContexts } = installChrome();
+
+    const first = createOffscreenWorker();
+    const second = createOffscreenWorker();
+    first.postMessage({ type: "cancel", id: 1 });
+    second.postMessage({ type: "cancel", id: 2 });
+    await settle();
+
+    expect(getContexts).toHaveBeenCalledOnce();
+    expect(createDocument).toHaveBeenCalledOnce();
+    expect(ports).toHaveLength(2);
   });
 });

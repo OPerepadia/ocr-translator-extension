@@ -19,40 +19,32 @@ export function canHostWorker(): boolean {
 
 let opening: Promise<void> | undefined;
 
-async function ensureDocument(): Promise<void> {
+function ensureDocument(): Promise<void> {
+  opening ??= openDocumentIfNeeded().finally(() => {
+    opening = undefined;
+  });
+  return opening;
+}
+
+async function openDocumentIfNeeded(): Promise<void> {
   const offscreen = browserApi.offscreen;
   if (!offscreen) {
     throw new Error("This browser has no offscreen documents.");
   }
-  if (await offscreen.hasDocument?.()) {
+
+  const contexts = await browserApi.runtime.getContexts({
+    contextTypes: ["OFFSCREEN_DOCUMENT"],
+    documentUrls: [browserApi.runtime.getURL(OFFSCREEN_PAGE)],
+  });
+  if (contexts.length > 0) {
     return;
   }
-  // Chrome allows exactly one and rejects a second createDocument, so
-  // concurrent callers share the one attempt.
-  opening ??= offscreen
-    .createDocument({
-      url: OFFSCREEN_PAGE,
-      reasons: OFFSCREEN_REASONS,
-      justification: OFFSCREEN_JUSTIFICATION,
-    })
-    .catch((error: unknown) => {
-      // hasDocument only exists from Chrome 116, so on anything older the
-      // check above cannot see a document that is already up. Being told one
-      // exists is the answer we wanted.
-      if (!isAlreadyOpen(error)) {
-        throw error;
-      }
-    })
-    .finally(() => {
-      opening = undefined;
-    });
-  await opening;
-}
 
-function isAlreadyOpen(error: unknown): boolean {
-  return /single offscreen document/i.test(
-    error instanceof Error ? error.message : String(error),
-  );
+  await offscreen.createDocument({
+    url: OFFSCREEN_PAGE,
+    reasons: OFFSCREEN_REASONS,
+    justification: OFFSCREEN_JUSTIFICATION,
+  });
 }
 
 /**
