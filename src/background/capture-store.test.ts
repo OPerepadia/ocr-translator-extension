@@ -3,33 +3,20 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   CAPTURE_TTL_MS,
   createCaptureStore,
-  createMemoryCaptureStore,
   MAX_CAPTURES,
   type CaptureStore,
 } from "./capture-store";
 
-// Both implementations answer the same contract, so the suite runs twice.
-const implementations: Array<{
-  name: string;
-  create(now: () => number): CaptureStore;
-}> = [
-  {
-    name: "IndexedDB capture store",
-    create: (now) => createCaptureStore({ factory: new IDBFactory(), now }),
-  },
-  {
-    name: "in-memory capture store",
-    create: (now) => createMemoryCaptureStore({ now }),
-  },
-];
-
-describe.each(implementations)("$name", ({ create }) => {
+describe("capture store", () => {
   let clock = 1_000_000;
   let store: CaptureStore;
 
   beforeEach(() => {
     clock = 1_000_000;
-    store = create(() => clock);
+    store = createCaptureStore({
+      factory: new IDBFactory(),
+      now: () => clock,
+    });
   });
 
   it("reports nothing for a frame that never captured", async () => {

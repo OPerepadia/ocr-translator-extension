@@ -1,8 +1,9 @@
+import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deserializeError } from "../shared/messages";
 import type { SerializedError } from "../shared/types";
 import {
-  createMemoryCaptureStore,
+  createCaptureStore,
   type CaptureRecord,
   type CaptureStore,
 } from "./capture-store";
@@ -49,7 +50,7 @@ describe("background router", () => {
   let captureStore: CaptureStore;
 
   beforeEach(() => {
-    captureStore = createMemoryCaptureStore();
+    captureStore = createCaptureStore({ factory: new IDBFactory() });
   });
 
   it("routes speech requests to the TTS service", async () => {
