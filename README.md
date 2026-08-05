@@ -1,12 +1,22 @@
 # Screen OCR Translator
 
-Firefox extension that uses optical character recognition (OCR) to capture text from any selected area of a web page and translate it.
+Browser extension that uses optical character recognition (OCR) to capture text from any selected area of a web page and translate it.
 
 <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"><img src="media/firefox-badge.png" alt="Get the add-on" width="172" height="60"></a>
 
+## Installation
+
+Firefox: install from [Mozilla Add-ons](https://addons.mozilla.org/firefox/addon/screen-ocr-translator/).
+
+Chrome: download zip from the [latest release](https://github.com/OPerepadia/ocr-translator-extension/releases/latest) and load it manually:
+
+1. Unpack the zip.
+2. Open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and select the unpacked folder.
+
 ## Usage
 
-Install the add-on, then activate it from the browser toolbar, or the context menu, or by pressing `Ctrl+Shift+F`. Select an area of the page and click "Run OCR".
+Activate the extension from the browser toolbar, or the context menu, or by pressing `Ctrl+Shift+F`. Select an area of the page and click "Run OCR".
 
 To translate an image directly, right-click it and select "Translate this image".
 
@@ -14,7 +24,7 @@ The translation appears over the original text. Hover over a text box to view th
 
 ## Keyboard shortcut
 
-The default shortcut is `Ctrl+Shift+F`. To change it, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**.
+The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**. In Chrome, open `chrome://extensions/shortcuts`.
 
 ## How it works
 
@@ -62,18 +72,25 @@ Built with [WXT](https://wxt.dev/) and TypeScript.
 
 ```sh
 npm ci
-npm run dev
+npm run dev         # Firefox
+npm run dev:chrome  # Chrome
 ```
 
-Dev mode launches Firefox with the extension installed and reloads it on changes.
+Dev mode launches the browser with the extension installed and reloads it on changes.
 
 To test a production build, run:
 
 ```sh
-npm run build
+npm run build         # Firefox
+npm run build:chrome  # Chrome
 ```
 
-The build generates an unpacked extension in `.output/firefox-mv3`. Load that directory as a temporary add-on. See [Temporary installation in Firefox](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/).
+The builds generate unpacked extensions in `.output/firefox-mv3` and `.output/chrome-mv3`.
+
+- Firefox: load the directory as a temporary add-on. See [Temporary installation in Firefox](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/).
+- Chrome: load the directory via **Load unpacked** on `chrome://extensions` with Developer mode on.
+
+Both engines run MV3, but the background differs: Firefox uses an event page that hosts the OCR engine directly, while Chrome uses an offscreen document because its service worker cannot create the dedicated OCR worker.
 
 Run the test suite and type checks with:
 

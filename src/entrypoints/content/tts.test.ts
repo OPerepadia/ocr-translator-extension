@@ -40,7 +40,7 @@ class FakeAudioContext {
 function installBrowser(
   audioChunks: string[] = [btoa("AUDIO")],
 ): ReturnType<typeof vi.fn> {
-  const sendMessage = vi.fn(async () => ({ audioChunks }));
+  const sendMessage = vi.fn(async () => ({ ok: true, value: { audioChunks } }));
   vi.stubGlobal("browser", { runtime: { sendMessage } });
   vi.stubGlobal("AudioContext", FakeAudioContext);
   return sendMessage;
@@ -133,10 +133,11 @@ describe("Google text to speech playback", () => {
   });
 
   it("skips decoding entirely when stopped before the audio arrives", async () => {
-    let sendReply: ((response: { audioChunks: string[] }) => void) | undefined;
+    type Envelope = { ok: true; value: { audioChunks: string[] } };
+    let sendReply: ((response: Envelope) => void) | undefined;
     const sendMessage = vi.fn(
       () =>
-        new Promise<{ audioChunks: string[] }>((resolve) => {
+        new Promise<Envelope>((resolve) => {
           sendReply = resolve;
         }),
     );
@@ -145,7 +146,7 @@ describe("Google text to speech playback", () => {
 
     requestSpeak({ text: "Hello", owner: "panel" });
     stopSpeaking();
-    sendReply?.({ audioChunks: [btoa("AUDIO")] });
+    sendReply?.({ ok: true, value: { audioChunks: [btoa("AUDIO")] } });
 
     await vi.waitFor(() =>
       expect(FakeAudioContext.instances[0].close).toHaveBeenCalledOnce(),

@@ -6,8 +6,11 @@
   "scripts": {
     "postinstall": "wxt prepare",
     "dev": "wxt -b firefox",
+    "dev:chrome": "wxt -b chrome",
     "build": "wxt build -b firefox",
+    "build:chrome": "wxt build -b chrome",
     "zip": "wxt zip -b firefox",
+    "zip:chrome": "wxt zip -b chrome",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.15",
+    "fake-indexeddb": "^6.2.5",
     "typescript": "^5.5.4",
     "vitest": "^4.1.9",
     "web-ext": "^10.4.0",

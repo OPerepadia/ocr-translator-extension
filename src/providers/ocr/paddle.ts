@@ -1,8 +1,10 @@
 import type { PipelineOcrResult } from "../../shared/types";
 import {
   deserializeError,
+  type WorkerLike,
   type WorkerResponse,
 } from "./paddle/protocol";
+import { createInferenceWorker } from "./paddle/worker-factory";
 import type { OrtBackend } from "./paddle/ort-env";
 import type { RecognizerScript } from "./paddle/auto-select";
 import type { OcrProvider, OcrStatus } from "./types";
@@ -33,8 +35,9 @@ export interface PaddleProviderConfig {
   /** Resolve an extension-relative path to a full URL (background supplies
    * browser.runtime.getURL; keeps the provider browser-API free). */
   resolveUrl?: (path: string) => string;
-  /** Create the inference worker. Overridable for tests. */
-  createWorker?: () => Worker;
+  /** Create the inference worker. Overridable for tests, and for Chrome, where
+   * the service worker cannot spawn one itself. */
+  createWorker?: () => WorkerLike;
   /** Maximum time without recognition progress. Overridable for tests. */
   recognitionTimeoutMs?: number;
 }
@@ -56,14 +59,9 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
   const resolveUrl = config.resolveUrl;
   const recognitionTimeoutMs =
     config.recognitionTimeoutMs ?? DEFAULT_RECOGNITION_TIMEOUT_MS;
-  const createWorker =
-    config.createWorker ??
-    (() =>
-      new Worker(new URL("./paddle.worker.ts", import.meta.url), {
-        type: "module",
-      }));
+  const createWorker = config.createWorker ?? createInferenceWorker;
 
-  let worker: Worker | null = null;
+  let worker: WorkerLike | null = null;
   let initPromise: Promise<void> | null = null;
   let initialized = false;
   let nextId = 1;
@@ -115,11 +113,10 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
     pending.clear();
   }
 
-  function ensureWorker(): Worker {
+  function ensureWorker(): WorkerLike {
     if (!worker) {
       worker = createWorker();
-      worker.onmessage = (event: MessageEvent<WorkerResponse>) =>
-        routeResponse(event.data);
+      worker.onmessage = (event) => routeResponse(event.data);
       worker.onerror = (event) =>
         failAll(new Error(event.message || "PP-OCRv6 worker crashed."));
     }
@@ -187,6 +184,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
       if (!(input.image instanceof Blob)) {
         throw new Error("PP-OCRv6 provider requires a Blob image.");
       }
+      const image = input.image;
 
       if (!initialized) {
         onStatus?.({ stage: "initializing" });
@@ -246,7 +244,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
         activeWorker.postMessage({
           type: "recognize",
           id,
-          image: input.image,
+          image,
           sourceLang: input.sourceLang,
         });
       });

@@ -9,7 +9,6 @@ import {
 import type {
   CaptureSnapshotResponse,
   OcrImageSource,
-  OcrPipelineResponse,
   OcrSourceLanguagesResponse,
   TranslationProvidersResponse,
 } from "@/shared/messages";
@@ -27,6 +26,7 @@ import {
   type DisplayMode,
 } from "@/shared/storage";
 import { createRequestId } from "@/shared/request-id";
+import { sendRequest } from "@/shared/runtime-messaging";
 import {
   closePopup,
   resetForNewCapture,
@@ -93,7 +93,6 @@ let uiRoot: HTMLElement | undefined;
 let lastResult: PipelineResult | undefined;
 let lastRect: Rect | undefined;
 let lastContextImage: HTMLImageElement | undefined;
-let lastCaptureImage: Blob | undefined;
 // The captured pixels the overlay paints its region with, and a counter that
 // tells a snapshot still being fetched that its capture has been superseded.
 let lastSnapshot: ImageBitmap | undefined;
@@ -143,7 +142,7 @@ export default defineContentScript({
 
     setOnClose(() => {
       cancelActiveRequest();
-      clearCapture();
+      clearCaptureSnapshot();
     });
 
     setOnNewSelection(() => {
@@ -159,7 +158,7 @@ export default defineContentScript({
     setOnOverlayClose(() => {
       cancelActiveRequest();
       if (activeView === "overlay") {
-        clearCapture();
+        clearCaptureSnapshot();
       }
     });
 
@@ -248,7 +247,7 @@ function closeOnNavigation(): void {
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
-  clearCapture();
+  clearCaptureSnapshot();
   lastResult = undefined;
   lastRect = undefined;
   pendingText = "";
@@ -273,7 +272,7 @@ async function runSelectionFlow(): Promise<void> {
   startNavigationWatch(closeOnNavigation);
   // Preload the OCR worker and model while the user is selecting a region,
   // so recognition can start as soon as the screenshot is ready.
-  void browserApi.runtime.sendMessage({ type: "PRELOAD_OCR" }).catch(() => {});
+  void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
 
   const viewportRect = await startSelectionOverlay(uiRoot);
 
@@ -298,12 +297,12 @@ function startNewSelection(): void {
 
   closePopup();
   closeOverlay();
-  void browserApi.runtime.sendMessage({ type: "START_SELECTION" });
+  void sendRequest({ type: "START_SELECTION" });
 }
 
 async function runImageFlow(imageUrl: string): Promise<void> {
   startNavigationWatch(closeOnNavigation);
-  void browserApi.runtime.sendMessage({ type: "PRELOAD_OCR" }).catch(() => {});
+  void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
 
   const imageRect = findImageRect(imageUrl);
   if (imageUrl.startsWith("file:") && imageRect) {
@@ -359,8 +358,7 @@ async function runCapture(
   lastResult = undefined;
   setOverlayAvailable(false);
   closeOverlay();
-  clearCapture();
-  const generation = captureGeneration;
+  clearCaptureSnapshot();
   displayMode = await getDisplayMode();
   setOverlayDefaultMode(await getOverlayMode());
   // Head toward that view now so the loading spinner lands there; presentResult
@@ -385,7 +383,7 @@ async function runCapture(
   // taken its screenshot so the panel cannot appear in the captured image.
 
   try {
-    const response = await browserApi.runtime.sendMessage<OcrPipelineResponse>({
+    const result = await sendRequest<PipelineResult>({
       type: "OCR_TRANSLATE_REQUEST",
       requestId,
       ...source,
@@ -393,10 +391,6 @@ async function runCapture(
 
     // Skip if the user closed the popup (or a newer request took over) while
     // OCR was running.
-    const { result, image } = response;
-    if (generation === captureGeneration) {
-      lastCaptureImage = image;
-    }
     if (activeRequestId !== requestId) {
       return;
     }
@@ -464,7 +458,7 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
           ? () => void runRetranslate(targetLang)
           : undefined,
       onOpenSettings: () => {
-        void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
+        void sendRequest({ type: "OPEN_OPTIONS" });
       },
     });
     return;
@@ -485,7 +479,7 @@ function presentError(
       message: error.message,
       onRetry: retry,
       onOpenSettings: () => {
-        void browserApi.runtime.sendMessage({ type: "OPEN_OPTIONS" });
+        void sendRequest({ type: "OPEN_OPTIONS" });
       },
     });
     return;
@@ -534,7 +528,7 @@ function requestCaptureSnapshot(): void {
   void (async () => {
     try {
       const response =
-        await browserApi.runtime.sendMessage<CaptureSnapshotResponse>({
+        await sendRequest<CaptureSnapshotResponse>({
           type: "GET_CAPTURE_SNAPSHOT",
         });
       const encoded = response?.snapshot;
@@ -563,11 +557,6 @@ function clearCaptureSnapshot(): void {
   setOverlaySnapshot(undefined);
   lastSnapshot?.close();
   lastSnapshot = undefined;
-}
-
-function clearCapture(): void {
-  clearCaptureSnapshot();
-  lastCaptureImage = undefined;
 }
 
 function toPageRect(rect: Rect): Rect {
@@ -624,7 +613,7 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
   showActiveLoading({ stage: "translating" });
 
   try {
-    const result = await browserApi.runtime.sendMessage<PipelineResult>({
+    const result = await sendRequest<PipelineResult>({
       type: "RETRANSLATE_REQUEST",
       requestId,
       text: pendingText,
@@ -652,22 +641,16 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
 async function runRerecognize(sourceLang: LangCode | "auto"): Promise<void> {
   cancelActiveRequest();
   const requestId = createRequestId();
-  const generation = captureGeneration;
   activeRequestId = requestId;
   showActiveLoading();
 
   try {
-    const response = await browserApi.runtime.sendMessage<OcrPipelineResponse>({
+    const result = await sendRequest<PipelineResult>({
       type: "RERECOGNIZE_REQUEST",
       requestId,
       sourceLang,
-      image: lastCaptureImage,
     });
 
-    const { result, image } = response;
-    if (generation === captureGeneration) {
-      lastCaptureImage = image;
-    }
     if (activeRequestId !== requestId) {
       return;
     }
@@ -703,7 +686,7 @@ async function runSwitchProvider(providerId: string): Promise<void> {
   showActiveLoading({ stage: "translating" });
 
   try {
-    const result = await browserApi.runtime.sendMessage<PipelineResult>({
+    const result = await sendRequest<PipelineResult>({
       type: "SWITCH_PROVIDER_REQUEST",
       requestId,
       providerId,
@@ -743,7 +726,7 @@ async function loadOcrSourceLanguages(): Promise<void> {
   }
   try {
     const response =
-      await browserApi.runtime.sendMessage<OcrSourceLanguagesResponse>({
+      await sendRequest<OcrSourceLanguagesResponse>({
         type: "GET_OCR_SOURCE_LANGUAGES",
       });
     if (response && Array.isArray(response.languages)) {
@@ -767,7 +750,7 @@ async function loadTranslationProviders(): Promise<void> {
   }
   try {
     const response =
-      await browserApi.runtime.sendMessage<TranslationProvidersResponse>({
+      await sendRequest<TranslationProvidersResponse>({
         type: "GET_TRANSLATION_PROVIDERS",
       });
     if (response && Array.isArray(response.providers)) {
@@ -790,7 +773,7 @@ async function loadTargetLanguages(force = false): Promise<void> {
     return;
   }
   try {
-    const languages = await browserApi.runtime.sendMessage<LangCode[]>({
+    const languages = await sendRequest<LangCode[]>({
       type: "GET_TARGET_LANGUAGES",
     });
     if (Array.isArray(languages)) {

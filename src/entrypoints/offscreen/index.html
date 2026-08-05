@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!-- Chrome-only: Firefox has no offscreen API and no need for one. -->
+    <meta name="manifest.exclude" content="['firefox']" />
+    <title>Screen OCR Translator OCR host</title>
+    <!-- Keep this local so Chrome can create the same-origin OCR worker. -->
+    <script wxt-ignore type="module" src="./main.ts"></script>
+  </head>
+  <body></body>
+</html>
