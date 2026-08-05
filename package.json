@@ -9,6 +9,7 @@
     "dev:chrome": "wxt -b chrome",
     "build": "wxt build -b firefox",
     "build:chrome": "wxt build -b chrome",
+    "build-for-amo": "npm run build",
     "zip": "wxt zip -b firefox",
     "zip:chrome": "wxt zip -b chrome",
     "typecheck": "wxt prepare && tsc --noEmit",
