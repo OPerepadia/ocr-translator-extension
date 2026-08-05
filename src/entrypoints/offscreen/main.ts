@@ -1,6 +1,6 @@
-// Chrome's service worker has no `Worker` and no WebGPU, so the OCR engine runs
-// here instead and the background talks to it over a port. Firefox never loads
-// this page — its event page hosts the worker directly.
+// Chrome's service worker cannot create the dedicated OCR worker, so the engine
+// runs here and the background talks to it over a port. Firefox never loads this
+// page — its event page hosts the worker directly.
 
 import type {
   WorkerLike,

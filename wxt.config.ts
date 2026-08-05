@@ -47,14 +47,13 @@ export default defineConfig({
       "activeTab",
       "contextMenus",
       "storage",
-      // Chrome service workers cannot spawn the OCR worker (no `Worker`) and do
-      // not expose WebGPU, so on Chrome the engine runs in an offscreen
-      // document instead.
+      // Chrome service workers cannot spawn the dedicated OCR worker, so on
+      // Chrome the engine runs in an offscreen document instead.
       ...(browser === "firefox" ? [] : ["offscreen"]),
     ],
     host_permissions: ["<all_urls>"],
     // The content script's match_origin_as_fallback needs 119; the offscreen
-    // API and WebGPU in workers both land earlier.
+    // API and WebGPU in dedicated workers both landed earlier.
     ...(browser !== "firefox" && { minimum_chrome_version: "119" }),
     action: {
       default_title: "Screen OCR Translator",

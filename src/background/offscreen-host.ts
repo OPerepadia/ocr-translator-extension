@@ -7,9 +7,11 @@ import { browserApi, type BrowserPort } from "../shared/browser";
 import { encodeRequest, OCR_RELAY_PORT } from "../shared/offscreen-relay";
 
 const OFFSCREEN_PAGE = "offscreen.html";
+// Chrome offscreen API reference:
+// https://developer.chrome.com/docs/extensions/reference/api/offscreen
 const OFFSCREEN_REASONS = ["WORKERS"];
 const OFFSCREEN_JUSTIFICATION =
-  "Runs the local OCR engine, which needs a worker and WebGPU.";
+  "Runs the dedicated OCR worker that the service worker cannot create.";
 
 /** True where this context can spawn a worker itself — the Firefox event page
  * can, a Chrome service worker cannot. */
