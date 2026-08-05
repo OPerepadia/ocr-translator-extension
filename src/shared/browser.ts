@@ -43,8 +43,12 @@ export interface BrowserApi {
     }): Promise<unknown[]>;
     // Opens the extension's options page.
     openOptionsPage(): Promise<void>;
+    getBrowserInfo?(): Promise<{ name: string; version: string }>;
     connect(info?: { name?: string }): BrowserPort;
     onConnect: BrowserEvent<(port: BrowserPort) => void>;
+  };
+  extension?: {
+    isAllowedFileSchemeAccess(): Promise<boolean>;
   };
   /** Chrome only: hosts a DOM context for what a service worker cannot do
    * itself. Absent on Firefox, whose background is already a document. */

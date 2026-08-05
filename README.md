@@ -22,6 +22,10 @@ To translate an image directly, right-click it and select "Translate this image"
 
 The translation appears over the original text. Hover over a text box to view the original text and its translation, which can be copied or read aloud. Use the extension toolbar to show or hide the translation overlay.
 
+> [!NOTE]
+> On Firefox 153 and later, using this extension on local files require separate permission.
+> Open the add-on's **Permissions and data** settings and enable **Access local files on your computer**, then reload the local file.
+
 ## Keyboard shortcut
 
 The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**. In Chrome, open `chrome://extensions/shortcuts`.

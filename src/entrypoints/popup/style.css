@@ -41,3 +41,29 @@ body {
   line-height: 1.4;
   color: #3e4656;
 }
+
+.popup button {
+  margin-top: 10px;
+  border: 1px solid #0060df;
+  border-radius: 5px;
+  padding: 6px 10px;
+  background: #0060df;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.popup button:hover {
+  background: #0250bb;
+}
+
+.popup button:focus-visible {
+  outline: 2px solid #0060df;
+  outline-offset: 2px;
+}
+
+.popup button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
