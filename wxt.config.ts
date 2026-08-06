@@ -20,6 +20,10 @@ export default defineConfig({
   srcDir: "src",
   // Static assets (OCR models, dicts) copied verbatim into the build root.
   publicDir: "src/public",
+  // Exclude venv files for faster build
+  watchOptions: {
+    ignored: ["**/scripts/.venv/**"],
+  },
   manifestVersion: 3,
   hooks: {
     // The shadow-root UI (cssInjectionMode: "ui") makes WXT expose the content

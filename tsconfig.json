@@ -3,6 +3,9 @@
   "compilerOptions": {
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    // WXT 0.21 turns this on by default; the existing code has ~260 unchecked
+    // index accesses. Flip to true once those are fixed.
+    "noUncheckedIndexedAccess": false
   }
 }
