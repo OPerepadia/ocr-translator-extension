@@ -37,6 +37,7 @@
 
 body {
   margin: 0;
+  min-width: 600px;
   background: var(--bg);
   color: var(--text);
   font: 14px/1.5 system-ui, sans-serif;
@@ -316,6 +317,7 @@ select:focus-visible {
   color: var(--danger);
   font-size: 13px;
   font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .llm-api-key-row {
@@ -375,10 +377,12 @@ select:focus-visible {
 }
 
 .llm-models-status {
+  min-width: 0;
   margin-left: auto;
   color: var(--muted);
   font-size: 13px;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .llm-models-status.is-error {
@@ -458,6 +462,7 @@ select:focus-visible {
 
 .settings-toggle-title {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -535,4 +540,17 @@ select:focus-visible {
 
 .options-footer [role="status"].is-error {
   color: var(--danger);
+}
+
+/* Narrow layouts */
+
+@media (width < 600px) {
+  body {
+    min-width: 0;
+  }
+
+  .field-row,
+  .llm-timeout-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
