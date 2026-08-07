@@ -102,3 +102,8 @@ Run the test suite and type checks with:
 npm test
 npm run typecheck
 ```
+
+## License
+
+Screen OCR Translator is licensed under the [MIT License](LICENSE).
+Bundled libraries, runtime files, and OCR models retain their original licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

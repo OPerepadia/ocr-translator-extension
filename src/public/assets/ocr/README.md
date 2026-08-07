@@ -29,6 +29,9 @@ feeds depends on which kind of archive it came from:
 Each `SOURCES.md` records its archive URL and three checksums: the archive,
 the upstream `inference.onnx`, and the packaged files.
 
+The official model cards license these PaddlePaddle models under Apache-2.0.
+See the top-level `THIRD_PARTY_NOTICES.md`.
+
 The recognizers emit `dict.txt` lines + 2 classes: the CTC blank, the dictionary
 entries, then space. Their output is already softmaxed.
 

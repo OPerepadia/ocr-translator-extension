@@ -1,4 +1,10 @@
+import { resolve } from "node:path";
 import { defineConfig } from "wxt";
+
+const packagedLegalFiles = [
+  "LICENSE",
+  "THIRD_PARTY_NOTICES.md",
+] as const;
 
 // WXT configuration. Targets MV3 on both engines: Firefox gets an event-page
 // background, Chrome a service worker.
@@ -26,6 +32,14 @@ export default defineConfig({
   },
   manifestVersion: 3,
   hooks: {
+    "build:publicAssets": (wxt, files) => {
+      for (const relativeDest of packagedLegalFiles) {
+        files.push({
+          absoluteSrc: resolve(wxt.config.root, relativeDest),
+          relativeDest,
+        });
+      }
+    },
     // The shadow-root UI (cssInjectionMode: "ui") makes WXT expose the content
     // script's CSS as a web-accessible resource, stamped with Chrome's
     // use_dynamic_url. Firefox doesn't understand that key and warns about it

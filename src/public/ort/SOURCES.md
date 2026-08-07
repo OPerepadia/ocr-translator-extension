@@ -15,6 +15,12 @@ node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs  -> ort-wasm-s
 
 Package version: `onnxruntime-web@1.26.0`
 
+Source repository: https://github.com/microsoft/onnxruntime/tree/v1.26.0
+
+ONNX Runtime is licensed under the MIT License. Its license and Microsoft's
+full upstream notice file for version 1.26.0 are included in the top-level
+`THIRD_PARTY_NOTICES.md`.
+
 The `.jsep` build serves both the WASM and WebGPU execution providers. We run the
 WASM provider for now (`executionProviders: ["wasm"]`); adding WebGPU later is a
 one-line change in `src/providers/ocr/paddle/ort-env.ts` and reuses the same files.
