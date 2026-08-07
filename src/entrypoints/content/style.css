@@ -1,10 +1,181 @@
-/* The shadow root host. Reset inherited properties (font, color, line-height)
-   so the page's values don't carry across the shadow boundary into our UI. */
+/* Reset inherited properties so page values don't cross the shadow boundary. */
 :host {
   all: initial;
   /* `all` does not reset direction, so isolate the controls from RTL pages. */
   direction: ltr;
+  color-scheme: light dark;
+
+  --ocr-font:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --ocr-size-xs: 12px;
+  --ocr-size-sm: 13px;
+  --ocr-size-ui: 14px;
+  --ocr-size-body: 15px;
+  /* Reading size for text pulled off the page; the denser panel stays at `body`. */
+  --ocr-size-read: 16px;
+  --ocr-size-title: 17px;
+  /* Never 1: the em box is shorter than ascent+descent, so a line box that tight
+     clips descenders out of any label with `overflow: hidden`. */
+  --ocr-leading-ui: 1.45;
+  --ocr-leading-body: 1.55;
+  --ocr-tracking-title: -0.01em;
+
+  /* Ink */
+  --ocr-ink: #152034;
+  --ocr-ink-strong: #0f172a;
+  --ocr-ink-muted: #475569;
+  --ocr-ink-subtle: #64748b;
+
+  /* Surfaces */
+  --ocr-surface: rgba(255, 255, 255, 0.98);
+  --ocr-surface-solid: #ffffff;
+  --ocr-surface-hover: rgba(15, 23, 42, 0.06);
+  --ocr-surface-press: rgba(15, 23, 42, 0.11);
+  --ocr-panel-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.98)),
+    #ffffff;
+  --ocr-topbar-bg: linear-gradient(180deg, #ffffff, #f1f5f9);
+  --ocr-field-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 250, 252, 0.92)),
+    #f8fafc;
+  --ocr-field-inset: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  --ocr-track: #e2e8f0;
+
+  /* Lines */
+  --ocr-line: rgba(148, 163, 184, 0.34);
+  --ocr-line-strong: rgba(100, 116, 139, 0.5);
+  --ocr-line-divider: rgba(148, 163, 184, 0.45);
+  --ocr-line-control: rgba(100, 116, 139, 0.32);
+
+  /* Accent */
+  --ocr-accent: #3e7bd6;
+  --ocr-accent-solid: #3e7bd6;
+  --ocr-accent-solid-hover: #3269bd;
+  --ocr-accent-solid-press: #2b5ba6;
+  --ocr-accent-text: #3269bd;
+  --ocr-accent-quiet: #3269bd;
+  --ocr-accent-tint: rgba(62, 123, 214, 0.1);
+  --ocr-accent-fill: #eff5fd;
+  --ocr-accent-fill-hover: #dce9fa;
+  --ocr-accent-border: rgba(62, 123, 214, 0.28);
+  --ocr-accent-border-hover: rgba(62, 123, 214, 0.44);
+  --ocr-accent-ring: rgba(62, 123, 214, 0.15);
+  --ocr-item-hover: #edf3fc;
+  --ocr-on-accent: #ffffff;
+
+  /* Status */
+  --ocr-danger: #dc2626;
+  --ocr-danger-tint: rgba(220, 38, 38, 0.08);
+  --ocr-success: #16a34a;
+  --ocr-badge-ink: #e8590c;
+  --ocr-badge-bg: #fff4ed;
+  --ocr-badge-border: rgba(232, 89, 12, 0.25);
+
+  /* Not the accent: these marks land on the captured picture and must stay
+     distinguishable from it. */
+  --ocr-marker: #ff2d95;
+  --ocr-marker-tint: rgba(255, 45, 149, 0.02);
+  --ocr-marker-tint-strong: rgba(255, 45, 149, 0.12);
+
+  --ocr-scrim: rgba(15, 23, 42, 0.38);
+  --ocr-scrim-ink: #f1f5f9;
+  --ocr-scrim-ink-muted: #cbd5e1;
+  --ocr-scrim-surface: rgba(15, 23, 42, 0.85);
+
+  /* `edge` is a hairline in the tone opposite the surface, for chrome floating
+     over pixels we don't control. */
+  --ocr-shadow-float:
+    0 2px 8px rgba(15, 23, 42, 0.1), 0 16px 36px rgba(15, 23, 42, 0.16);
+  --ocr-shadow-panel:
+    0 4px 12px rgba(15, 23, 42, 0.1), 0 24px 50px rgba(15, 23, 42, 0.22);
+  --ocr-edge: 0 0 0 1px rgba(15, 23, 42, 0.16);
+  --ocr-halo: rgba(255, 255, 255, 0.55);
+  /* Stays light: the scrim is dark in both themes. */
+  --ocr-halo-fixed: rgba(255, 255, 255, 0.6);
+
+  --ocr-focus: #3e7bd6;
+  --ocr-focus-width: 2px;
+  --ocr-focus-offset: 2px;
+  --ocr-focus-halo: 0 0 0 4px rgba(255, 255, 255, 0.9);
+
+  /* Surface radius is concentric with the control radius: 10 − 5 ≈ 6. */
+  --ocr-control-h: 30px;
+  --ocr-control-h-sm: 28px;
+  --ocr-surface-pad: 5px;
+  --ocr-radius-surface: 10px;
+  --ocr-radius-control: 6px;
+  --ocr-radius-box: 4px;
+  --ocr-radius-pill: 999px;
+
+  --ocr-duration-fast: 0.09s;
+  --ocr-duration: 0.15s;
+  --ocr-duration-exit: 0.1s;
+  --ocr-ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ocr-ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
+
+/* Dark theme. Only the tokens change; every rule below is written once. */
+@media (prefers-color-scheme: dark) {
+  :host {
+    --ocr-ink: #e5edf2;
+    --ocr-ink-strong: #f8fafc;
+    --ocr-ink-muted: #a1adb8;
+    --ocr-ink-subtle: #94a3b8;
+
+    --ocr-surface: rgba(26, 30, 34, 0.98);
+    --ocr-surface-solid: #1b2024;
+    --ocr-surface-hover: rgba(226, 232, 240, 0.08);
+    --ocr-surface-press: rgba(226, 232, 240, 0.14);
+    --ocr-panel-bg:
+      linear-gradient(180deg, rgba(28, 32, 36, 0.94), rgba(18, 22, 25, 0.98)),
+      #121619;
+    --ocr-topbar-bg: linear-gradient(180deg, #22272b, #171b1f);
+    --ocr-field-bg:
+      linear-gradient(180deg, rgba(27, 32, 36, 0.96), rgba(20, 24, 28, 0.98)),
+      #15191d;
+    --ocr-field-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --ocr-track: #2a3338;
+
+    --ocr-line: rgba(148, 163, 184, 0.22);
+    --ocr-line-strong: rgba(148, 163, 184, 0.5);
+    --ocr-line-divider: rgba(148, 163, 184, 0.28);
+    --ocr-line-control: rgba(148, 163, 184, 0.28);
+
+    --ocr-accent: #5b93e8;
+    --ocr-accent-solid: #3269bd;
+    --ocr-accent-solid-hover: #285aa8;
+    --ocr-accent-solid-press: #204b8f;
+    --ocr-accent-text: #8ab4f3;
+    --ocr-accent-quiet: #8ab4f3;
+    --ocr-accent-tint: rgba(91, 147, 232, 0.12);
+    --ocr-accent-fill: rgba(91, 147, 232, 0.12);
+    --ocr-accent-fill-hover: rgba(91, 147, 232, 0.2);
+    --ocr-accent-border: rgba(91, 147, 232, 0.32);
+    --ocr-accent-border-hover: rgba(91, 147, 232, 0.42);
+    --ocr-accent-ring: rgba(91, 147, 232, 0.12);
+    --ocr-item-hover: rgba(91, 147, 232, 0.1);
+
+    --ocr-danger: #f87171;
+    --ocr-danger-tint: rgba(248, 113, 113, 0.12);
+    --ocr-success: #4ade80;
+    --ocr-badge-ink: #ffa94d;
+    --ocr-badge-bg: rgba(232, 89, 12, 0.14);
+    --ocr-badge-border: rgba(232, 89, 12, 0.32);
+
+    --ocr-shadow-float:
+      0 2px 8px rgba(0, 0, 0, 0.32), 0 18px 36px rgba(0, 0, 0, 0.4);
+    --ocr-shadow-panel:
+      0 4px 14px rgba(0, 0, 0, 0.34), 0 24px 58px rgba(0, 0, 0, 0.46);
+    --ocr-edge: 0 0 0 1px rgba(226, 232, 240, 0.14);
+    --ocr-halo: rgba(15, 23, 42, 0.5);
+
+    --ocr-focus: #8ab4f3;
+    --ocr-focus-halo: 0 0 0 4px rgba(9, 12, 16, 0.75);
+  }
+}
+
+/* Region picker */
 
 .ocr-translate-selection-overlay {
   position: fixed;
@@ -15,26 +186,24 @@
   -webkit-user-select: none;
 }
 
-/* Darkens the page. While a rectangle exists it shrinks to that rectangle and
-   uses a huge spreading shadow as a spotlight, so only the selection is lit. */
+/* Once a rectangle exists this shrinks to it and spotlights it with a huge
+   spreading shadow, so only the selection stays lit. */
 .ocr-translate-selection-dim {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: rgba(15, 23, 42, 0.38);
+  background: var(--ocr-scrim);
 }
 
 .ocr-translate-selection-dim.is-cutout {
   inset: auto;
   border-radius: 8px;
   background: transparent;
-  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38);
+  box-shadow: 0 0 0 9999px var(--ocr-scrim);
 }
 
-/* After Run OCR: only the dim stays, click-through, while the background takes
-   the screenshot. Square cutout corners so the rounded dim doesn't bleed into
-   the captured rect. */
+/* Square cutout corners, so the rounded dim doesn't bleed into the screenshot. */
 .ocr-translate-selection-overlay.is-capturing {
   pointer-events: none;
   cursor: default;
@@ -50,14 +219,20 @@
   left: 50%;
   z-index: 1;
   transform: translate(-50%, -50%);
+  max-width: min(420px, calc(100vw - 32px));
   padding: 18px 36px;
-  border: 1px solid rgba(62, 123, 214, 0.28);
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.85);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.35);
-  color: #f1f5f9;
-  font: 18px/1.5 system-ui, sans-serif;
+  border: 1px solid var(--ocr-accent-border);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-scrim-surface);
+  box-shadow: var(--ocr-shadow-float);
+  color: var(--ocr-scrim-ink);
+  font-family: var(--ocr-font);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: var(--ocr-leading-ui);
+  letter-spacing: var(--ocr-tracking-title);
   text-align: center;
+  text-wrap: balance;
   pointer-events: none;
   transition: opacity 0.3s;
 }
@@ -68,27 +243,36 @@
 
 .ocr-translate-selection-hint-sub {
   display: inline-block;
-  margin-top: 4px;
-  font-size: 13px;
-  opacity: 0.5;
+  margin-top: 6px;
+  color: var(--ocr-scrim-ink-muted);
+  font-size: var(--ocr-size-sm);
+  font-weight: 400;
+  letter-spacing: normal;
 }
 
 .ocr-translate-selection-hint-kbd {
   display: inline-block;
   padding: 1px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 4px;
-  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  /* Not the browser's monospace default for <kbd>. */
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-xs);
+  font-weight: 500;
+  line-height: var(--ocr-leading-ui);
 }
 
+/* Hairline outside the dashed edge, so the rectangle reads on any content. */
 .ocr-translate-selection-rect {
   position: fixed;
   z-index: 2;
   display: none;
   box-sizing: border-box;
-  border: 2px dashed #3e7bd6;
+  border: 2px dashed var(--ocr-accent);
   border-radius: 8px;
   background: transparent;
+  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   pointer-events: none;
 }
 
@@ -103,9 +287,9 @@
   width: 12px;
   height: 12px;
   padding: 0;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--ocr-surface-solid);
   border-radius: 50%;
-  background: #3e7bd6;
+  background: var(--ocr-accent);
   box-shadow: 0 1px 5px rgba(15, 23, 42, 0.35);
   pointer-events: auto;
 }
@@ -137,14 +321,17 @@
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
-  color: #152034;
-  font: 13px/1 system-ui, sans-serif;
+  gap: 4px;
+  padding: var(--ocr-surface-pad);
+  /* Always on the scrim, so a light hairline is enough — no contrast ring. */
+  border: 1px solid var(--ocr-line);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  box-shadow: var(--ocr-shadow-float);
+  color: var(--ocr-ink);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  line-height: var(--ocr-leading-ui);
   pointer-events: auto;
 }
 
@@ -152,49 +339,59 @@
   display: none;
 }
 
+/* Tabular figures, so the bar doesn't shift as the number changes. */
 .ocr-translate-selection-size {
-  min-width: 64px;
-  padding: 0 6px;
-  color: #64748b;
+  min-width: 76px;
+  padding: 0 8px;
+  color: var(--ocr-ink-subtle);
+  font-size: var(--ocr-size-sm);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   text-align: center;
   white-space: nowrap;
 }
 
 .ocr-translate-selection-controls button {
-  height: 30px;
+  height: var(--ocr-control-h);
   padding: 0 10px;
   border: none;
-  border-radius: 4px;
-  font: inherit;
+  border-radius: var(--ocr-radius-control);
+  font-family: inherit;
+  font-size: inherit;
   font-weight: 500;
+  line-height: var(--ocr-leading-ui);
   cursor: pointer;
+  transition: background-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-selection-run {
-  background: #3e7bd6;
-  color: #ffffff;
+  background: var(--ocr-accent-solid);
+  color: var(--ocr-on-accent);
 }
 
 .ocr-translate-selection-run:hover {
-  background: #3269bd;
+  background: var(--ocr-accent-solid-hover);
+}
+
+.ocr-translate-selection-run:active {
+  background: var(--ocr-accent-solid-press);
 }
 
 .ocr-translate-selection-cancel {
   background: transparent;
-  color: #475569;
+  color: var(--ocr-ink-muted);
 }
 
 .ocr-translate-selection-cancel:hover {
-  background: rgba(15, 23, 42, 0.06);
-  color: #0f172a;
+  background: var(--ocr-surface-hover);
+  color: var(--ocr-ink-strong);
 }
 
-.ocr-translate-selection-controls button:focus-visible,
-.ocr-translate-selection-handle:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.35);
-  outline-offset: 2px;
+.ocr-translate-selection-cancel:active {
+  background: var(--ocr-surface-press);
 }
+
+/* Result panel */
 
 /* Floating card pinned to the bottom-right corner. The 8px offset matches
    PANEL_MARGIN in the script so corner-drag resizing anchors to this corner. */
@@ -211,16 +408,14 @@
   height: 520px;
   max-height: calc(100dvh - 16px);
   overflow: hidden;
-  border: 1px solid rgba(100, 116, 139, 0.32);
+  border: 1px solid var(--ocr-line);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.98)),
-    #ffffff;
-  color: #152034;
-  box-shadow:
-    0 24px 50px rgba(15, 23, 42, 0.24),
-    0 2px 10px rgba(15, 23, 42, 0.08);
-  font: 15px/1.45 system-ui, sans-serif;
+  background: var(--ocr-panel-bg);
+  color: var(--ocr-ink);
+  box-shadow: var(--ocr-shadow-panel);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-body);
+  line-height: var(--ocr-leading-ui);
   backdrop-filter: blur(18px);
 }
 
@@ -228,11 +423,10 @@
   content: "";
   flex: none;
   height: 3px;
-  background: #3e7bd6;
+  background: var(--ocr-accent);
 }
 
-/* Grab handle on the top-left corner: drags both width and height.
-   touch-action: none lets pointer dragging work on touch screens. */
+/* touch-action: none lets pointer dragging work on touch screens. */
 .ocr-translate-popup-resize {
   position: absolute;
   top: 0;
@@ -241,14 +435,12 @@
   width: 20px;
   height: 20px;
   border-top-left-radius: 8px;
-  color: #94a3b8;
+  color: var(--ocr-ink-subtle);
   cursor: nwse-resize;
   touch-action: none;
 }
 
-/* A small grid of dots reading as a drag grip. The radial-gradient repeats a
-   single dot on a 4px grid; the box is clipped to a triangle so the dots fade
-   out toward the corner instead of forming a full square. */
+/* Drag grip: one dot repeated on a 4px grid, clipped to a triangle. */
 .ocr-translate-popup-resize::after {
   content: "";
   position: absolute;
@@ -263,11 +455,9 @@
 
 .ocr-translate-popup-resize:hover,
 .ocr-translate-popup-resize.is-dragging {
-  color: #3e7bd6;
+  color: var(--ocr-accent);
 }
 
-/* Sticky top bar. flex: none keeps it sized to its content while the body
-   below takes the remaining height and scrolls. */
 .ocr-translate-popup-topbar {
   display: flex;
   align-items: center;
@@ -275,17 +465,18 @@
   gap: 8px;
   flex: none;
   padding: 10px 16px 9px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
-  background: linear-gradient(180deg, #ffffff, #f1f5f9);
+  border-bottom: 1px solid var(--ocr-line);
+  background: var(--ocr-topbar-bg);
 }
 
 .ocr-translate-popup-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #0f172a;
-  font-size: 17px;
+  color: var(--ocr-ink-strong);
+  font-size: var(--ocr-size-title);
   font-weight: 700;
+  letter-spacing: var(--ocr-tracking-title);
 }
 
 .ocr-translate-popup-title-icon {
@@ -303,39 +494,42 @@
 .ocr-translate-popup-actions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
-/* Thin vertical rule separating the select-region button from the menu. */
 .ocr-translate-popup-divider {
   width: 1px;
   align-self: stretch;
-  margin: 4px 5px;
-  background: rgba(148, 163, 184, 0.45);
+  margin: 4px 4px;
+  background: var(--ocr-line-divider);
 }
+
+/* Shared controls */
 
 .ocr-translate-popup-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: var(--ocr-control-h);
+  height: var(--ocr-control-h);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--ocr-radius-control);
   padding: 0;
-  color: #475569;
+  color: var(--ocr-ink-muted);
   background: none;
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-icon-button:hover {
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.06);
+  color: var(--ocr-ink-strong);
+  background: var(--ocr-surface-hover);
 }
 
-.ocr-translate-popup-icon-button:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.35);
-  outline-offset: 2px;
+.ocr-translate-popup-icon-button:active {
+  background: var(--ocr-surface-press);
 }
 
 .ocr-translate-popup-menu {
@@ -345,41 +539,49 @@
 
 .ocr-translate-popup-menu-list {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 1;
   display: flex;
   flex-direction: column;
   width: max-content;
   min-width: 140px;
-  padding: 5px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  padding: var(--ocr-surface-pad);
+  border: 1px solid var(--ocr-line);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  box-shadow: var(--ocr-shadow-float);
 }
 
 .ocr-translate-popup-menu-list[hidden] {
   display: none;
 }
 
+/* Fixed, not inherited: the panel and the toolbar set different body sizes. */
 .ocr-translate-popup-menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
   border: none;
-  border-radius: 4px;
-  padding: 8px 11px;
-  color: #152034;
+  border-radius: var(--ocr-radius-control);
+  padding: 7px 10px;
+  color: var(--ocr-ink);
   background: none;
-  font: inherit;
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  line-height: var(--ocr-leading-ui);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-menu-item:hover {
-  background: #edf3fc;
+  background: var(--ocr-item-hover);
+}
+
+.ocr-translate-popup-menu-item:active {
+  background: var(--ocr-surface-press);
 }
 
 .ocr-translate-popup-menu-icon {
@@ -387,7 +589,7 @@
   justify-content: center;
   flex: none;
   width: 20px;
-  color: #475569;
+  color: var(--ocr-ink-muted);
 }
 
 .ocr-translate-popup-langpill {
@@ -400,120 +602,129 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border: 1px solid rgba(100, 116, 139, 0.32);
-  border-radius: 6px;
-  padding: 5px 10px;
-  color: #152034;
-  background: #ffffff;
+  height: var(--ocr-control-h);
+  border: 1px solid var(--ocr-line-control);
+  border-radius: var(--ocr-radius-control);
+  padding: 0 10px;
+  color: var(--ocr-ink);
+  background: var(--ocr-surface-solid);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  font: 500 14px/1.4 system-ui, sans-serif;
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  font-weight: 500;
+  line-height: var(--ocr-leading-ui);
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    border-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-langpill-button:hover {
-  border-color: rgba(62, 123, 214, 0.5);
-  background: #f3f7fd;
+  border-color: var(--ocr-accent-border-hover);
+  background: var(--ocr-accent-fill);
+}
+
+.ocr-translate-popup-langpill-button:active {
+  background: var(--ocr-accent-fill-hover);
 }
 
 .ocr-translate-popup-langpill-button:disabled,
 .ocr-translate-popup-langpill-button:disabled:hover {
-  border-color: rgba(100, 116, 139, 0.32);
-  background: #ffffff;
+  border-color: var(--ocr-line-control);
+  background: var(--ocr-surface-solid);
   opacity: 0.5;
   cursor: default;
-}
-
-.ocr-translate-popup-langpill-button:focus-visible {
-  outline: none;
-  border-color: #3e7bd6;
-  box-shadow: 0 0 0 3px rgba(62, 123, 214, 0.15);
 }
 
 .ocr-translate-popup-langpill-chevron {
   display: inline-flex;
   flex: none;
-  color: #64748b;
+  color: var(--ocr-ink-subtle);
 }
 
 .ocr-translate-popup-langpill-list {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 180px;
-  padding: 5px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  padding: var(--ocr-surface-pad);
+  border: 1px solid var(--ocr-line);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  box-shadow: var(--ocr-shadow-float);
 }
 
 .ocr-translate-popup-langpill.is-open-above
   .ocr-translate-popup-langpill-list {
   top: auto;
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
 }
 
 .ocr-translate-popup-langpill-list[hidden] {
   display: none;
 }
 
-/* Search box pinned above the scrolling list of options. */
 .ocr-translate-popup-langpill-search {
   box-sizing: border-box;
   width: 100%;
-  border: 1px solid rgba(100, 116, 139, 0.3);
-  border-radius: 4px;
+  border: 1px solid var(--ocr-line-control);
+  border-radius: var(--ocr-radius-control);
   padding: 7px 9px;
-  color: #152034;
-  font: inherit;
-  font-size: 14px;
+  color: var(--ocr-ink);
+  background: var(--ocr-surface-solid);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  line-height: var(--ocr-leading-ui);
 }
 
-.ocr-translate-popup-langpill-search:focus {
-  outline: none;
-  border-color: #3e7bd6;
-  box-shadow: 0 0 0 3px rgba(62, 123, 214, 0.13);
-}
-
-/* Only this inner box scrolls, so the search box stays put while filtering. */
+/* Only this scrolls, so the search box stays put while filtering. */
 .ocr-translate-popup-langpill-items {
   display: flex;
   flex-direction: column;
   max-height: 240px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .ocr-translate-popup-langpill-item {
   border: none;
-  border-radius: 4px;
-  padding: 8px 11px;
-  color: #152034;
+  border-radius: var(--ocr-radius-control);
+  padding: 7px 10px;
+  color: var(--ocr-ink);
   background: none;
-  font: inherit;
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  line-height: var(--ocr-leading-ui);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-langpill-item:hover {
-  background: #edf3fc;
+  background: var(--ocr-item-hover);
+}
+
+.ocr-translate-popup-langpill-item:active {
+  background: var(--ocr-surface-press);
 }
 
 .ocr-translate-popup-langpill-item.is-selected {
-  color: #3269bd;
+  color: var(--ocr-accent-quiet);
   font-weight: 600;
 }
+
+/* Panel body */
 
 .ocr-translate-popup-body {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  /* The panel never scrolls as a whole; the text boxes scroll internally. The
-     body fills the panel and lays its sections out as a flex column. */
+  /* The panel never scrolls as a whole; the text boxes scroll internally. */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -527,25 +738,19 @@
   gap: 8px;
 }
 
-/* The recognized-text and translation boxes split the body evenly and stretch
-   as the panel resizes. flex-basis 0 makes the split a fixed 50/50 proportion
-   regardless of how much text each one holds. */
+/* flex-basis 0 fixes the split at 50/50 whatever each box holds. */
 .ocr-translate-popup-text {
   flex: 1 1 0;
   min-height: 0;
 }
 
-/* The text box itself fills the rest of its section and scrolls internally when
-   the text is taller than the space, so the panel never grows its own scrollbar. */
 .ocr-translate-popup-text > pre,
 .ocr-translate-popup-text > .ocr-translate-popup-editable {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* Wide panel: the recognized/translation text boxes sit side by side, each
-   taking an equal share of the width and the full body height. Any non-text
-   blocks (single status messages) just stay in the row at their natural size. */
+/* Wide panel: the two text boxes sit side by side. */
 .ocr-translate-popup.is-wide .ocr-translate-popup-body {
   flex-direction: row;
   align-items: stretch;
@@ -557,9 +762,10 @@
 
 .ocr-translate-popup-section h2 {
   margin: 0;
-  font-size: 15px;
-  color: #0f172a;
+  font-size: var(--ocr-size-body);
+  color: var(--ocr-ink-strong);
   font-weight: 700;
+  letter-spacing: var(--ocr-tracking-title);
 }
 
 .ocr-translate-popup-section pre,
@@ -568,20 +774,19 @@
   max-width: 100%;
   margin: 0;
   overflow: auto;
-  border: 1px solid rgba(62, 123, 214, 0.42);
-  border-radius: 6px;
+  border: 1px solid var(--ocr-accent-border);
+  border-radius: var(--ocr-radius-control);
   padding: 14px 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 250, 252, 0.92)),
-    #f8fafc;
-  color: #07111f;
-  font: 15px/1.5 system-ui, sans-serif;
+  background: var(--ocr-field-bg);
+  color: var(--ocr-ink-strong);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-body);
+  line-height: var(--ocr-leading-body);
   white-space: pre-wrap;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  text-wrap: pretty;
+  box-shadow: var(--ocr-field-inset);
 }
 
-/* The editable recognized box is a textarea; drop its native chrome so it
-   matches the read-only <pre> and show a text caret and a focus ring. */
 .ocr-translate-popup-editable {
   display: block;
   width: 100%;
@@ -590,40 +795,31 @@
   appearance: none;
 }
 
-.ocr-translate-popup-editable:focus {
-  outline: none;
-  border-color: #3e7bd6;
-  box-shadow: 0 0 0 3px rgba(62, 123, 214, 0.15);
-}
-
-/* Locked while a translation is in flight: signal that typing is disabled. */
 .ocr-translate-popup-editable:read-only {
   cursor: default;
   opacity: 0.75;
 }
 
-/* Muted text while a re-translation is in flight. */
 .ocr-translate-popup-placeholder {
-  color: #64748b;
+  color: var(--ocr-ink-subtle);
   font-style: italic;
 }
 
-/* Centered loading state. margin: auto centers it both ways inside the flex body. */
 .ocr-translate-popup-loading {
   margin: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #475569;
+  color: var(--ocr-ink-muted);
   text-align: center;
 }
 
 .ocr-translate-popup-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #3e7bd6;
+  border: 4px solid var(--ocr-track);
+  border-top-color: var(--ocr-accent);
   border-radius: 50%;
   animation: ocr-translate-spin 0.8s linear infinite;
 }
@@ -636,15 +832,15 @@
 
 .ocr-translate-popup-loading-label {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--ocr-size-title);
+  letter-spacing: var(--ocr-tracking-title);
 }
 
-/* Recognition progress, filled by scaling the inner bar from 0 to 1. */
 .ocr-translate-popup-progress {
   width: 180px;
   height: 4px;
-  border-radius: 999px;
-  background: #e2e8f0;
+  border-radius: var(--ocr-radius-pill);
+  background: var(--ocr-track);
   overflow: hidden;
 }
 
@@ -652,7 +848,7 @@
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: #3e7bd6;
+  background: var(--ocr-accent);
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.2s ease-out;
@@ -669,10 +865,9 @@
   display: inline-flex;
   align-items: center;
   flex: none;
-  gap: 6px;
+  gap: 2px;
 }
 
-/* Heading text + its language badge, kept together on the left of the box. */
 .ocr-translate-popup-section-heading {
   display: flex;
   align-items: center;
@@ -681,21 +876,21 @@
   flex-wrap: wrap;
 }
 
-/* Static source-language badge next to "Source text". Mirrors the pill's
-   look but isn't interactive. */
 .ocr-translate-popup-langbadge {
   display: inline-flex;
   align-items: center;
   flex: none;
-  border: 1px solid rgba(232, 89, 12, 0.25);
-  border-radius: 999px;
+  border: 1px solid var(--ocr-badge-border);
+  border-radius: var(--ocr-radius-pill);
   padding: 3px 9px;
-  color: #e8590c;
-  background: #fff4ed;
-  font: 600 14px/1.4 system-ui, sans-serif;
+  color: var(--ocr-badge-ink);
+  background: var(--ocr-badge-bg);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  font-weight: 600;
+  line-height: var(--ocr-leading-ui);
 }
 
-/* Detected-language badge + source-language picker, grouped by the heading. */
 .ocr-translate-popup-recognized-extras {
   display: inline-flex;
   align-items: center;
@@ -703,8 +898,7 @@
   min-width: 0;
 }
 
-/* Translation-provider picker + target-language pill, grouped next to the
-   heading. Wraps so the two pills can stack when the panel is narrow. */
+/* Wraps so the two pills can stack when the panel is narrow. */
 .ocr-translate-popup-translation-extras {
   display: inline-flex;
   align-items: center;
@@ -718,54 +912,57 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: var(--ocr-control-h);
+  height: var(--ocr-control-h);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--ocr-radius-control);
   padding: 0;
-  color: #64748b;
+  color: var(--ocr-ink-subtle);
   background: none;
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-copy:hover {
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.06);
+  color: var(--ocr-ink-strong);
+  background: var(--ocr-surface-hover);
 }
 
-.ocr-translate-popup-copy:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.35);
-  outline-offset: 2px;
+.ocr-translate-popup-copy:active {
+  background: var(--ocr-surface-press);
 }
 
 .ocr-translate-popup-copy.is-copied {
-  color: #16a34a;
+  color: var(--ocr-success);
 }
 
 .ocr-translate-popup-speak.is-speaking {
-  color: #3e7bd6;
-  background: rgba(62, 123, 214, 0.1);
+  color: var(--ocr-accent);
+  background: var(--ocr-accent-tint);
 }
 
 .ocr-translate-popup-translate {
   min-height: 32px;
-  border: 1px solid rgba(62, 123, 214, 0.28);
-  border-radius: 6px;
+  border: 1px solid var(--ocr-accent-border);
+  border-radius: var(--ocr-radius-control);
   padding: 0 12px;
-  background: #eff5fd;
-  color: #3269bd;
-  font: 600 14px/1.4 system-ui, sans-serif;
+  background: var(--ocr-accent-fill);
+  color: var(--ocr-accent-text);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  font-weight: 600;
+  line-height: var(--ocr-leading-ui);
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    border-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-translate:hover {
-  border-color: rgba(62, 123, 214, 0.44);
-  background: #dce9fa;
-}
-
-.ocr-translate-popup-translate:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.35);
-  outline-offset: 2px;
+  border-color: var(--ocr-accent-border-hover);
+  background: var(--ocr-accent-fill-hover);
 }
 
 .ocr-translate-popup-translate:disabled {
@@ -775,10 +972,10 @@
 
 .ocr-translate-popup-message {
   margin: 0;
-  color: #334155;
+  color: var(--ocr-ink-muted);
+  text-wrap: pretty;
 }
 
-/* Error message with a leading warning icon. */
 .ocr-translate-popup-error {
   display: flex;
   align-items: flex-start;
@@ -789,34 +986,33 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  /* Match the message's line box (line-height 1.45) so the icon centers on the
-     first line of a wrapped message. */
-  height: 1.45em;
-  color: #dc2626;
+  /* Match the message's line box, so the icon centres on its first line. */
+  height: calc(var(--ocr-size-body) * var(--ocr-leading-ui));
+  color: var(--ocr-danger);
 }
 
-/* Retry action for OCR and translation failures. */
 .ocr-translate-popup-retry {
   width: max-content;
   max-width: 100%;
   min-height: 36px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--ocr-radius-control);
   padding: 0 16px;
-  background: #3e7bd6;
-  color: #ffffff;
-  font: inherit;
+  background: var(--ocr-accent-solid);
+  color: var(--ocr-on-accent);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-body);
   font-weight: 600;
   cursor: pointer;
+  transition: background-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-popup-retry:hover {
-  background: #3269bd;
+  background: var(--ocr-accent-solid-hover);
 }
 
-.ocr-translate-popup-retry:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.35);
-  outline-offset: 2px;
+.ocr-translate-popup-retry:active {
+  background: var(--ocr-accent-solid-press);
 }
 
 .ocr-translate-popup-retry:disabled {
@@ -824,7 +1020,8 @@
   cursor: default;
 }
 
-/* In-place translation overlay. */
+/* In-place translation overlay */
+
 .ocr-translate-overlay {
   position: fixed;
   inset: 0;
@@ -838,72 +1035,66 @@
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: auto;
-  /* Text at an angle gets a box tilted to match, which the script rotates about
-     its centre. Stated rather than left to the initial value, since the script
-     positions the box by that centre. */
+  /* The script positions tilted boxes by their centre. */
   transform-origin: 50% 50%;
 }
 
+/* Ring in the opposite tone, so the edge survives whatever is underneath. */
 .ocr-translate-overlay-frame-box {
-  border: 1px solid #ff2d95;
-  border-radius: 4px;
-  background: rgba(255, 45, 149, 0.02);
+  border: 1px solid var(--ocr-marker);
+  border-radius: var(--ocr-radius-box);
+  background: var(--ocr-marker-tint);
+  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   color: transparent;
-  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    border-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible,
 .ocr-translate-overlay-frame-box.is-active {
-  background: rgba(255, 45, 149, 0.12);
-  border-color: #ff2d95;
+  background: var(--ocr-marker-tint-strong);
+  border-color: var(--ocr-marker);
 }
 
-/* Only the box under the pointer or keyboard focus rises above its neighbours.
-   A box that merely holds the open popover must not: paragraphs can overlap,
-   and a parked box could block interaction with the one underneath. */
+/* Only the hovered/focused box rises: paragraphs overlap, and a box merely
+   holding the popover open would block the one underneath. */
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible {
   z-index: 2;
-}
-
-.ocr-translate-overlay-frame-box:focus-visible {
-  outline: 2px solid rgba(255, 45, 149, 0.65);
-  outline-offset: 2px;
 }
 
 .ocr-translate-overlay-translation-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* The panel truncates its own text and may hang slightly over the frame, so
-     this must not clip the way the original view's frames do. */
+  /* The panel may hang over the frame, so this must not clip. */
   overflow: visible;
-  border: 1px solid #ff2d95;
-  border-radius: 4px;
-  background: rgba(255, 45, 149, 0.02);
-  /* Softens the source text showing around the panel so it reads as picture
-     rather than as text competing with the translation. */
+  border: 1px solid var(--ocr-marker);
+  border-radius: var(--ocr-radius-box);
+  background: var(--ocr-marker-tint);
+  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   backdrop-filter: blur(3px);
   cursor: text;
   user-select: text;
-  transition: opacity 0.12s ease;
+  transition: opacity var(--ocr-duration-fast) ease;
 }
 
+/* Light in both themes: it sits on the capture, not on the page. */
 .ocr-translate-overlay-translation-text {
   box-sizing: border-box;
   max-width: 100%;
-  /* The legacy box `-webkit-line-clamp` needs. The clamp itself is set by the
-     script, since applied here it would ellipsize the very overflow the fit
-     measures and the text would look fitted at any size. */
+  /* The legacy box `-webkit-line-clamp` needs. The script sets the clamp itself:
+     here it would ellipsize the very overflow the fit measures. */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
   padding: 0.2em 0.4em;
-  border-radius: 4px;
+  border-radius: var(--ocr-radius-box);
   background: rgba(255, 255, 255, 0.97);
   color: #152034;
-  font-family: system-ui, sans-serif;
+  font-family: var(--ocr-font);
   line-height: 1.25;
   text-align: start;
   hyphens: auto;
@@ -912,42 +1103,49 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 
-/* Like the frames, only the box under the pointer or keyboard focus rises above
-   its neighbours; one merely holding the popover open must not, since the
-   painted boxes can overlap. */
 .ocr-translate-overlay-translation-box:hover,
 .ocr-translate-overlay-translation-box:focus {
   z-index: 2;
 }
 
-/* Floating panel showing the active box's texts and controls. Positioned by the
-   script below (or above) the box, which also sets max-width from the box's own
-   width and max-height from the room around it; the values here only apply until
-   it is first positioned, flush against the box so the pointer can cross onto it.
-   It captures the pointer so its text can be selected and its controls used, and
-   stays open while the pointer is on it or on its box. */
+/* The script positions this and sets its max width/height from the box and the
+   room around it; the values here apply only until it is first positioned. */
 .ocr-translate-overlay-popover {
   position: absolute;
   z-index: 3;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   max-width: min(384px, calc(100vw - 16px));
   max-height: 60vh;
   overflow: hidden;
-  padding: 6px 10px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 6px;
-  background: #fff;
-  color: #152034;
-  font-family: system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1.4;
+  padding: 8px 12px;
+  border: 1px solid var(--ocr-line);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  color: var(--ocr-ink);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-read);
+  line-height: var(--ocr-leading-body);
   text-align: start;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  box-shadow: var(--ocr-edge), var(--ocr-shadow-float);
   pointer-events: auto;
   user-select: none;
+  animation: ocr-translate-popover-in var(--ocr-duration-fast)
+    var(--ocr-ease-out);
+}
+
+@keyframes ocr-translate-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .ocr-translate-overlay-popover[hidden] {
@@ -957,17 +1155,18 @@
 .ocr-translate-overlay-popover-text {
   white-space: pre-wrap;
   overflow-wrap: break-word;
+  text-wrap: pretty;
 }
 
 .ocr-translate-overlay-popover-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 23, 42, 0.28) transparent;
+  scrollbar-color: var(--ocr-line-strong) transparent;
 }
 
 .ocr-translate-overlay-popover-row {
@@ -976,21 +1175,22 @@
   gap: 8px;
 }
 
+/* Centre the first line against the buttons, from the real line box. */
 .ocr-translate-overlay-popover-row .ocr-translate-overlay-popover-text {
   flex: 1;
   min-width: 0;
-  padding-top: 3px;
+  padding-top: max(0px, calc((var(--ocr-control-h-sm) - 1lh) / 2));
 }
 
 .ocr-translate-overlay-popover-row.is-source {
-  padding-top: 6px;
-  border-top: 1px solid rgba(148, 163, 184, 0.34);
+  padding-top: 8px;
+  border-top: 1px solid var(--ocr-line);
 }
 
 .ocr-translate-overlay-popover-row.is-source
   .ocr-translate-overlay-popover-text {
-  color: #64748b;
-  font-size: 14px;
+  color: var(--ocr-ink-subtle);
+  font-size: var(--ocr-size-ui);
 }
 
 .ocr-translate-overlay-popover-row-controls {
@@ -1009,29 +1209,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--ocr-control-h-sm);
+  height: var(--ocr-control-h-sm);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--ocr-radius-control);
   padding: 0;
-  color: #475569;
+  color: var(--ocr-ink-muted);
   background: none;
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-overlay-popover-button:hover {
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.06);
+  color: var(--ocr-ink-strong);
+  background: var(--ocr-surface-hover);
+}
+
+.ocr-translate-overlay-popover-button:active {
+  background: var(--ocr-surface-press);
 }
 
 .ocr-translate-overlay-popover-button.is-active {
-  color: #3e7bd6;
-  background: rgba(62, 123, 214, 0.14);
+  color: var(--ocr-accent);
+  background: var(--ocr-accent-tint);
 }
 
-/* An invisible copy of the recognized text, laid over the image's own glyphs one
-   OCR line at a time, so a drag selects the image text: the highlight lands on
-   the picture's characters and the DOM glyphs never paint. */
+/* An invisible, selectable copy of the recognized text laid over the image's own
+   glyphs, so a drag highlights the picture's characters. */
 .ocr-translate-overlay-text-layer {
   position: absolute;
   inset: 0;
@@ -1045,23 +1251,20 @@
   transform-origin: 0 0;
   white-space: pre;
   line-height: 1;
-  font-family: system-ui, sans-serif;
+  font-family: var(--ocr-font);
 }
 
 .ocr-translate-overlay-text-layer-line.is-vertical {
   writing-mode: vertical-rl;
 }
 
-/* Translucent, and keeps the text unpainted, so the highlight tints the image
-   glyphs underneath instead of covering them. */
 .ocr-translate-overlay-text-layer::selection,
 .ocr-translate-overlay-text-layer-line::selection {
   color: transparent;
   background: rgba(62, 123, 214, 0.4);
 }
 
-/* While a drag-select runs, only the part it started in stays selectable, so the
-   range can't spill from the popover onto the image text or the other way. */
+/* A drag stays in the part it started in, so the range can't spill across. */
 .ocr-translate-overlay.is-selecting-popover .ocr-translate-overlay-text-layer,
 .ocr-translate-overlay.is-selecting-popover
   .ocr-translate-overlay-text-layer-line,
@@ -1079,7 +1282,6 @@
   user-select: none;
 }
 
-/* Reachable by screen readers, never rendered. */
 .ocr-translate-overlay-sr-only {
   position: absolute;
   width: 1px;
@@ -1089,35 +1291,33 @@
   white-space: nowrap;
 }
 
-/* The pixels the region was recognized from, painted under the boxes. Freezing
-   them keeps the overlay matching its capture on a page that repaints
-   underneath — an animated banner, a carousel, a video. */
+/* The captured pixels, frozen so the boxes keep matching what was recognized
+   even if the page repaints underneath. */
 .ocr-translate-overlay-snapshot {
   position: absolute;
   z-index: 0;
   box-sizing: border-box;
-  border-radius: 6px;
-  /* The frozen pixels hide whatever the page is doing under them, so clicks
-     inside the region must not reach content the user can no longer see. */
+  border-radius: var(--ocr-radius-control);
+  /* Clicks must not reach content the frozen pixels now hide. */
   pointer-events: auto;
 }
 
 .ocr-translate-overlay-dim {
   position: absolute;
   box-sizing: border-box;
-  border-radius: 6px;
+  border-radius: var(--ocr-radius-control);
   background: transparent;
-  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38);
+  box-shadow: 0 0 0 9999px var(--ocr-scrim);
   pointer-events: none;
 }
 
 .ocr-translate-overlay-region {
   position: absolute;
   box-sizing: border-box;
-  border: 1px solid rgba(62, 123, 214, 0.34);
-  border-radius: 6px;
+  border: 1px solid var(--ocr-accent-border);
+  border-radius: var(--ocr-radius-control);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.55) inset,
+    0 0 0 1px var(--ocr-halo) inset,
     0 1px 8px rgba(15, 23, 42, 0.08);
   pointer-events: none;
 }
@@ -1128,13 +1328,16 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  /* Roomier than a control bar: this carries a spinner and a line of text. */
   padding: 8px 8px 8px 14px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
-  color: #152034;
-  font: 14px/1 system-ui, sans-serif;
+  border: 1px solid var(--ocr-line-strong);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  box-shadow: var(--ocr-edge), var(--ocr-shadow-float);
+  color: var(--ocr-ink);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  line-height: var(--ocr-leading-ui);
   pointer-events: auto;
 }
 
@@ -1142,8 +1345,9 @@
   flex: none;
   width: 22px;
   height: 22px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #3e7bd6;
+  /* Whole pixels: a fractional ring rounds unevenly across device ratios. */
+  border: 3px solid var(--ocr-track);
+  border-top-color: var(--ocr-accent);
   border-radius: 50%;
   animation: ocr-translate-spin 0.8s linear infinite;
 }
@@ -1153,7 +1357,6 @@
   white-space: nowrap;
 }
 
-/* The loading chip clips its progress bar to the rounded bottom edge. */
 .ocr-translate-overlay-status.is-loading {
   overflow: hidden;
 }
@@ -1164,13 +1367,13 @@
   right: 0;
   bottom: 0;
   height: 3px;
-  background: rgba(148, 163, 184, 0.28);
+  background: var(--ocr-track);
 }
 
 .ocr-translate-overlay-progress-fill {
   width: 100%;
   height: 100%;
-  background: #3e7bd6;
+  background: var(--ocr-accent);
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.2s ease-out;
@@ -1182,73 +1385,87 @@
 
 .ocr-translate-overlay-status.is-error .ocr-translate-overlay-status-label {
   white-space: normal;
-  line-height: 1.4;
+  line-height: var(--ocr-leading-ui);
+  text-wrap: pretty;
 }
 
 .ocr-translate-overlay-status-warning {
   display: inline-flex;
   flex: none;
-  color: #dc2626;
+  color: var(--ocr-danger);
 }
 
-/* Floating controls, positioned (in viewport pixels) near the selection. The
-   captured image underneath can be any color, so the edge is a strong border
-   plus a ring in the opposite tone to the panel — here a dark ring under a light
-   panel, inverted for dark mode — and one of the two always shows. */
+/* Overlay toolbar */
+
+/* The capture underneath can be any colour, so the edge is a strong border plus
+   a ring in the opposite tone. Spacing carries the grouping: 2px inside a
+   cluster, 10px between the pills and the actions. */
 .ocr-translate-overlay-toolbar {
   position: absolute;
   z-index: 3;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px;
-  border: 1px solid rgba(100, 116, 139, 0.5);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.16),
-    0 14px 32px rgba(15, 23, 42, 0.22);
-  color: #152034;
-  font: 13px/1 system-ui, sans-serif;
+  gap: 2px;
+  padding: var(--ocr-surface-pad);
+  border: 1px solid var(--ocr-line-strong);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  box-shadow: var(--ocr-edge), var(--ocr-shadow-float);
+  color: var(--ocr-ink);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  line-height: var(--ocr-leading-ui);
   pointer-events: auto;
   transform-origin: center;
-  animation: ocr-translate-toolbar-bounce-in 0.12s ease-out;
+  animation: ocr-translate-toolbar-in var(--ocr-duration) var(--ocr-ease-out);
 }
 
-@keyframes ocr-translate-toolbar-bounce-in {
-  0% {
+@keyframes ocr-translate-toolbar-in {
+  from {
     opacity: 0;
-    transform: scale(0.86);
+    transform: scale(0.96);
   }
 
-  70% {
+  to {
     opacity: 1;
-    transform: scale(1.02);
+    transform: none;
+  }
+}
+
+/* Its own motion, not the entrance reversed. */
+@keyframes ocr-translate-toolbar-out {
+  from {
+    opacity: 1;
+    transform: none;
   }
 
-  100% {
-    opacity: 1;
-    transform: scale(1);
+  to {
+    opacity: 0;
+    transform: scale(0.97);
   }
 }
 
 .ocr-translate-overlay-toolbar.is-closing {
   pointer-events: none;
-  animation: ocr-translate-toolbar-bounce-in 0.12s ease-in reverse forwards;
+  animation: ocr-translate-toolbar-out var(--ocr-duration-exit)
+    var(--ocr-ease-in) forwards;
 }
 
 .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button {
-  transition: background-color 0.06s ease, border-color 0.06s ease;
+  height: var(--ocr-control-h);
+}
+
+.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill {
+  margin-inline: 2px;
 }
 
 .ocr-translate-overlay-provider-button {
-  height: 30px;
   gap: 3px;
-  padding: 0 6px;
+  padding: 0 8px;
 }
 
 .ocr-translate-overlay-provider-label {
-  max-width: 48px;
+  max-width: 88px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1261,77 +1478,89 @@
   min-width: 100%;
 }
 
-.ocr-translate-overlay-toolbar .ocr-translate-overlay-icon-button {
-  transition: background-color 0.06s ease, color 0.06s ease;
-}
-
-.ocr-translate-overlay-toolbar .ocr-translate-popup-menu-item,
-.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-item {
-  transition: background-color 0.06s ease;
+.ocr-translate-overlay-toolbar .ocr-translate-popup-menu-list,
+.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-list {
+  box-shadow: var(--ocr-edge), var(--ocr-shadow-float);
 }
 
 .ocr-translate-overlay-retry {
   flex: none;
-  height: 30px;
+  height: var(--ocr-control-h);
   padding: 0 12px;
-  border: 1px solid rgba(62, 123, 214, 0.28);
-  border-radius: 6px;
-  background: #eff5fd;
-  color: #3269bd;
-  font: 600 13px/1 system-ui, sans-serif;
+  border: 1px solid var(--ocr-accent-border);
+  border-radius: var(--ocr-radius-control);
+  background: var(--ocr-accent-fill);
+  color: var(--ocr-accent-text);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  font-weight: 600;
+  line-height: var(--ocr-leading-ui);
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    border-color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-overlay-retry:hover {
-  border-color: rgba(62, 123, 214, 0.44);
-  background: #dce9fa;
+  border-color: var(--ocr-accent-border-hover);
+  background: var(--ocr-accent-fill-hover);
 }
 
 .ocr-translate-overlay-mode-button-wrap {
   display: inline-flex;
+  margin-inline-start: 6px;
 }
 
+/* A step above the labels: the glyph paints smaller than the letters. */
 .ocr-translate-overlay-direction {
-  color: #64748b;
-  font-size: 15px;
+  margin-inline: 2px;
+  color: var(--ocr-ink-subtle);
+  font-size: var(--ocr-size-body);
 }
 
 .ocr-translate-overlay-divider {
   width: 1px;
   align-self: stretch;
-  margin: 3px 2px;
-  background: rgba(148, 163, 184, 0.45);
+  margin: 4px 3px;
+  background: var(--ocr-line-divider);
 }
 
 .ocr-translate-overlay-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: var(--ocr-control-h);
+  height: var(--ocr-control-h);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--ocr-radius-control);
   padding: 0;
-  color: #475569;
+  color: var(--ocr-ink-muted);
   background: none;
   cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    color var(--ocr-duration-fast) ease;
 }
 
 .ocr-translate-overlay-icon-button:hover {
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.06);
+  color: var(--ocr-ink-strong);
+  background: var(--ocr-surface-hover);
+}
+
+.ocr-translate-overlay-icon-button:active {
+  background: var(--ocr-surface-press);
 }
 
 .ocr-translate-overlay-toolbar .ocr-translate-overlay-close:not(:disabled):hover {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.08);
+  color: var(--ocr-danger);
+  background: var(--ocr-danger-tint);
 }
 
 .ocr-translate-overlay-icon-button:disabled,
 .ocr-translate-overlay-icon-button:disabled:hover {
-  color: #475569;
+  color: var(--ocr-ink-muted);
   background: none;
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -1342,341 +1571,75 @@
 
 .ocr-translate-overlay-mode-button[aria-pressed="true"],
 .ocr-translate-overlay-mode-button[aria-pressed="true"]:hover {
-  color: #3e7bd6;
-  background: rgba(62, 123, 214, 0.1);
+  color: var(--ocr-accent);
+  background: var(--ocr-accent-tint);
 }
 
 .ocr-translate-overlay-menu.is-open-above .ocr-translate-popup-menu-list {
   top: auto;
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
 }
 
+/* Focus */
+
+.ocr-translate-selection-controls button:focus-visible,
+.ocr-translate-popup-icon-button:focus-visible,
+.ocr-translate-popup-menu-item:focus-visible,
+.ocr-translate-popup-langpill-button:focus-visible,
+.ocr-translate-popup-langpill-item:focus-visible,
+.ocr-translate-popup-copy:focus-visible,
+.ocr-translate-popup-translate:focus-visible,
+.ocr-translate-popup-retry:focus-visible,
+.ocr-translate-overlay-icon-button:focus-visible,
 .ocr-translate-overlay-retry:focus-visible,
-.ocr-translate-overlay-icon-button:focus-visible {
-  outline: 2px solid rgba(62, 123, 214, 0.35);
-  outline-offset: 2px;
+.ocr-translate-overlay-popover-button:focus-visible {
+  outline: var(--ocr-focus-width) solid var(--ocr-focus);
+  outline-offset: var(--ocr-focus-offset);
 }
 
-@media (prefers-color-scheme: dark) {
-  .ocr-translate-selection-rect {
-    border-color: #5b93e8;
-  }
+/* Text fields keep the native idiom: border plus ring. */
+.ocr-translate-popup-langpill-search:focus,
+.ocr-translate-popup-editable:focus {
+  outline: none;
+  border-color: var(--ocr-accent);
+  box-shadow: 0 0 0 3px var(--ocr-accent-ring);
+}
 
-  .ocr-translate-selection-handle {
-    border-color: #15191d;
-    background: #5b93e8;
-  }
+/* On the capture: a halo, so the ring survives any background. */
+.ocr-translate-selection-handle:focus-visible,
+.ocr-translate-overlay-translation-box:focus-visible {
+  outline: var(--ocr-focus-width) solid var(--ocr-focus);
+  outline-offset: var(--ocr-focus-offset);
+  box-shadow: var(--ocr-focus-halo);
+}
 
-  .ocr-translate-selection-controls {
-    border-color: rgba(148, 163, 184, 0.22);
-    background: rgba(26, 30, 34, 0.98);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
-    color: #e5edf2;
-  }
-
-  .ocr-translate-selection-size {
-    color: #a1adb8;
-  }
-
-  .ocr-translate-selection-run {
-    background: #3269bd;
-  }
-
-  .ocr-translate-selection-run:hover {
-    background: #285aa8;
-  }
-
-  .ocr-translate-selection-cancel {
-    color: #a1adb8;
-  }
-
-  .ocr-translate-selection-cancel:hover {
-    background: rgba(226, 232, 240, 0.08);
-    color: #f8fafc;
-  }
-
-  .ocr-translate-popup {
-    color-scheme: dark;
-    border-color: rgba(148, 163, 184, 0.24);
-    background:
-      linear-gradient(180deg, rgba(28, 32, 36, 0.94), rgba(18, 22, 25, 0.98)),
-      #121619;
-    color: #e5edf2;
-    box-shadow:
-      0 24px 58px rgba(0, 0, 0, 0.46),
-      0 2px 12px rgba(0, 0, 0, 0.28);
-  }
-
-  .ocr-translate-popup-resize {
-    color: #64748b;
-  }
-
-  .ocr-translate-popup-resize:hover,
-  .ocr-translate-popup-resize.is-dragging {
-    color: #5b93e8;
-  }
-
-  .ocr-translate-popup-topbar {
-    border-bottom-color: rgba(148, 163, 184, 0.18);
-    background: linear-gradient(180deg, #22272b, #171b1f);
-  }
-
-  .ocr-translate-popup-title,
-  .ocr-translate-popup-section h2 {
-    color: #f8fafc;
-  }
-
-  .ocr-translate-popup-divider {
-    background: rgba(148, 163, 184, 0.28);
-  }
-
-  .ocr-translate-popup-icon-button,
-  .ocr-translate-popup-menu-icon,
-  .ocr-translate-popup-langpill-chevron,
-  .ocr-translate-popup-copy {
-    color: #a1adb8;
-  }
-
-  .ocr-translate-popup-icon-button:hover,
-  .ocr-translate-popup-copy:hover {
-    color: #f8fafc;
-    background: rgba(226, 232, 240, 0.08);
-  }
-
-  .ocr-translate-popup-menu-list,
-  .ocr-translate-popup-langpill-list {
-    border-color: rgba(148, 163, 184, 0.22);
-    background: rgba(26, 30, 34, 0.98);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
-  }
-
-  .ocr-translate-popup-menu-item,
-  .ocr-translate-popup-langpill-item {
-    color: #e5edf2;
-  }
-
-  .ocr-translate-popup-menu-item:hover,
-  .ocr-translate-popup-langpill-item:hover {
-    background: rgba(91, 147, 232, 0.1);
-  }
-
-  .ocr-translate-popup-langpill-button,
-  .ocr-translate-popup-langpill-search,
-  .ocr-translate-popup-translate {
-    border-color: rgba(148, 163, 184, 0.28);
-    background: #1b2024;
-    color: #e5edf2;
-    box-shadow: none;
-  }
-
-  .ocr-translate-popup-langpill-button:hover,
-  .ocr-translate-popup-translate:hover {
-    border-color: rgba(91, 147, 232, 0.42);
-    background: #20272b;
-  }
-
-  .ocr-translate-popup-langpill-button:disabled,
-  .ocr-translate-popup-langpill-button:disabled:hover {
-    border-color: rgba(148, 163, 184, 0.28);
-    background: #1b2024;
-  }
-
-  .ocr-translate-popup-langpill-button:focus-visible,
-  .ocr-translate-popup-langpill-search:focus,
-  .ocr-translate-popup-translate:focus-visible {
-    border-color: #5b93e8;
-    box-shadow: 0 0 0 3px rgba(91, 147, 232, 0.12);
-  }
-
-  .ocr-translate-popup-langpill-item.is-selected {
-    color: #8ab4f3;
-  }
-
-  .ocr-translate-popup-section pre,
-  .ocr-translate-popup-section .ocr-translate-popup-editable {
-    border-color: rgba(91, 147, 232, 0.36);
-    background:
-      linear-gradient(180deg, rgba(27, 32, 36, 0.96), rgba(20, 24, 28, 0.98)),
-      #15191d;
-    color: #eef6fa;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-
-  .ocr-translate-popup-editable:focus {
-    border-color: #5b93e8;
-    box-shadow: 0 0 0 3px rgba(91, 147, 232, 0.12);
-  }
-
-  .ocr-translate-popup-placeholder,
-  .ocr-translate-popup-loading,
-  .ocr-translate-popup-message {
-    color: #a7b3bd;
-  }
-
-  .ocr-translate-popup-spinner {
-    border-color: #2a3338;
-    border-top-color: #5b93e8;
-  }
-
-  .ocr-translate-popup-progress {
-    background: #2a3338;
-  }
-
-  .ocr-translate-popup-progress-fill {
-    background: #5b93e8;
-  }
-
-  .ocr-translate-popup-langbadge {
-    border-color: rgba(91, 147, 232, 0.24);
-    color: #8ab4f3;
-    background: rgba(91, 147, 232, 0.1);
-  }
-
-  .ocr-translate-popup-copy.is-copied {
-    color: #4ade80;
-  }
-
-  .ocr-translate-popup-speak.is-speaking {
-    color: #8ab4f3;
-    background: rgba(91, 147, 232, 0.1);
-  }
-
-  .ocr-translate-popup-error-icon {
-    color: #f87171;
-  }
-
-  .ocr-translate-popup-retry {
-    background: #3269bd;
-  }
-
-  .ocr-translate-popup-retry:hover {
-    background: #285aa8;
-  }
-
-  .ocr-translate-overlay-region {
-    border-color: rgba(91, 147, 232, 0.5);
-    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.5) inset;
-  }
-
-  .ocr-translate-overlay-status {
-    border-color: rgba(148, 163, 184, 0.22);
-    background: rgba(26, 30, 34, 0.98);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
-    color: #e5edf2;
-  }
-
-  .ocr-translate-overlay-spinner {
-    border-color: rgba(226, 232, 240, 0.2);
-    border-top-color: #5b93e8;
-  }
-
-  .ocr-translate-overlay-progress {
-    background: rgba(226, 232, 240, 0.16);
-  }
-
-  .ocr-translate-overlay-progress-fill {
-    background: #5b93e8;
-  }
-
-  .ocr-translate-overlay-toolbar {
-    border-color: rgba(148, 163, 184, 0.5);
-    background: rgba(26, 30, 34, 0.98);
-    box-shadow:
-      0 0 0 1px rgba(226, 232, 240, 0.14),
-      0 18px 36px rgba(0, 0, 0, 0.5);
-    color: #e5edf2;
-  }
-
-  .ocr-translate-overlay-status-warning {
-    color: #f87171;
-  }
-
-  .ocr-translate-overlay-retry {
-    border-color: rgba(91, 147, 232, 0.32);
-    background: rgba(91, 147, 232, 0.12);
-    color: #8ab4f3;
-  }
-
-  .ocr-translate-overlay-retry:hover {
-    background: rgba(91, 147, 232, 0.2);
-  }
-
-  .ocr-translate-overlay-direction {
-    color: #94a3b8;
-  }
-
-  .ocr-translate-overlay-divider {
-    background: rgba(148, 163, 184, 0.28);
-  }
-
-  .ocr-translate-overlay-icon-button {
-    color: #a1adb8;
-  }
-
-  .ocr-translate-overlay-icon-button:hover {
-    color: #f8fafc;
-    background: rgba(226, 232, 240, 0.08);
-  }
-
-  .ocr-translate-overlay-icon-button:disabled,
-  .ocr-translate-overlay-icon-button:disabled:hover {
-    color: #a1adb8;
-    background: none;
-  }
-
-  .ocr-translate-overlay-mode-button[aria-pressed="true"],
-  .ocr-translate-overlay-mode-button[aria-pressed="true"]:hover {
-    color: #8ab4f3;
-    background: rgba(91, 147, 232, 0.12);
-  }
-
-  .ocr-translate-overlay-popover {
-    /* Native scrollbar and selection colors in the scrolling body follow this. */
-    color-scheme: dark;
-    border-color: rgba(148, 163, 184, 0.22);
-    background: rgba(26, 30, 34, 0.98);
-    color: #e5edf2;
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
-  }
-
-  .ocr-translate-overlay-popover-body {
-    scrollbar-color: rgba(226, 232, 240, 0.28) transparent;
-  }
-
-  .ocr-translate-overlay-popover-row.is-source {
-    border-color: rgba(148, 163, 184, 0.28);
-  }
-
-  .ocr-translate-overlay-popover-row.is-source
-    .ocr-translate-overlay-popover-text {
-    color: #a1adb8;
-  }
-
-  .ocr-translate-overlay-popover-button {
-    color: #a1adb8;
-  }
-
-  .ocr-translate-overlay-popover-button:hover {
-    color: #f8fafc;
-    background: rgba(226, 232, 240, 0.08);
-  }
-
-  .ocr-translate-overlay-popover-button.is-active {
-    color: #8ab4f3;
-    background: rgba(91, 147, 232, 0.16);
-  }
+.ocr-translate-overlay-frame-box:focus-visible {
+  outline: var(--ocr-focus-width) solid var(--ocr-marker);
+  outline-offset: var(--ocr-focus-offset);
+  box-shadow: var(--ocr-focus-halo);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ocr-translate-overlay-toolbar,
-  .ocr-translate-overlay-toolbar.is-closing {
+  .ocr-translate-overlay-toolbar.is-closing,
+  .ocr-translate-overlay-popover {
     animation: none;
   }
 
-  .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button,
-  .ocr-translate-overlay-toolbar .ocr-translate-overlay-icon-button,
-  .ocr-translate-overlay-toolbar .ocr-translate-popup-menu-item,
-  .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-item,
+  .ocr-translate-selection-hint,
+  .ocr-translate-selection-controls button,
+  .ocr-translate-popup-icon-button,
+  .ocr-translate-popup-menu-item,
+  .ocr-translate-popup-langpill-button,
+  .ocr-translate-popup-langpill-item,
+  .ocr-translate-popup-copy,
+  .ocr-translate-popup-translate,
+  .ocr-translate-popup-retry,
+  .ocr-translate-overlay-frame-box,
+  .ocr-translate-overlay-translation-box,
+  .ocr-translate-overlay-icon-button,
+  .ocr-translate-overlay-retry,
+  .ocr-translate-overlay-popover-button,
   .ocr-translate-overlay-progress-fill,
   .ocr-translate-popup-progress-fill {
     transition: none;
