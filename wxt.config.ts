@@ -57,9 +57,8 @@ export default defineConfig({
     },
   },
   manifest: ({ browser }) => ({
-    name: "Screen OCR Translator",
-    description:
-      "Select a screen region, extract text with OCR, and translate it.",
+    name: "__MSG_extensionName__",
+    description: "__MSG_extensionDescription__",
     default_locale: "en",
     homepage_url: "https://github.com/OPerepadia/ocr-translator-extension",
     permissions: [
@@ -75,14 +74,14 @@ export default defineConfig({
     // API and WebGPU in dedicated workers both landed earlier.
     ...(browser !== "firefox" && { minimum_chrome_version: "119" }),
     action: {
-      default_title: "Screen OCR Translator",
+      default_title: "__MSG_extensionName__",
     },
     commands: {
       _execute_action: {
         suggested_key: {
           default: "Ctrl+Shift+F",
         },
-        description: "Translate a screen region",
+        description: "__MSG_commandTranslateScreenRegion__",
       },
     },
     // Local OCR engine (PaddleOCR) compiles packaged WASM at runtime and runs in a

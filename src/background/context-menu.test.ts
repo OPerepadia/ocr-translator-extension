@@ -138,5 +138,11 @@ function createBrowserApi(overrides: {
     tabs: {
       sendMessage: overrides.sendMessage ?? vi.fn(async () => undefined),
     },
+    i18n: {
+      getMessage: (key: string) =>
+        key === "contextTranslateImage"
+          ? "Translate this image"
+          : "Translate a screen region…",
+    },
   } as unknown as BrowserApi;
 }

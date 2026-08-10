@@ -3,7 +3,6 @@ import { COMMON_TARGET_LANGUAGES } from "./translation/target-languages";
 export const OCR_PROVIDERS = [
   {
     id: "paddle",
-    label: "PP-OCR (local)",
     kind: "local",
   },
 ] as const;
@@ -15,31 +14,26 @@ export const OCR_PROVIDERS = [
 export const OCR_MODELS = [
   {
     id: "v6-multi",
-    label: "Latin / Chinese / Japanese",
     modelDir: "assets/ocr/ppocrv6-small/",
     script: "general",
   },
   {
     id: "cyrillic-v5",
-    label: "Cyrillic",
     modelDir: "assets/ocr/cyrillic-v5/",
     script: "cyrillic",
   },
   {
     id: "korean-v5",
-    label: "Korean",
     modelDir: "assets/ocr/korean-v5/",
     script: "hangul",
   },
   {
     id: "arabic-v5",
-    label: "Arabic",
     modelDir: "assets/ocr/arabic-v5/",
     script: "arabic",
   },
   {
     id: "devanagari-v5",
-    label: "Devanagari",
     modelDir: "assets/ocr/devanagari-v5/",
     script: "devanagari",
   },
@@ -51,19 +45,18 @@ export const DEFAULT_OCR_MODEL_ID: OcrModelId = "v6-multi";
 
 export interface OcrSourceLanguage {
   id: string;
-  label: string;
   sourceLang: string | "auto";
   modelId: OcrModelId;
 }
 
 function languages(
   modelId: OcrModelId,
-  entries: ReadonlyArray<readonly [id: string, label: string, sourceLang?: string]>,
+  ids: readonly string[],
+  sourceLanguages: Readonly<Record<string, string>> = {},
 ): OcrSourceLanguage[] {
-  return entries.map(([id, label, sourceLang]) => ({
+  return ids.map((id) => ({
     id,
-    label,
-    sourceLang: sourceLang ?? id,
+    sourceLang: sourceLanguages[id] ?? id,
     modelId,
   }));
 }
@@ -71,109 +64,26 @@ function languages(
 export const OCR_SOURCE_LANGUAGES: readonly OcrSourceLanguage[] = [
   {
     id: "auto",
-    label: "Auto",
     sourceLang: "auto",
     modelId: DEFAULT_OCR_MODEL_ID,
   },
   ...languages("v6-multi", [
-    ["af", "Afrikaans"],
-    ["sq", "Albanian"],
-    ["az", "Azerbaijani"],
-    ["eu", "Basque"],
-    ["bs", "Bosnian"],
-    ["ca", "Catalan"],
-    ["zh-Hans", "Chinese (Simplified)"],
-    ["zh-Hant", "Chinese (Traditional)"],
-    ["hr", "Croatian"],
-    ["cs", "Czech"],
-    ["da", "Danish"],
-    ["nl", "Dutch"],
-    ["en", "English"],
-    ["et", "Estonian"],
-    ["fi", "Finnish"],
-    ["fr", "French"],
-    ["gl", "Galician"],
-    ["de", "German"],
-    ["hu", "Hungarian"],
-    ["is", "Icelandic"],
-    ["id", "Indonesian"],
-    ["ga", "Irish"],
-    ["it", "Italian"],
-    ["ja", "Japanese"],
-    ["ku", "Kurdish"],
-    ["la", "Latin"],
-    ["lv", "Latvian"],
-    ["lt", "Lithuanian"],
-    ["lb", "Luxembourgish"],
-    ["ms", "Malay"],
-    ["mt", "Maltese"],
-    ["mi", "Maori"],
-    ["no", "Norwegian"],
-    ["oc", "Occitan"],
-    ["pl", "Polish"],
-    ["pt", "Portuguese"],
-    ["qu", "Quechua"],
-    ["ro", "Romanian"],
-    ["rm", "Romansh"],
-    ["sr-Latn", "Serbian (Latin)", "sr"],
-    ["sk", "Slovak"],
-    ["sl", "Slovenian"],
-    ["es", "Spanish"],
-    ["sw", "Swahili"],
-    ["sv", "Swedish"],
-    ["tl", "Tagalog"],
-    ["tr", "Turkish"],
-    ["uz", "Uzbek"],
-    ["vi", "Vietnamese"],
-    ["cy", "Welsh"],
-  ]),
+    "af", "sq", "az", "eu", "bs", "ca", "zh-Hans", "zh-Hant", "hr",
+    "cs", "da", "nl", "en", "et", "fi", "fr", "gl", "de", "hu",
+    "is", "id", "ga", "it", "ja", "ku", "la", "lv", "lt", "lb",
+    "ms", "mt", "mi", "no", "oc", "pl", "pt", "qu", "ro", "rm",
+    "sr-Latn", "sk", "sl", "es", "sw", "sv", "tl", "tr", "uz", "vi",
+    "cy",
+  ], { "sr-Latn": "sr" }),
   ...languages("cyrillic-v5", [
-    ["ab", "Abkhaz"],
-    ["ady", "Adyghe"],
-    ["av", "Avar"],
-    ["ba", "Bashkir"],
-    ["be", "Belarusian"],
-    ["bg", "Bulgarian"],
-    ["bua", "Buryat"],
-    ["ce", "Chechen"],
-    ["cv", "Chuvash"],
-    ["dar", "Dargwa"],
-    ["inh", "Ingush"],
-    ["kbd", "Kabardian"],
-    ["xal", "Kalmyk"],
-    ["kaa", "Karakalpak"],
-    ["kk", "Kazakh"],
-    ["kv", "Komi"],
-    ["ky", "Kyrgyz"],
-    ["lki", "Lak"],
-    ["lez", "Lezgin"],
-    ["mk", "Macedonian"],
-    ["mhr", "Mari"],
-    ["mo-Cyrl", "Moldovan (Cyrillic)", "ro"],
-    ["mn", "Mongolian"],
-    ["os", "Ossetian"],
-    ["ru", "Russian"],
-    ["sah", "Sakha"],
-    ["sr-Cyrl", "Serbian (Cyrillic)", "sr"],
-    ["tg", "Tajik"],
-    ["tt", "Tatar"],
-    ["tab", "Tabasaran"],
-    ["tyv", "Tuvan"],
-    ["udm", "Udmurt"],
-    ["uk", "Ukrainian"],
-  ]),
-  ...languages("korean-v5", [["ko", "Korean"]]),
-  ...languages("arabic-v5", [
-    ["ar", "Arabic"],
-    ["fa", "Persian"],
-    ["ps", "Pashto"],
-    ["ur", "Urdu"],
-  ]),
-  ...languages("devanagari-v5", [
-    ["hi", "Hindi"],
-    ["mr", "Marathi"],
-    ["ne", "Nepali"],
-  ]),
+    "ab", "ady", "av", "ba", "be", "bg", "bua", "ce", "cv", "dar",
+    "inh", "kbd", "xal", "kaa", "kk", "kv", "ky", "lki", "lez", "mk",
+    "mhr", "mo-Cyrl", "mn", "os", "ru", "sah", "sr-Cyrl", "tg", "tt",
+    "tab", "tyv", "udm", "uk",
+  ], { "mo-Cyrl": "ro", "sr-Cyrl": "sr" }),
+  ...languages("korean-v5", ["ko"]),
+  ...languages("arabic-v5", ["ar", "fa", "ps", "ur"]),
+  ...languages("devanagari-v5", ["hi", "mr", "ne"]),
 ];
 
 export const COMMON_OCR_SOURCE_LANGUAGES = OCR_SOURCE_LANGUAGES.filter(
@@ -225,12 +135,10 @@ export function resolveOcrModel(modelId: string | undefined) {
 export const TRANSLATION_PROVIDERS = [
   {
     id: "google",
-    label: "Google",
     kind: "remote",
   },
   {
     id: "openai",
-    label: "LLM",
     kind: "remote",
   },
 ] as const;

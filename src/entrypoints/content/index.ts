@@ -28,6 +28,12 @@ import {
 import { createRequestId } from "@/shared/request-id";
 import { sendRequest } from "@/shared/runtime-messaging";
 import {
+  t,
+  translationProviderLabel,
+  uiDirection,
+  uiLanguage,
+} from "@/shared/i18n";
+import {
   closePopup,
   resetForNewCapture,
   setOcrSourceLanguages,
@@ -76,6 +82,7 @@ import {
   startNavigationWatch,
 } from "./navigation-watch";
 import { getRenderedImageRect } from "./overlay-layout";
+import { languageName } from "./language-picker";
 import "./style.css";
 
 // Request id of the OCR/translate pipeline in flight, so status messages pushed
@@ -120,6 +127,8 @@ export default defineContentScript({
       position: "inline",
       anchor: "body",
       onMount: (container) => {
+        container.lang = uiLanguage();
+        container.dir = uiDirection();
         uiRoot = container;
         setUiRoot(container);
         setOverlayUiRoot(container);
@@ -439,7 +448,7 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
   if (wantOverlay && lastRect && !enriched.ocr.text.trim()) {
     activeView = "overlay";
     closePopup({ notify: false });
-    showOverlayError({ rect: lastRect, message: "No text detected." });
+    showOverlayError({ rect: lastRect, message: t("commonNoTextDetected") });
     return;
   }
 
@@ -452,7 +461,7 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
     closePopup({ notify: false });
     showOverlayError({
       rect: lastRect,
-      message: status.reason ?? "Translation failed.",
+      message: status.reason ?? t("commonTranslationFailed"),
       onRetry:
         targetLang && pendingText
           ? () => void runRetranslate(targetLang)
@@ -730,10 +739,14 @@ async function loadOcrSourceLanguages(): Promise<void> {
         type: "GET_OCR_SOURCE_LANGUAGES",
       });
     if (response && Array.isArray(response.languages)) {
+      const languages = response.languages.map(({ id }) => ({
+        id,
+        label: id === "auto" ? t("commonAuto") : languageName(id),
+      }));
       ocrSourceLanguagesLoaded = true;
-      ocrSourceLanguageList = response.languages;
-      setOcrSourceLanguages(response.languages, response.currentId);
-      setOverlayOcrSourceLanguages(response.languages, response.currentId);
+      ocrSourceLanguageList = languages;
+      setOcrSourceLanguages(languages, response.currentId);
+      setOverlayOcrSourceLanguages(languages, response.currentId);
     }
   } catch {
     // Leave the list empty; the picker won't show.
@@ -754,10 +767,14 @@ async function loadTranslationProviders(): Promise<void> {
         type: "GET_TRANSLATION_PROVIDERS",
       });
     if (response && Array.isArray(response.providers)) {
+      const providers = response.providers.map(({ id }) => ({
+        id,
+        label: translationProviderLabel(id),
+      }));
       translationProvidersLoaded = true;
-      translationProviderList = response.providers;
-      setTranslationProviders(response.providers, response.currentId);
-      setOverlayTranslationProviders(response.providers, response.currentId);
+      translationProviderList = providers;
+      setTranslationProviders(providers, response.currentId);
+      setOverlayTranslationProviders(providers, response.currentId);
     }
   } catch {
     // Leave the list empty; the picker won't show.

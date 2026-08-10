@@ -14,7 +14,12 @@ import {
   getDisplayMode,
   setDisplayMode,
 } from "@/shared/storage";
-import { localizeMarkedElements } from "@/shared/i18n";
+import {
+  localizeMarkedElements,
+  t,
+  translationProviderLabel,
+  uiLanguage,
+} from "@/shared/i18n";
 import type { Settings } from "@/shared/types";
 import { hasWebGpuAdapter } from "@/shared/webgpu";
 import "./index.css";
@@ -68,8 +73,8 @@ async function initOptions(): Promise<void> {
   void hasWebGpuAdapter().then((supported) => {
     elements.ocrWebGpuNote.hidden = supported;
     elements.ocrWebGpuStatus.textContent = supported
-      ? "Available"
-      : "Not available";
+      ? t("commonAvailable")
+      : t("commonNotAvailable");
     elements.ocrWebGpuStatus.classList.toggle("is-unavailable", !supported);
     elements.ocrWebGpuStatus.hidden = false;
     // A disabled checkbox is absent from FormData, so the next save also
@@ -83,7 +88,7 @@ async function initOptions(): Promise<void> {
     setDisplayMode(
       elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",
     ).then(
-      () => showStatus("Saved."),
+      () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
     );
   });
@@ -118,7 +123,7 @@ async function initOptions(): Promise<void> {
     elements.llmApiKeyInput.type = isHidden ? "text" : "password";
     elements.llmApiKeyToggle.setAttribute(
       "aria-label",
-      isHidden ? "Hide API key" : "Show API key",
+      isHidden ? t("optionsHideApiKey") : t("optionsShowApiKey"),
     );
     elements.llmApiKeyToggle.setAttribute("aria-pressed", String(isHidden));
   });
@@ -138,7 +143,7 @@ async function initOptions(): Promise<void> {
 
     try {
       await settingsRepository.set(nextSettings);
-      showStatus("Saved.");
+      showStatus(t("commonSaved"));
     } catch (error) {
       showSaveError(error);
     }
@@ -208,13 +213,13 @@ async function initOptions(): Promise<void> {
 async function loadLlmModels(elements: OptionsElements): Promise<void> {
   const baseUrl = elements.llmBaseUrlInput.value.trim();
   if (!baseUrl) {
-    elements.llmModelsStatus.textContent = "Set the endpoint URL first.";
+    elements.llmModelsStatus.textContent = t("optionsSetEndpointFirst");
     elements.llmModelsStatus.classList.add("is-error");
     return;
   }
 
   elements.llmFetchModelsButton.disabled = true;
-  elements.llmModelsStatus.textContent = "Fetching…";
+  elements.llmModelsStatus.textContent = t("optionsFetchingModels");
   elements.llmModelsStatus.classList.remove("is-error", "is-success");
   try {
     const models = await fetchAvailableModels({
@@ -228,8 +233,10 @@ async function loadLlmModels(elements: OptionsElements): Promise<void> {
     );
     elements.llmModelsStatus.textContent =
       models.length === 0
-        ? "The endpoint reported no models."
-        : `${models.length} ${models.length === 1 ? "model" : "models"} found.`;
+        ? t("optionsNoModels")
+        : models.length === 1
+          ? t("optionsOneModelFound")
+          : t("optionsModelsFound", String(models.length));
     if (models.length > 0) {
       elements.llmModelsStatus.classList.add("is-success");
     }
@@ -246,7 +253,7 @@ async function testConnection(elements: OptionsElements): Promise<void> {
   const llm = readLlmSettings(new FormData(elements.form));
 
   elements.llmTestConnectionButton.disabled = true;
-  elements.llmModelsStatus.textContent = "Testing connection…";
+  elements.llmModelsStatus.textContent = t("optionsTestingConnection");
   elements.llmModelsStatus.classList.remove("is-error", "is-success");
   try {
     await testLlmConnection({
@@ -256,7 +263,7 @@ async function testConnection(elements: OptionsElements): Promise<void> {
       disableThinking: llm?.disableThinking,
       timeoutMs: llm?.timeoutMs,
     });
-    elements.llmModelsStatus.textContent = "Connected";
+    elements.llmModelsStatus.textContent = t("commonConnected");
     elements.llmModelsStatus.classList.add("is-success");
   } catch (error) {
     elements.llmModelsStatus.textContent =
@@ -280,13 +287,13 @@ function fillLlmModelSelect(
   if (!selected) {
     const placeholder = document.createElement("option");
     placeholder.value = "";
-    placeholder.textContent = "(not set)";
+    placeholder.textContent = t("commonNotSet");
     placeholder.selected = true;
     select.append(placeholder);
   } else if (!models.includes(selected)) {
     const current = document.createElement("option");
     current.value = selected;
-    current.textContent = `${selected} (current)`;
+    current.textContent = t("commonCurrentValue", selected);
     current.selected = true;
     select.append(current);
   }
@@ -332,7 +339,6 @@ function fillProviderSelect(
   select: HTMLSelectElement,
   providers: ReadonlyArray<{
     id: string;
-    label: string;
     disabled?: boolean;
   }>,
   selectedProviderId: string,
@@ -340,7 +346,7 @@ function fillProviderSelect(
   for (const provider of providers) {
     const option = document.createElement("option");
     option.value = provider.id;
-    option.textContent = provider.label;
+    option.textContent = translationProviderLabel(provider.id);
     option.disabled = provider.disabled === true;
     option.selected = provider.id === selectedProviderId;
     select.append(option);
@@ -365,7 +371,7 @@ function fillTargetLanguageSelect(
   if (!hasSelectedLanguage) {
     const option = document.createElement("option");
     option.value = selectedLang;
-    option.textContent = `${selectedLang} (current)`;
+    option.textContent = t("commonCurrentValue", selectedLang);
     option.selected = true;
     select.prepend(option);
   }
@@ -373,7 +379,9 @@ function fillTargetLanguageSelect(
 
 function getTargetLanguages(): Array<{ code: string; name: string }> {
   const languages = new Map<string, string>();
-  const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
+  const displayNames = new Intl.DisplayNames([uiLanguage()], {
+    type: "language",
+  });
   for (const code of COMMON_TARGET_LANGUAGES) {
     languages.set(code, languages.get(code) ?? displayNames.of(code) ?? code);
   }
@@ -385,7 +393,7 @@ function getTargetLanguages(): Array<{ code: string; name: string }> {
 
 function showSaveError(error: unknown): void {
   const detail = error instanceof Error ? error.message : String(error);
-  showStatus(`Couldn't save settings (${detail}).`, { isError: true });
+  showStatus(t("optionsSaveFailed", detail), { isError: true });
 }
 
 function showStatus(

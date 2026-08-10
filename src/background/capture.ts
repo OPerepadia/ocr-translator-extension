@@ -1,11 +1,12 @@
 import { browserApi } from "../shared/browser";
 import { cropBitmapToBlob, dataUrlToImageBitmap } from "../shared/image";
+import { t } from "../shared/i18n";
 import type { Rect, Viewport } from "../shared/types";
 
 export async function loadImage(url: string): Promise<Blob> {
   const response = await fetch(url, { credentials: "include" });
   if (!response.ok) {
-    throw new Error(`Could not load image (${response.status}).`);
+    throw new Error(t("errorCouldNotLoadImage", String(response.status)));
   }
   return response.blob();
 }
@@ -41,7 +42,7 @@ export async function captureVisibleArea(args: {
     );
 
     if (right <= left || bottom <= top) {
-      throw new Error("Selection is outside the visible area.");
+      throw new Error(t("errorSelectionOutsideVisibleArea"));
     }
 
     return await cropBitmapToBlob(bitmap, {

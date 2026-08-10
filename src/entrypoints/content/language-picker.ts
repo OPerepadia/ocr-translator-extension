@@ -1,4 +1,5 @@
 import type { LangCode } from "@/shared/types";
+import { t, uiLanguage } from "@/shared/i18n";
 
 export const CHEVRON_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">' +
@@ -34,7 +35,7 @@ export function createLanguagePill(args: {
   button.setAttribute("aria-expanded", "false");
   button.title = args.title
     ? args.title(currentName)
-    : `Target language: ${currentName}`;
+    : t("languageTargetTitle", currentName);
 
   const label = document.createElement("span");
   label.textContent = currentName;
@@ -70,8 +71,8 @@ export function createLanguagePill(args: {
   if (search) {
     search.type = "text";
     search.className = "ocr-translate-popup-langpill-search";
-    search.placeholder = "Search...";
-    search.setAttribute("aria-label", "Search languages");
+    search.placeholder = t("languageSearchPlaceholder");
+    search.setAttribute("aria-label", t("languageSearchLabel"));
     list.append(search);
   }
 
@@ -163,7 +164,7 @@ export function createLanguagePill(args: {
 
 export function languageName(code: string): string {
   try {
-    const display = new Intl.DisplayNames([navigator.language || "en"], {
+    const display = new Intl.DisplayNames([uiLanguage()], {
       type: "language",
     });
     return display.of(code) ?? code;

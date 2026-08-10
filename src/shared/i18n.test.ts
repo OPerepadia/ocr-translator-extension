@@ -1,0 +1,66 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { extname, join, resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import englishMessages from "../public/_locales/en/messages.json";
+import ukrainianMessages from "../public/_locales/uk/messages.json";
+
+type MessageCatalog = Record<string, { message: string }>;
+
+const english = englishMessages as MessageCatalog;
+const ukrainian = ukrainianMessages as MessageCatalog;
+
+function sourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      return sourceFiles(path);
+    }
+    return [".html", ".ts"].includes(extname(path)) &&
+      !path.endsWith(".test.ts")
+      ? [path]
+      : [];
+  });
+}
+
+function referencedKeys(): Set<string> {
+  const root = resolve(import.meta.dirname, "..");
+  const files = [...sourceFiles(root), resolve(root, "../wxt.config.ts")];
+  const keys = new Set<string>();
+  const patterns = [
+    /\b(?:t|messageKey):?\s*\(?(?:\s*)?["']([^"']+)["']/g,
+    /\.getMessage\(\s*["']([^"']+)["']/g,
+    /data-i18n(?:-[\w-]+)?=["']([^"']+)["']/g,
+    /__MSG_([A-Za-z0-9_]+)__/g,
+  ];
+
+  for (const file of files) {
+    const source = readFileSync(file, "utf8");
+    for (const pattern of patterns) {
+      for (const match of source.matchAll(pattern)) {
+        if (match[1] && !match[1].startsWith("@@")) {
+          keys.add(match[1]);
+        }
+      }
+    }
+  }
+  return keys;
+}
+
+describe("localization catalogs", () => {
+  it("defines every referenced message in English", () => {
+    const missing = [...referencedKeys()].filter((key) => !english[key]);
+    expect(missing).toEqual([]);
+  });
+
+  it("contains no empty English messages", () => {
+    const empty = Object.entries(english)
+      .filter(([, value]) => !value.message)
+      .map(([key]) => key);
+    expect(empty).toEqual([]);
+  });
+
+  it("keeps Ukrainian keys within the English source catalog", () => {
+    const unknown = Object.keys(ukrainian).filter((key) => !english[key]);
+    expect(unknown).toEqual([]);
+  });
+});

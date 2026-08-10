@@ -93,6 +93,7 @@ export interface BrowserApi {
   };
   i18n: {
     getMessage(messageName: string, substitutions?: string | string[]): string;
+    getUILanguage(): string;
     // Firefox's built-in (local) language detector (CLD). No permission needed.
     detectLanguage(text: string): Promise<{
       isReliable: boolean;

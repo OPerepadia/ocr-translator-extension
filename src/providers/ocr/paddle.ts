@@ -1,4 +1,5 @@
 import type { PipelineOcrResult } from "../../shared/types";
+import { t } from "../../shared/i18n";
 import {
   deserializeError,
   type WorkerLike,
@@ -118,7 +119,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
       worker = createWorker();
       worker.onmessage = (event) => routeResponse(event.data);
       worker.onerror = (event) =>
-        failAll(new Error(event.message || "PP-OCRv6 worker crashed."));
+        failAll(new Error(event.message || t("errorOcrWorkerCrashed")));
     }
     return worker;
   }
@@ -203,7 +204,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
           timeout = setTimeout(() => {
             failAll(
               userFacingRecognitionError(
-                new Error("Text recognition stopped responding."),
+                new Error(t("errorRecognitionStoppedResponding")),
                 backend,
               ),
             );
@@ -278,8 +279,11 @@ function userFacingRecognitionError(
       error.name === "OperationError")
   ) {
     return new Error(
-      "OCR failed: Insufficient memory. Free up GPU memory or disable GPU acceleration in settings."
+      t("errorOcrInsufficientMemory"),
     );
+  }
+  if (/OCR host stopped responding/i.test(error.message)) {
+    return new Error(t("errorOcrHostStoppedResponding"));
   }
   return error;
 }

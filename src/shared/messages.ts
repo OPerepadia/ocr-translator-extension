@@ -113,12 +113,12 @@ export type RuntimeMessage =
     };
 
 export interface OcrSourceLanguagesResponse {
-  languages: Array<{ id: string; label: string }>;
+  languages: Array<{ id: string }>;
   currentId: string;
 }
 
 export interface TranslationProvidersResponse {
-  providers: Array<{ id: string; label: string }>;
+  providers: Array<{ id: string }>;
   currentId: string;
 }
 

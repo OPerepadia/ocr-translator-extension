@@ -10,9 +10,6 @@ const UNSUPPORTED_ACTIVATION_PROTOCOLS = new Set([
   "view-source:",
 ]);
 
-export const UNSUPPORTED_ACTIVATION_MESSAGE =
-  "This browser page is restricted, so the extension can't access it. Try it on a regular web page.";
-
 export function isActivationPageSupported(url: string | undefined): boolean {
   if (!url) {
     return true;

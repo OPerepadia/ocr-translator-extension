@@ -1,4 +1,5 @@
 import type { LangCode } from "../../shared/types";
+import { t } from "../../shared/i18n";
 import { RemoteTranslationError } from "./errors";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
 import type { TranslationProvider } from "./types";
@@ -73,15 +74,13 @@ export function createOpenAiTranslationProvider(
       const baseUrl = config.llm?.baseUrl?.trim();
       if (!baseUrl) {
         throw new RemoteTranslationError(
-          "The LLM provider has no endpoint configured. Set the endpoint URL " +
-            "(e.g. http://localhost:8080/v1 for a local server) on the " +
-            "extension's settings page.",
+          t("errorLlmEndpointNotConfigured"),
         );
       }
       const urlProblem = baseUrlProblem(baseUrl);
       if (urlProblem) {
         throw new RemoteTranslationError(
-          `${urlProblem} Fix the endpoint URL on the extension's settings page.`,
+          t("errorLlmFixEndpoint", urlProblem),
         );
       }
 
@@ -140,7 +139,7 @@ export function createOpenAiTranslationProvider(
 
       if (!parsed.translations) {
         throw new RemoteTranslationError(
-          "The LLM returned an invalid translation format after a retry. ",
+          t("errorLlmInvalidTranslationFormat"),
         );
       }
 
@@ -238,14 +237,11 @@ async function requestChatCompletion(args: {
     }
     if (timedOut) {
       throw new RemoteTranslationError(
-        `The LLM did not answer within ${Math.round(args.timeoutMs / 1000)}s. ` +
-          "The model may be slow — try again, or switch to another " +
-          "translation provider.",
+        t("errorLlmTimeout", String(Math.round(args.timeoutMs / 1000))),
       );
     }
     throw new RemoteTranslationError(
-      `Couldn't reach the LLM endpoint (${describeError(error)}). Please check ` +
-        "your configuration and make sure the server is running.",
+      t("errorLlmUnreachable", describeError(error)),
     );
   } finally {
     clearTimeout(timer);
@@ -255,9 +251,10 @@ async function requestChatCompletion(args: {
   if (!response.ok) {
     const detail = extractApiErrorMessage(raw);
     throw new RemoteTranslationError(
-      `LLM request failed (HTTP ${response.status}${
-        detail ? `: ${detail}` : ""
-      }). Check the endpoint, API key, and model in settings.`,
+      t(
+        "errorLlmRequest",
+        `${response.status}${detail ? `: ${detail}` : ""}`,
+      ),
     );
   }
 
@@ -266,8 +263,7 @@ async function requestChatCompletion(args: {
     data = JSON.parse(raw);
   } catch {
     throw new RemoteTranslationError(
-      "The LLM endpoint returned an unexpected response. Check that the URL " +
-        "points to an OpenAI-compatible API (usually ending in /v1).",
+      t("errorLlmUnexpectedResponse"),
     );
   }
 
@@ -278,8 +274,7 @@ async function requestChatCompletion(args: {
   const content = message?.content;
   if (typeof content !== "string" || content.trim() === "") {
     throw new RemoteTranslationError(
-      "The LLM returned an empty response. Try again, or check the model " +
-        "name in settings.",
+      t("errorLlmEmptyResponse"),
     );
   }
   return content;
@@ -320,16 +315,17 @@ export async function fetchAvailableModels(args: {
       signal: AbortSignal.timeout(args.timeoutMs ?? MODELS_TIMEOUT_MS),
     });
   } catch (error) {
-    throw new Error(`Couldn't reach the endpoint (${describeError(error)}).`);
+    throw new Error(t("errorEndpointUnreachable", describeError(error)));
   }
 
   const raw = await response.text();
   if (!response.ok) {
     const detail = extractApiErrorMessage(raw);
     throw new Error(
-      `The endpoint answered with HTTP ${response.status}${
-        detail ? `: ${detail}` : ""
-      }.`,
+      t(
+        "errorEndpointHttp",
+        `${response.status}${detail ? `: ${detail}` : ""}`,
+      ),
     );
   }
 
@@ -346,8 +342,7 @@ export async function fetchAvailableModels(args: {
     : (data as { data?: unknown } | undefined)?.data;
   if (!Array.isArray(list)) {
     throw new Error(
-      "The endpoint didn't return a model list. Check that the URL points " +
-        "to an OpenAI-compatible API (usually ending in /v1).",
+      t("errorEndpointNoModelList"),
     );
   }
 
@@ -376,7 +371,7 @@ export async function testLlmConnection(args: {
 }): Promise<void> {
   const baseUrl = args.baseUrl.trim();
   if (!baseUrl) {
-    throw new Error("Set the endpoint URL first.");
+    throw new Error(t("optionsSetEndpointFirst"));
   }
   const urlProblem = baseUrlProblem(baseUrl);
   if (urlProblem) {
@@ -403,16 +398,13 @@ export function baseUrlProblem(baseUrl: string): string | undefined {
   try {
     url = new URL(baseUrl);
   } catch {
-    return (
-      "The LLM endpoint URL is not a valid absolute URL " +
-      "(e.g. http://localhost:8080/v1)."
-    );
+    return t("errorLlmInvalidAbsoluteUrl");
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return "The LLM endpoint URL must start with http:// or https://.";
+    return t("errorLlmHttpProtocol");
   }
   if (url.search || url.hash) {
-    return "The LLM endpoint URL must not contain a query string or fragment.";
+    return t("errorLlmNoQueryOrFragment");
   }
   return undefined;
 }

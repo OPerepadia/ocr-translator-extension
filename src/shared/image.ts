@@ -1,4 +1,5 @@
 import type { EncodedImage, Rect } from "./types";
+import { t } from "./i18n";
 
 /**
  * Decode a data URL (e.g. from tabs.captureVisibleTab) into an ImageBitmap.
@@ -30,7 +31,7 @@ export async function cropBitmapToBlob(
   const context = canvas.getContext("2d");
 
   if (!context) {
-    throw new Error("Could not create OffscreenCanvas 2D context.");
+    throw new Error(t("errorCanvasContext"));
   }
 
   context.drawImage(
@@ -102,7 +103,7 @@ export async function encodeSnapshot(
     const context = canvas.getContext("2d");
 
     if (!context) {
-      throw new Error("Could not create OffscreenCanvas 2D context.");
+      throw new Error(t("errorCanvasContext"));
     }
 
     context.drawImage(bitmap, 0, 0, size.width, size.height);
@@ -122,7 +123,7 @@ async function encodeCanvas(canvas: OffscreenCanvas): Promise<Blob> {
     }
   }
   if (!encoded) {
-    throw new Error("Could not encode the captured image.");
+    throw new Error(t("errorEncodeCapturedImage"));
   }
   return encoded;
 }

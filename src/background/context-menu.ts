@@ -11,13 +11,13 @@ export function startContextMenu(api: BrowserApi = browserApi): void {
   api.runtime.onInstalled.addListener(() => {
     api.contextMenus.create({
       id: START_SELECTION_MENU_ID,
-      title: "Translate a screen region…",
+      title: api.i18n.getMessage("contextTranslateScreenRegion"),
       contexts: ["page"],
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
     api.contextMenus.create({
       id: TRANSLATE_IMAGE_MENU_ID,
-      title: "Translate this image",
+      title: api.i18n.getMessage("contextTranslateImage"),
       contexts: ["image"],
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });

@@ -1,4 +1,105 @@
 {
+  "extensionName": {
+    "message": "Screen OCR Translator",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Select a screen region, extract text with OCR, and translate it.",
+    "description": "Extension description"
+  },
+  "commandTranslateScreenRegion": {
+    "message": "Translate a screen region"
+  },
+  "contextTranslateScreenRegion": {
+    "message": "Translate a screen region…"
+  },
+  "contextTranslateImage": {
+    "message": "Translate this image"
+  },
+  "providerGoogle": {
+    "message": "Google"
+  },
+  "providerLlm": {
+    "message": "LLM"
+  },
+  "commonSettings": {
+    "message": "Settings"
+  },
+  "commonClose": {
+    "message": "Close"
+  },
+  "commonDismiss": {
+    "message": "Dismiss"
+  },
+  "commonMenu": {
+    "message": "Menu"
+  },
+  "commonRetry": {
+    "message": "Retry"
+  },
+  "commonCancel": {
+    "message": "Cancel"
+  },
+  "commonCopy": {
+    "message": "Copy"
+  },
+  "commonTranslate": {
+    "message": "Translate"
+  },
+  "commonReadAloud": {
+    "message": "Read aloud"
+  },
+  "commonStopSpeaking": {
+    "message": "Stop speaking"
+  },
+  "commonUnknown": {
+    "message": "Unknown"
+  },
+  "commonAuto": {
+    "message": "Auto"
+  },
+  "commonNotSet": {
+    "message": "(not set)"
+  },
+  "commonCurrentValue": {
+    "message": "$1 (current)"
+  },
+  "commonAvailable": {
+    "message": "Available"
+  },
+  "commonNotAvailable": {
+    "message": "Not available"
+  },
+  "commonSaved": {
+    "message": "Saved."
+  },
+  "commonConnected": {
+    "message": "Connected"
+  },
+  "commonTranslationFailed": {
+    "message": "Translation failed."
+  },
+  "commonNoTextDetected": {
+    "message": "No text detected."
+  },
+  "statusInitializingOcr": {
+    "message": "Initializing OCR engine…"
+  },
+  "statusRecognizingText": {
+    "message": "Recognizing text…"
+  },
+  "statusAnalyzingImage": {
+    "message": "Analyzing image…"
+  },
+  "statusTranslating": {
+    "message": "Translating…"
+  },
+  "optionsPageTitle": {
+    "message": "Screen OCR Translator Options"
+  },
+  "offscreenPageTitle": {
+    "message": "Screen OCR Translator OCR host"
+  },
   "optionsTranslationSectionTitle": {
     "message": "Translation",
     "description": "Heading for the translation settings section"
@@ -10,5 +111,281 @@
   "optionsTranslationProvider": {
     "message": "Translation provider",
     "description": "Label for the translation provider selector"
+  },
+  "optionsGoogleProviderHint": {
+    "message": "No API key is required. Rate limits may apply."
+  },
+  "optionsLlmEndpoint": {
+    "message": "LLM endpoint"
+  },
+  "optionsLlmEndpointHint": {
+    "message": "Any OpenAI-compatible server: OpenAI, OpenRouter, or local llama.cpp / Ollama / LM Studio."
+  },
+  "optionsEndpointUrl": {
+    "message": "Endpoint URL"
+  },
+  "optionsApiKey": {
+    "message": "API key"
+  },
+  "optionsOptional": {
+    "message": "Optional"
+  },
+  "optionsShowApiKey": {
+    "message": "Show API key"
+  },
+  "optionsHideApiKey": {
+    "message": "Hide API key"
+  },
+  "optionsModel": {
+    "message": "Model"
+  },
+  "optionsFetchModels": {
+    "message": "Fetch models"
+  },
+  "optionsRequestTimeout": {
+    "message": "Request timeout"
+  },
+  "optionsSeconds": {
+    "message": "seconds"
+  },
+  "optionsDisableModelThinking": {
+    "message": "Disable model thinking"
+  },
+  "optionsDisableModelThinkingHint": {
+    "message": "Faster answers from reasoning models. Works with llama.cpp/vLLM. WARNING: this setting is not supported by api.openai.com/v1 endpoint."
+  },
+  "optionsTestConnection": {
+    "message": "Test connection"
+  },
+  "optionsOcrSectionTitle": {
+    "message": "OCR"
+  },
+  "optionsGpuAcceleration": {
+    "message": "GPU acceleration"
+  },
+  "optionsGpuHint": {
+    "message": "Speeds up text recognition using WebGPU. Falls back to the CPU automatically."
+  },
+  "optionsSee": {
+    "message": "See"
+  },
+  "optionsEnableWebGpuLink": {
+    "message": "how to enable WebGPU in Firefox"
+  },
+  "optionsDisplaySectionTitle": {
+    "message": "Display"
+  },
+  "optionsDefaultDisplayMode": {
+    "message": "Default display mode"
+  },
+  "optionsDisplayModeOverlay": {
+    "message": "Overlay (on the selected region)"
+  },
+  "optionsDisplayModePanel": {
+    "message": "Panel (bottom-right corner)"
+  },
+  "optionsDisplayHint": {
+    "message": "Where the translated text appears after capture."
+  },
+  "optionsSetEndpointFirst": {
+    "message": "Set the endpoint URL first."
+  },
+  "optionsFetchingModels": {
+    "message": "Fetching…"
+  },
+  "optionsNoModels": {
+    "message": "The endpoint reported no models."
+  },
+  "optionsOneModelFound": {
+    "message": "1 model found."
+  },
+  "optionsModelsFound": {
+    "message": "$1 models found."
+  },
+  "optionsTestingConnection": {
+    "message": "Testing connection…"
+  },
+  "optionsSaveFailed": {
+    "message": "Couldn't save settings ($1)."
+  },
+  "popupStartingSelection": {
+    "message": "Starting selection..."
+  },
+  "popupOpenAddonSettings": {
+    "message": "Open add-on settings"
+  },
+  "popupRestrictedPage": {
+    "message": "This browser page is restricted, so the extension can't access it. Try it on a regular web page."
+  },
+  "popupCouldNotStart": {
+    "message": "Screen OCR Translator could not start on this page."
+  },
+  "popupLocalFilePermission": {
+    "message": "This extension needs permission to access local files. In add-on settings, select “Permissions and data” and enable “Access local files on your computer”, then reload this file."
+  },
+  "popupCouldNotOpenSettings": {
+    "message": "Could not open add-on settings. Open about:addons manually."
+  },
+  "selectionDragArea": {
+    "message": "Drag to select an area"
+  },
+  "selectionPressKeyToCancel": {
+    "message": "Press $1 to cancel"
+  },
+  "selectionResize": {
+    "message": "Resize selection"
+  },
+  "selectionRunOcr": {
+    "message": "Run OCR"
+  },
+  "languageTargetTitle": {
+    "message": "Target language: $1"
+  },
+  "languageSearchPlaceholder": {
+    "message": "Search..."
+  },
+  "languageSearchLabel": {
+    "message": "Search languages"
+  },
+  "panelSelectNewRegion": {
+    "message": "Select new region"
+  },
+  "panelResize": {
+    "message": "Resize panel"
+  },
+  "panelShowInOverlay": {
+    "message": "Show in overlay"
+  },
+  "panelDetectedLanguage": {
+    "message": "Detected language: $1"
+  },
+  "panelLanguageNotDetected": {
+    "message": "Language not detected"
+  },
+  "panelSourceLanguage": {
+    "message": "Source language: $1"
+  },
+  "panelTranslationProvider": {
+    "message": "Translation provider: $1"
+  },
+  "panelSourceText": {
+    "message": "Source text"
+  },
+  "panelAlreadyInLanguage": {
+    "message": "The text is already in $1."
+  },
+  "panelAlreadyInTargetLanguage": {
+    "message": "The text is already in the target language."
+  },
+  "overlayTranslationUnavailable": {
+    "message": "Translation unavailable"
+  },
+  "overlayAlreadyInTargetLanguage": {
+    "message": "The text is already in the target language"
+  },
+  "overlayToggleTranslation": {
+    "message": "Toggle translation overlay"
+  },
+  "overlayCopyAllOriginal": {
+    "message": "Copy all original text"
+  },
+  "overlayCopyAllTranslated": {
+    "message": "Copy all translated text"
+  },
+  "overlayReadAllOriginal": {
+    "message": "Read all original text"
+  },
+  "overlayReadAllTranslated": {
+    "message": "Read all translated text"
+  },
+  "overlayCopyAllText": {
+    "message": "Copy all text"
+  },
+  "overlayReadAllText": {
+    "message": "Read all text"
+  },
+  "overlayShowInPanel": {
+    "message": "Show in panel"
+  },
+  "overlayRecognizedAndTranslatedText": {
+    "message": "Recognized and translated text"
+  },
+  "overlayCopyText": {
+    "message": "Copy text"
+  },
+  "errorGoogleTranslateTimeout": {
+    "message": "Google Translate timed out after $1s. Try again, or switch to the local translation provider."
+  },
+  "errorGoogleTranslateUnreachable": {
+    "message": "Couldn't reach Google Translate ($1). Check your internet connection, or switch to the local translation provider."
+  },
+  "errorGoogleTranslateRequest": {
+    "message": "Google Translate request failed (HTTP $1). Try again later, or switch to the local translation provider."
+  },
+  "errorLlmEndpointNotConfigured": {
+    "message": "The LLM provider has no endpoint configured. Set the endpoint URL (e.g. http://localhost:8080/v1 for a local server) on the extension's settings page."
+  },
+  "errorLlmFixEndpoint": {
+    "message": "$1 Fix the endpoint URL on the extension's settings page."
+  },
+  "errorLlmInvalidTranslationFormat": {
+    "message": "The LLM returned an invalid translation format after a retry."
+  },
+  "errorLlmTimeout": {
+    "message": "The LLM did not answer within $1s. The model may be slow — try again, or switch to another translation provider."
+  },
+  "errorLlmUnreachable": {
+    "message": "Couldn't reach the LLM endpoint ($1). Please check your configuration and make sure the server is running."
+  },
+  "errorLlmRequest": {
+    "message": "LLM request failed (HTTP $1). Check the endpoint, API key, and model in settings."
+  },
+  "errorLlmUnexpectedResponse": {
+    "message": "The LLM endpoint returned an unexpected response. Check that the URL points to an OpenAI-compatible API (usually ending in /v1)."
+  },
+  "errorLlmEmptyResponse": {
+    "message": "The LLM returned an empty response. Try again, or check the model name in settings."
+  },
+  "errorEndpointUnreachable": {
+    "message": "Couldn't reach the endpoint ($1)."
+  },
+  "errorEndpointHttp": {
+    "message": "The endpoint answered with HTTP $1."
+  },
+  "errorEndpointNoModelList": {
+    "message": "The endpoint didn't return a model list. Check that the URL points to an OpenAI-compatible API (usually ending in /v1)."
+  },
+  "errorLlmInvalidAbsoluteUrl": {
+    "message": "The LLM endpoint URL is not a valid absolute URL (e.g. http://localhost:8080/v1)."
+  },
+  "errorLlmHttpProtocol": {
+    "message": "The LLM endpoint URL must start with http:// or https://."
+  },
+  "errorLlmNoQueryOrFragment": {
+    "message": "The LLM endpoint URL must not contain a query string or fragment."
+  },
+  "errorCouldNotLoadImage": {
+    "message": "Could not load image ($1)."
+  },
+  "errorSelectionOutsideVisibleArea": {
+    "message": "Selection is outside the visible area."
+  },
+  "errorCanvasContext": {
+    "message": "Could not create an image-processing canvas."
+  },
+  "errorEncodeCapturedImage": {
+    "message": "Could not encode the captured image."
+  },
+  "errorOcrWorkerCrashed": {
+    "message": "The OCR worker crashed."
+  },
+  "errorRecognitionStoppedResponding": {
+    "message": "Text recognition stopped responding."
+  },
+  "errorOcrInsufficientMemory": {
+    "message": "OCR failed: Insufficient memory. Free up GPU memory or disable GPU acceleration in settings."
+  },
+  "errorOcrHostStoppedResponding": {
+    "message": "The OCR host stopped responding."
   }
 }

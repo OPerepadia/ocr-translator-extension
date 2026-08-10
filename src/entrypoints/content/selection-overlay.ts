@@ -1,4 +1,5 @@
 import type { Rect } from "@/shared/types";
+import { t } from "@/shared/i18n";
 
 interface Point {
   x: number;
@@ -58,10 +59,19 @@ export function startSelectionOverlay(
 
     const hint = document.createElement("div");
     hint.className = "ocr-translate-selection-hint";
-    hint.innerHTML =
-      "Drag to select an area" +
-      '<br><span class="ocr-translate-selection-hint-sub">Press ' +
-      '<kbd class="ocr-translate-selection-hint-kbd">Esc</kbd> to cancel</span>';
+    hint.append(t("selectionDragArea"), document.createElement("br"));
+    const hintSub = document.createElement("span");
+    hintSub.className = "ocr-translate-selection-hint-sub";
+    const keyMarker = "__KEY__";
+    const [beforeKey, afterKey] = t(
+      "selectionPressKeyToCancel",
+      keyMarker,
+    ).split(keyMarker);
+    const key = document.createElement("kbd");
+    key.className = "ocr-translate-selection-hint-kbd";
+    key.textContent = "Esc";
+    hintSub.append(beforeKey ?? "", key, afterKey ?? "");
+    hint.append(hintSub);
     overlay.append(hint);
 
     const selection = document.createElement("div");
@@ -71,7 +81,7 @@ export function startSelectionOverlay(
       button.type = "button";
       button.className = `ocr-translate-selection-handle is-${handle}`;
       button.dataset.handle = handle;
-      button.setAttribute("aria-label", "Resize selection");
+      button.setAttribute("aria-label", t("selectionResize"));
       selection.append(button);
     }
     overlay.append(selection);
@@ -87,12 +97,12 @@ export function startSelectionOverlay(
     const runButton = document.createElement("button");
     runButton.type = "button";
     runButton.className = "ocr-translate-selection-run";
-    runButton.textContent = "Run OCR";
+    runButton.textContent = t("selectionRunOcr");
 
     const cancelButton = document.createElement("button");
     cancelButton.type = "button";
     cancelButton.className = "ocr-translate-selection-cancel";
-    cancelButton.textContent = "Cancel";
+    cancelButton.textContent = t("commonCancel");
 
     controls.append(sizeLabel, runButton, cancelButton);
     overlay.append(controls);
