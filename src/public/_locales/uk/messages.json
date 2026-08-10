@@ -4,7 +4,7 @@
     "description": "Назва розширення"
   },
   "extensionDescription": {
-    "message": "Дозволяє розпізнавати та перекладати текст на зображеннях або в будь-якій частині вебсторінки.",
+    "message": "Розпізнавайте та перекладайте текст на зображеннях або в будь-якій частині вебсторінки.",
     "description": "Опис розширення"
   },
   "commandTranslateScreenRegion": {
@@ -141,6 +141,9 @@
   },
   "optionsFetchModels": {
     "message": "Отримати список моделей"
+  },
+  "optionsModelNotFound": {
+    "message": "$1 (не знайдено)"
   },
   "optionsRequestTimeout": {
     "message": "Час очікування запиту"

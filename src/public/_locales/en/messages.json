@@ -142,6 +142,9 @@
   "optionsFetchModels": {
     "message": "Fetch models"
   },
+  "optionsModelNotFound": {
+    "message": "$1 (not found)"
+  },
   "optionsRequestTimeout": {
     "message": "Request timeout"
   },

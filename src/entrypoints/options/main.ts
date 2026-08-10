@@ -56,7 +56,7 @@ async function initOptions(): Promise<void> {
   elements.llmApiKeyInput.value = settings.translation.llm?.apiKey ?? "";
   fillLlmModelSelect(
     elements.llmModelSelect,
-    [],
+    null,
     settings.translation.llm?.model ?? "",
   );
   elements.llmDisableThinkingInput.checked =
@@ -274,12 +274,10 @@ async function testConnection(elements: OptionsElements): Promise<void> {
   }
 }
 
-/** Rebuild the model dropdown. The selected value is kept even when it isn't
- * in the fetched list (labelled "(current)"), so fetching against a different
- * server can't silently change a saved choice. */
+/** Rebuild the model dropdown without silently changing the saved choice. */
 function fillLlmModelSelect(
   select: HTMLSelectElement,
-  models: string[],
+  models: string[] | null,
   selected: string,
 ): void {
   select.textContent = "";
@@ -290,15 +288,17 @@ function fillLlmModelSelect(
     placeholder.textContent = t("commonNotSet");
     placeholder.selected = true;
     select.append(placeholder);
-  } else if (!models.includes(selected)) {
+  } else if (!models?.includes(selected)) {
     const current = document.createElement("option");
     current.value = selected;
-    current.textContent = t("commonCurrentValue", selected);
+    current.textContent = models
+      ? t("optionsModelNotFound", selected)
+      : selected;
     current.selected = true;
     select.append(current);
   }
 
-  for (const model of models) {
+  for (const model of models ?? []) {
     const option = document.createElement("option");
     option.value = model;
     option.textContent = model;
