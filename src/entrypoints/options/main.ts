@@ -14,6 +14,7 @@ import {
   getDisplayMode,
   setDisplayMode,
 } from "@/shared/storage";
+import { localizeMarkedElements } from "@/shared/i18n";
 import type { Settings } from "@/shared/types";
 import { hasWebGpuAdapter } from "@/shared/webgpu";
 import "./index.css";
@@ -29,6 +30,7 @@ const settingsRepository = createSettingsRepository();
 const app = getOptionsRoot();
 let statusTimeout: number | undefined;
 
+localizeMarkedElements();
 void initOptions();
 
 async function initOptions(): Promise<void> {

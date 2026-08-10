@@ -1,0 +1,11 @@
+{
+  "optionsTranslationSectionTitle": {
+    "message": "Налаштування перекладу"
+  },
+  "optionsTargetLanguage": {
+    "message": "Мова перекладу"
+  },
+  "optionsTranslationProvider": {
+    "message": "Сервіс перекладу"
+  }
+}

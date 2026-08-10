@@ -9,14 +9,17 @@
     <main id="app">
       <form class="options-form">
         <section class="settings-section">
-          <h2 class="section-title">Translation</h2>
+          <h2
+            class="section-title"
+            data-i18n="optionsTranslationSectionTitle"
+          ></h2>
           <div class="field-row">
             <label class="field">
-              Target language
+              <span data-i18n="optionsTargetLanguage"></span>
               <select name="targetLang"></select>
             </label>
             <label class="field">
-              Translation provider
+              <span data-i18n="optionsTranslationProvider"></span>
               <select name="translationProvider"></select>
               <span class="field-hint google-provider-note" hidden>
                 No API key is required. Rate limits may apply.

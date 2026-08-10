@@ -1,0 +1,14 @@
+{
+  "optionsTranslationSectionTitle": {
+    "message": "Translation",
+    "description": "Heading for the translation settings section"
+  },
+  "optionsTargetLanguage": {
+    "message": "Target language",
+    "description": "Label for the target language selector"
+  },
+  "optionsTranslationProvider": {
+    "message": "Translation provider",
+    "description": "Label for the translation provider selector"
+  }
+}
