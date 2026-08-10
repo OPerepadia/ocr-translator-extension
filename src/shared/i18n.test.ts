@@ -59,8 +59,26 @@ describe("localization catalogs", () => {
     expect(empty).toEqual([]);
   });
 
-  it("keeps Ukrainian keys within the English source catalog", () => {
-    const unknown = Object.keys(ukrainian).filter((key) => !english[key]);
-    expect(unknown).toEqual([]);
+  it("keeps the Ukrainian catalog complete", () => {
+    expect(Object.keys(ukrainian).sort()).toEqual(Object.keys(english).sort());
+  });
+
+  it("contains no empty Ukrainian messages", () => {
+    const empty = Object.entries(ukrainian)
+      .filter(([, value]) => !value.message)
+      .map(([key]) => key);
+    expect(empty).toEqual([]);
+  });
+
+  it("preserves substitutions in Ukrainian messages", () => {
+    const substitutions = (message: string) =>
+      [...message.matchAll(/\$\d+/g)].map(([value]) => value).sort();
+
+    const mismatches = Object.keys(english).filter(
+      (key) =>
+        substitutions(english[key].message).join() !==
+        substitutions(ukrainian[key].message).join(),
+    );
+    expect(mismatches).toEqual([]);
   });
 });

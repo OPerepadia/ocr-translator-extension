@@ -4,10 +4,10 @@ import { RemoteTranslationError } from "./errors";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
 import type { TranslationProvider } from "./types";
 
-// Translation through any OpenAI-compatible chat-completions endpoint: OpenAI
-// itself, gateways like OpenRouter, or a local server (llama.cpp, Ollama,
-// LM Studio, vLLM). The user configures the endpoint URL, an optional API key
-// (local servers don't need one), and a model name on the options page.
+// Translation through an OpenAI-compatible chat-completions endpoint: OpenAI
+// itself or a local server such as llama.cpp or LM Studio. The user configures
+// the endpoint URL, an optional API key (local servers don't need one), and a
+// model name on the options page.
 //
 // Like Google, this is a REMOTE provider: the recognized text is sent to the
 // configured endpoint. It is opt-in and never the default, which is why the
@@ -38,7 +38,7 @@ export interface OpenAiProviderConfig {
     model?: string;
     /** Ask the server to skip the model's "thinking" phase
      * (chat_template_kwargs.enable_thinking = false — understood by
-     * llama.cpp, vLLM, SGLang). Opt-in because strict cloud APIs reject
+     * compatible local servers). Opt-in because strict cloud APIs reject
      * unknown request fields. */
     disableThinking?: boolean;
     /** Per-request timeout in ms, set on the options page (as seconds).

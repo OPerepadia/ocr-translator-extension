@@ -1053,7 +1053,7 @@ function createTranslateButton(): HTMLButtonElement {
 
 function createTranslationTextSection(text: string): HTMLElement {
   return createTextSection(
-    t("optionsTranslationSectionTitle"),
+    t("panelTranslationHeading"),
     text,
     createTranslationExtras(),
     false,
@@ -1073,7 +1073,7 @@ function createTranslationHeader(): HTMLElement {
   const headingGroup = document.createElement("div");
   headingGroup.className = "ocr-translate-popup-section-heading";
   const heading = document.createElement("h2");
-  heading.textContent = t("optionsTranslationSectionTitle");
+  heading.textContent = t("panelTranslationHeading");
   headingGroup.append(heading, createTranslationExtras());
 
   const actionGroup = document.createElement("div");
