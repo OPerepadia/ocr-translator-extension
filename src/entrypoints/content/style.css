@@ -1058,11 +1058,11 @@
   border-color: var(--ocr-marker);
 }
 
-/* Only the hovered/focused box rises: paragraphs overlap, and a box merely
-   holding the popover open would block the one underneath. */
+/* Only the hovered/focused box rises above overlapping boxes and the toolbar:
+   a box merely holding the popover open would block the one underneath. */
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible {
-  z-index: 2;
+  z-index: 4;
 }
 
 .ocr-translate-overlay-translation-box {
@@ -1105,14 +1105,14 @@
 
 .ocr-translate-overlay-translation-box:hover,
 .ocr-translate-overlay-translation-box:focus {
-  z-index: 2;
+  z-index: 4;
 }
 
 /* The script positions this and sets its max width/height from the box and the
    room around it; the values here apply only until it is first positioned. */
 .ocr-translate-overlay-popover {
   position: absolute;
-  z-index: 3;
+  z-index: 5;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
