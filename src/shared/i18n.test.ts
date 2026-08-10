@@ -1,13 +1,21 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import englishMessages from "../public/_locales/en/messages.json";
-import ukrainianMessages from "../public/_locales/uk/messages.json";
 
 type MessageCatalog = Record<string, { message: string }>;
 
-const english = englishMessages as MessageCatalog;
-const ukrainian = ukrainianMessages as MessageCatalog;
+const localesRoot = resolve(import.meta.dirname, "../public/_locales");
+
+function loadCatalog(locale: string): MessageCatalog {
+  return JSON.parse(
+    readFileSync(join(localesRoot, locale, "messages.json"), "utf8"),
+  ) as MessageCatalog;
+}
+
+const english = loadCatalog("en");
+const translations = readdirSync(localesRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== "en")
+  .map((entry) => ({ locale: entry.name, messages: loadCatalog(entry.name) }));
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -59,26 +67,29 @@ describe("localization catalogs", () => {
     expect(empty).toEqual([]);
   });
 
-  it("keeps the Ukrainian catalog complete", () => {
-    expect(Object.keys(ukrainian).sort()).toEqual(Object.keys(english).sort());
-  });
+  describe.each(translations)("$locale catalog", ({ messages }) => {
+    it("keeps keys within the English source catalog", () => {
+      const unknown = Object.keys(messages).filter((key) => !english[key]);
+      expect(unknown).toEqual([]);
+    });
 
-  it("contains no empty Ukrainian messages", () => {
-    const empty = Object.entries(ukrainian)
-      .filter(([, value]) => !value.message)
-      .map(([key]) => key);
-    expect(empty).toEqual([]);
-  });
+    it("contains no empty messages", () => {
+      const empty = Object.entries(messages)
+        .filter(([, value]) => !value.message)
+        .map(([key]) => key);
+      expect(empty).toEqual([]);
+    });
 
-  it("preserves substitutions in Ukrainian messages", () => {
-    const substitutions = (message: string) =>
-      [...message.matchAll(/\$\d+/g)].map(([value]) => value).sort();
+    it("preserves substitutions", () => {
+      const substitutions = (message: string) =>
+        [...message.matchAll(/\$\d+/g)].map(([value]) => value).sort();
 
-    const mismatches = Object.keys(english).filter(
-      (key) =>
-        substitutions(english[key].message).join() !==
-        substitutions(ukrainian[key].message).join(),
-    );
-    expect(mismatches).toEqual([]);
+      const mismatches = Object.keys(messages).filter(
+        (key) =>
+          substitutions(english[key].message).join() !==
+          substitutions(messages[key].message).join(),
+      );
+      expect(mismatches).toEqual([]);
+    });
   });
 });
