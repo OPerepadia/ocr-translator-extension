@@ -2193,6 +2193,8 @@ function pageToViewportRect(rect: Rect): Rect {
 
 function statusMessage(status: PipelineStatus): string {
   switch (status.stage) {
+    case "loading":
+      return "Loading image…";
     case "initializing":
       return "Initializing OCR engine…";
     case "recognizing":

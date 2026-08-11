@@ -143,6 +143,7 @@ export interface PipelineResult {
 
 /** The step the pipeline is currently working on, reported to the UI for status. */
 export type PipelineStatus =
+  | { stage: "loading" }
   | { stage: "initializing" }
   | { stage: "recognizing"; line?: number; lineCount?: number }
   | { stage: "translating" };

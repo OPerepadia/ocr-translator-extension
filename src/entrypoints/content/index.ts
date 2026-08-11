@@ -213,12 +213,12 @@ export default defineContentScript({
         isOcrTranslateStatus(message) &&
         message.requestId === activeRequestId
       ) {
-        // For region captures, the first status means the screenshot is taken,
-        // so it is safe to drop the selection's dim — and the pixels the
-        // overlay freezes its region on are now available to ask for.
         showActiveLoading(message.status);
-        releaseSelectionDim();
-        requestCaptureSnapshot();
+        // Image URL requests report loading before their pixels are stored.
+        if (message.status.stage !== "loading") {
+          releaseSelectionDim();
+          requestCaptureSnapshot();
+        }
         return undefined;
       }
       if (

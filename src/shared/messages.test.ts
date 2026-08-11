@@ -64,6 +64,13 @@ describe("runtime message guards", () => {
       isOcrTranslateStatus({
         type: "OCR_TRANSLATE_STATUS",
         requestId: "r1",
+        status: { stage: "loading" },
+      }),
+    ).toBe(true);
+    expect(
+      isOcrTranslateStatus({
+        type: "OCR_TRANSLATE_STATUS",
+        requestId: "r1",
         status: { stage: "translating" },
       }),
     ).toBe(true);
