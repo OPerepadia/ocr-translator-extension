@@ -388,6 +388,8 @@ export function showRecognizedTextWhileTranslating(
 
 function statusMessage(status: PipelineStatus): string {
   switch (status.stage) {
+    case "loading":
+      return "Loading image…";
     case "initializing":
       return t("statusInitializingOcr");
     case "recognizing":

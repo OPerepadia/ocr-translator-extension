@@ -243,6 +243,9 @@ async function handleOcrTranslateRequest(
   frameKey: string | undefined,
   signal: AbortSignal,
 ): Promise<PipelineResult> {
+  if ("imageUrl" in message) {
+    sendPipelineStatus(tabId, message.requestId, { stage: "loading" });
+  }
   await writeCapture(dependencies, frameKey, () => ({
     requestId: message.requestId,
     sourceLanguage: "auto",

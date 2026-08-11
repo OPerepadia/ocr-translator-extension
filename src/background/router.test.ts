@@ -191,6 +191,11 @@ describe("background router", () => {
 
     expect(loadImage).toHaveBeenCalledWith("https://example.com/sample.png");
     expect(captureVisibleArea).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenNthCalledWith(1, 7, {
+      type: "OCR_TRANSLATE_STATUS",
+      requestId: "request-1",
+      status: { stage: "loading" },
+    });
     expect(response).toEqual(
       expect.objectContaining({ ocr: expect.any(Object) }),
     );

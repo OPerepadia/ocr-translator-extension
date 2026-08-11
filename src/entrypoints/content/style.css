@@ -417,6 +417,20 @@
   font-size: var(--ocr-size-body);
   line-height: var(--ocr-leading-ui);
   backdrop-filter: blur(18px);
+  animation: ocr-translate-loading-in var(--ocr-duration) var(--ocr-ease-out)
+    var(--ocr-duration-fast) both;
+}
+
+@keyframes ocr-translate-loading-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .ocr-translate-popup::before {
@@ -1359,6 +1373,8 @@
 
 .ocr-translate-overlay-status.is-loading {
   overflow: hidden;
+  animation: ocr-translate-loading-in var(--ocr-duration) var(--ocr-ease-out)
+    var(--ocr-duration-fast) both;
 }
 
 .ocr-translate-overlay-progress {
@@ -1620,6 +1636,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ocr-translate-popup,
+  .ocr-translate-overlay-status.is-loading,
   .ocr-translate-overlay-toolbar,
   .ocr-translate-overlay-toolbar.is-closing,
   .ocr-translate-overlay-popover {
