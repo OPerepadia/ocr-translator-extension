@@ -1,26 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Screen OCR Translator Options</title>
+    <title data-i18n="optionsPageTitle"></title>
   </head>
   <body>
     <main id="app">
       <form class="options-form">
         <section class="settings-section">
-          <h2 class="section-title">Translation</h2>
+          <h2
+            class="section-title"
+            data-i18n="optionsTranslationSectionTitle"
+          ></h2>
           <div class="field-row">
             <label class="field">
-              Target language
+              <span data-i18n="optionsTargetLanguage"></span>
               <select name="targetLang"></select>
             </label>
             <label class="field">
-              Translation provider
+              <span data-i18n="optionsTranslationProvider"></span>
               <select name="translationProvider"></select>
-              <span class="field-hint google-provider-note" hidden>
-                No API key is required. Rate limits may apply.
-              </span>
+              <span
+                class="field-hint google-provider-note"
+                data-i18n="optionsGoogleProviderHint"
+                hidden
+              ></span>
             </label>
           </div>
 
@@ -41,14 +46,14 @@
                 <line x1="6" x2="6.01" y1="6" y2="6" />
                 <line x1="6" x2="6.01" y1="18" y2="18" />
               </svg>
-              LLM endpoint
+              <span data-i18n="optionsLlmEndpoint"></span>
             </legend>
-            <p class="llm-card-subtitle">
-              Any OpenAI-compatible server: OpenAI, OpenRouter, or local
-              llama.cpp / Ollama / LM Studio.
-            </p>
+            <p
+              class="llm-card-subtitle"
+              data-i18n="optionsLlmEndpointHint"
+            ></p>
             <label class="field">
-              Endpoint URL
+              <span data-i18n="optionsEndpointUrl"></span>
               <input
                 name="llmBaseUrl"
                 type="text"
@@ -59,19 +64,19 @@
               <span class="llm-url-error" aria-live="polite" hidden></span>
             </label>
             <div class="field llm-api-key-field">
-              <label for="llm-api-key">API key</label>
+              <label for="llm-api-key" data-i18n="optionsApiKey"></label>
               <span class="llm-api-key-row">
                 <input
                   id="llm-api-key"
                   name="llmApiKey"
                   type="password"
                   autocomplete="new-password"
-                  placeholder="Optional"
+                  data-i18n-placeholder="optionsOptional"
                 />
                 <button
                   type="button"
                   class="llm-api-key-toggle"
-                  aria-label="Show API key"
+                  data-i18n-aria-label="optionsShowApiKey"
                   aria-pressed="false"
                 >
                   <svg
@@ -113,7 +118,7 @@
             </div>
             <div class="llm-model-row">
               <label class="field">
-                Model
+                <span data-i18n="optionsModel"></span>
                 <select name="llmModel"></select>
               </label>
               <button type="button" class="btn llm-fetch-models">
@@ -130,12 +135,12 @@
                   <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
                   <path d="M21 3v5h-5" />
                 </svg>
-                Fetch models
+                <span data-i18n="optionsFetchModels"></span>
               </button>
             </div>
             <div class="llm-timeout-row">
               <label class="field llm-timeout">
-                Request timeout
+                <span data-i18n="optionsRequestTimeout"></span>
                 <span class="llm-timeout-input">
                   <input
                     name="llmTimeout"
@@ -144,22 +149,26 @@
                     step="1"
                     placeholder="60"
                   />
-                  <span class="llm-timeout-unit">seconds</span>
+                  <span
+                    class="llm-timeout-unit"
+                    data-i18n="optionsSeconds"
+                  ></span>
                 </span>
               </label>
               <label class="llm-checkbox">
                 <input type="checkbox" name="llmDisableThinking" />
                 <span class="settings-control-text">
-                  Disable model thinking
-                  <span class="field-hint">
-                    Faster answers from reasoning models. Works with llama.cpp/vLLM. WARNING: this setting is not supported by api.openai.com/v1 endpoint.
-                  </span>
+                  <span data-i18n="optionsDisableModelThinking"></span>
+                  <span
+                    class="field-hint"
+                    data-i18n="optionsDisableModelThinkingHint"
+                  ></span>
                 </span>
               </label>
             </div>
             <div class="llm-actions">
               <button type="button" class="btn llm-test-connection">
-                Test connection
+                <span data-i18n="optionsTestConnection"></span>
               </button>
               <span class="llm-models-status" aria-live="polite"></span>
             </div>
@@ -167,23 +176,22 @@
         </section>
 
         <section class="settings-section">
-          <h2 class="section-title">OCR</h2>
+          <h2 class="section-title" data-i18n="optionsOcrSectionTitle"></h2>
           <label class="settings-toggle">
             <span class="settings-control-text">
               <span class="settings-toggle-title">
-                GPU acceleration
+                <span data-i18n="optionsGpuAcceleration"></span>
                 <span class="ocr-webgpu-status" hidden></span>
               </span>
-              <span class="field-hint">
-                Speeds up text recognition using WebGPU. Falls back to the CPU automatically.
-              </span>
+              <span class="field-hint" data-i18n="optionsGpuHint"></span>
               <span class="field-hint ocr-webgpu-note" hidden>
-                See
+                <span data-i18n="optionsSee"></span>
                 <a
                   href="https://enablegpu.com/guides/firefox/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  >how to enable WebGPU in Firefox</a
+                  data-i18n="optionsEnableWebGpuLink"
+                  ></a
                 >.
               </span>
             </span>
@@ -192,16 +200,23 @@
         </section>
 
         <section class="settings-section">
-          <h2 class="section-title">Display</h2>
+          <h2
+            class="section-title"
+            data-i18n="optionsDisplaySectionTitle"
+          ></h2>
           <label class="field">
-            Default display mode
+            <span data-i18n="optionsDefaultDisplayMode"></span>
             <select name="displayMode">
-              <option value="overlay">Overlay (on the selected region)</option>
-              <option value="panel">Panel (bottom-right corner)</option>
+              <option
+                value="overlay"
+                data-i18n="optionsDisplayModeOverlay"
+              ></option>
+              <option
+                value="panel"
+                data-i18n="optionsDisplayModePanel"
+              ></option>
             </select>
-            <span class="field-hint">
-              Where the translated text appears after capture.
-            </span>
+            <span class="field-hint" data-i18n="optionsDisplayHint"></span>
           </label>
         </section>
       </form>

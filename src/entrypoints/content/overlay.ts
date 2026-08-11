@@ -1,5 +1,6 @@
 import { sendRequest } from "../../shared/runtime-messaging";
 import type { LangCode, PipelineResult, PipelineStatus, Rect } from "@/shared/types";
+import { t } from "@/shared/i18n";
 import {
   CHECK_ICON,
   CLOSE_ICON,
@@ -257,7 +258,8 @@ export function showOverlay(args: {
   currentTranslationError =
     result.translationStatus.state === "failed"
       ? {
-          message: result.translationStatus.reason ?? "Translation failed.",
+          message:
+            result.translationStatus.reason ?? t("commonTranslationFailed"),
           onRetry: args.onRetryTranslation,
         }
       : undefined;
@@ -518,8 +520,8 @@ function createToolbar(): HTMLElement {
   modeButtonWrapper.className = "ocr-translate-overlay-mode-button-wrap";
   if (!hasTranslationText) {
     modeButtonWrapper.title = currentTranslationError
-      ? "Translation unavailable"
-      : "The text is already in target language";
+      ? t("overlayTranslationUnavailable")
+      : t("overlayAlreadyInTargetLanguage");
   }
   modeButtonWrapper.append(createModeButton());
 
@@ -528,11 +530,15 @@ function createToolbar(): HTMLElement {
   const providerPicker = createProviderPicker();
   const menu = createMenu();
   outsideClickHandlers.push(menu.handleOutsideClick);
-  const selectButton = iconButton(SELECT_REGION_ICON, "Select new region", () => {
-    closeOverlay();
-    onNewSelection?.();
-  });
-  const closeButton = iconButton(CLOSE_ICON, "Close", () => {
+  const selectButton = iconButton(
+    SELECT_REGION_ICON,
+    t("panelSelectNewRegion"),
+    () => {
+      closeOverlay();
+      onNewSelection?.();
+    },
+  );
+  const closeButton = iconButton(CLOSE_ICON, t("commonClose"), () => {
     closeOverlay();
   });
   closeButton.classList.add("ocr-translate-overlay-close");
@@ -594,7 +600,7 @@ function updateModeButton(): void {
     return;
   }
   const showingTranslation = mode === "translation";
-  const label = "Toggle translation overlay";
+  const label = t("overlayToggleTranslation");
   modeButton.setAttribute("aria-pressed", String(showingTranslation));
   modeButton.setAttribute("aria-label", label);
   if (hasTranslationText) {
@@ -612,10 +618,10 @@ function createMenu(): {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ocr-translate-overlay-icon-button";
-  button.setAttribute("aria-label", "Menu");
+  button.setAttribute("aria-label", t("commonMenu"));
   button.setAttribute("aria-haspopup", "true");
   button.setAttribute("aria-expanded", "false");
-  button.title = "Menu";
+  button.title = t("commonMenu");
   button.innerHTML = MENU_ICON;
 
   const list = document.createElement("div");
@@ -655,28 +661,28 @@ function createMenu(): {
   }
 
   if (hasTranslationText) {
-    addItem(COPY_ICON, "Copy all original text", () => {
+    addItem(COPY_ICON, t("overlayCopyAllOriginal"), () => {
       void copyAllText(currentOriginalText);
     });
-    addItem(COPY_ICON, "Copy all translated text", () => {
+    addItem(COPY_ICON, t("overlayCopyAllTranslated"), () => {
       void copyAllText(currentDisplayText);
     });
-    addItem(SPEAK_ICON, "Read all original text", () => {
+    addItem(SPEAK_ICON, t("overlayReadAllOriginal"), () => {
       speakAll("original");
     });
-    addItem(SPEAK_ICON, "Read all translated text", () => {
+    addItem(SPEAK_ICON, t("overlayReadAllTranslated"), () => {
       speakAll("translation");
     });
   } else {
-    addItem(COPY_ICON, "Copy all text", () => {
+    addItem(COPY_ICON, t("overlayCopyAllText"), () => {
       void copyAllText(currentOriginalText);
     });
-    addItem(SPEAK_ICON, "Read all text", () => {
+    addItem(SPEAK_ICON, t("overlayReadAllText"), () => {
       speakAll("original");
     });
   }
-  addItem(PANEL_ICON, "Show in panel", () => onShowPanel?.());
-  addItem(SETTINGS_ICON, "Settings", openSettings);
+  addItem(PANEL_ICON, t("overlayShowInPanel"), () => onShowPanel?.());
+  addItem(SETTINGS_ICON, t("commonSettings"), openSettings);
 
   button.addEventListener("click", () => {
     const open = list.hidden;
@@ -755,11 +761,12 @@ function createSourceLanguagePicker(): HTMLElement | undefined {
       {
         code: "auto",
         name:
-          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ?? "Auto",
+          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
+          t("commonAuto"),
       },
     ],
     position: "auto",
-    title: (name) => `Source language: ${name}`,
+    title: (name) => t("panelSourceLanguage", name),
     onChange: (sourceLang) => {
       if (sourceLang !== currentSourceLanguageId) {
         currentSourceLanguageId = sourceLang;
@@ -809,7 +816,7 @@ function createProviderPicker(): HTMLElement | undefined {
     "ocr-translate-popup-langpill-button ocr-translate-overlay-provider-button";
   button.setAttribute("aria-haspopup", "listbox");
   button.setAttribute("aria-expanded", "false");
-  button.title = `Translation provider: ${current.label}`;
+  button.title = t("panelTranslationProvider", current.label);
 
   const label = document.createElement("span");
   label.className = "ocr-translate-overlay-provider-label";
@@ -1532,7 +1539,7 @@ function ensurePopoverElement(): HTMLElement | undefined {
   el.className = "ocr-translate-overlay-popover";
   el.id = POPOVER_ID;
   el.setAttribute("role", "dialog");
-  el.setAttribute("aria-label", "Recognized and translated text");
+  el.setAttribute("aria-label", t("overlayRecognizedAndTranslatedText"));
   el.addEventListener("pointerdown", () => {
     beginSelection("popover");
   });
@@ -1657,7 +1664,7 @@ function createSpeakButton(
   target: OverlayMode,
   content: { original: string; translated: string },
 ): HTMLButtonElement {
-  const button = popoverButton(SPEAK_ICON, "Read aloud", () => {
+  const button = popoverButton(SPEAK_ICON, t("commonReadAloud"), () => {
     if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
       const wasTarget =
         speakingTarget === target && speakingBoxIndex === view.boxIndex;
@@ -1693,7 +1700,7 @@ function createPopoverCopyButton(
   target: OverlayMode,
   content: { original: string; translated: string },
 ): HTMLButtonElement {
-  const button = popoverButton(COPY_ICON, "Copy text", () => {
+  const button = popoverButton(COPY_ICON, t("commonCopy"), () => {
     void copyPopoverText(button, modeText(target, content));
   });
   return button;
@@ -1743,7 +1750,7 @@ function setSpeakButtonState(
   if (!button) {
     return;
   }
-  const label = active ? "Stop speaking" : "Read aloud";
+  const label = active ? t("commonStopSpeaking") : t("commonReadAloud");
   button.innerHTML = active ? STOP_SPEAK_ICON : SPEAK_ICON;
   button.classList.toggle("is-active", active);
   button.setAttribute("aria-label", label);
@@ -1973,7 +1980,7 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
   chip.append(
     spinner,
     label,
-    iconButton(CLOSE_ICON, "Close", closeOverlay),
+    iconButton(CLOSE_ICON, t("commonClose"), closeOverlay),
     progress,
   );
   return chip;
@@ -2001,17 +2008,19 @@ function createErrorChip(args: {
     const retry = document.createElement("button");
     retry.type = "button";
     retry.className = "ocr-translate-overlay-retry";
-    retry.textContent = "Retry";
+    retry.textContent = t("commonRetry");
     retry.addEventListener("click", args.onRetry, { once: true });
     chip.append(retry);
   }
   if (args.onOpenSettings) {
-    chip.append(iconButton(SETTINGS_ICON, "Settings", args.onOpenSettings));
+    chip.append(
+      iconButton(SETTINGS_ICON, t("commonSettings"), args.onOpenSettings),
+    );
   }
   chip.append(
     iconButton(
       CLOSE_ICON,
-      args.onDismiss ? "Dismiss" : "Close",
+      args.onDismiss ? t("commonDismiss") : t("commonClose"),
       args.onDismiss ?? closeOverlay,
     ),
   );
@@ -2194,15 +2203,15 @@ function pageToViewportRect(rect: Rect): Rect {
 function statusMessage(status: PipelineStatus): string {
   switch (status.stage) {
     case "loading":
-      return "Loading image…";
+      return t("statusLoadingImage");
     case "initializing":
-      return "Initializing OCR engine…";
+      return t("statusInitializingOcr");
     case "recognizing":
       return status.lineCount && status.lineCount > 0
-        ? "Recognizing text…"
-        : "Analyzing image…";
+        ? t("statusRecognizingText")
+        : t("statusAnalyzingImage");
     case "translating":
-      return "Translating…";
+      return t("statusTranslating");
   }
 }
 

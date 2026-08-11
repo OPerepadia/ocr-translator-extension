@@ -1,4 +1,5 @@
 import type { LangCode } from "../../shared/types";
+import { t } from "../../shared/i18n";
 import { RemoteTranslationError } from "./errors";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
 import type { TranslationProvider } from "./types";
@@ -172,13 +173,11 @@ async function translateBatch(
     }
     if (timedOut) {
       throw new RemoteTranslationError(
-        `Google Translate timed out after ${Math.round(timeoutMs / 1000)}s. ` +
-          "Try again, or switch to the local translation provider.",
+        t("errorGoogleTranslateTimeout", String(Math.round(timeoutMs / 1000))),
       );
     }
     throw new RemoteTranslationError(
-      `Couldn't reach Google Translate (${describeError(error)}). Check your ` +
-        "internet connection, or switch to the local translation provider.",
+      t("errorGoogleTranslateUnreachable", describeError(error)),
     );
   } finally {
     clearTimeout(timer);
@@ -187,8 +186,7 @@ async function translateBatch(
 
   if (!response.ok) {
     throw new RemoteTranslationError(
-      `Google Translate request failed (HTTP ${response.status}). Try again ` +
-        "later, or switch to the local translation provider.",
+      t("errorGoogleTranslateRequest", String(response.status)),
     );
   }
 

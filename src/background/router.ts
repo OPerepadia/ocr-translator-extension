@@ -22,6 +22,7 @@ import {
   type TranslationProvidersResponse,
 } from "../shared/messages";
 import { encodeSnapshot } from "../shared/image";
+import { t } from "../shared/i18n";
 import { onRequest } from "../shared/runtime-messaging";
 import {
   findOcrSourceLanguage,
@@ -342,9 +343,7 @@ async function handleRerecognizeRequest(
 
   const capture = await readCapture(dependencies, frameKey);
   if (!capture?.image) {
-    throw new Error(
-      "The captured image is no longer available. Please select the region again.",
-    );
+    throw new Error(t("errorCapturedImageUnavailable"));
   }
   const image = capture.image;
 
@@ -428,16 +427,11 @@ async function handleGetTargetLanguages(
 
 // Reports the source languages supported by the packaged recognizers.
 async function handleGetOcrSourceLanguages(): Promise<OcrSourceLanguagesResponse> {
-  const languages = COMMON_OCR_SOURCE_LANGUAGES.map(({ id, label }) => ({
+  const [auto, ...supported] = COMMON_OCR_SOURCE_LANGUAGES.map(({ id }) => ({
     id,
-    label,
   }));
-  const [auto, ...supported] = languages;
   return {
-    languages: [
-      auto,
-      ...supported.sort((a, b) => a.label.localeCompare(b.label)),
-    ],
+    languages: [auto, ...supported],
     currentId: "auto",
   };
 }
@@ -450,7 +444,6 @@ async function handleGetTranslationProviders(
   return {
     providers: TRANSLATION_PROVIDERS.map((provider) => ({
       id: provider.id,
-      label: provider.label,
     })),
     currentId: settings.translation.providerId,
   };

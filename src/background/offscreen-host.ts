@@ -4,6 +4,7 @@ import type {
   WorkerResponse,
 } from "../providers/ocr/paddle/protocol";
 import { browserApi, type BrowserPort } from "../shared/browser";
+import { t } from "../shared/i18n";
 import { encodeRequest, OCR_RELAY_PORT } from "../shared/offscreen-relay";
 
 const OFFSCREEN_PAGE = "offscreen.html";
@@ -106,7 +107,7 @@ export function createOffscreenWorker(): WorkerLike {
     connected.onDisconnect.addListener(() => {
       port = undefined;
       if (!closed) {
-        relay.onerror?.({ message: "The OCR host stopped responding." });
+        relay.onerror?.({ message: t("errorOcrHostStoppedResponding") });
       }
     });
     return connected;

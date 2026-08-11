@@ -394,7 +394,13 @@ describe("background router", () => {
   // Nothing else holds the pixels now that the content script does not.
   it("refuses to re-recognize once the capture is gone", async () => {
     let listener: MessageListener | undefined;
+    const getMessage = vi.fn((key: string) =>
+      key === "errorCapturedImageUnavailable"
+        ? "The captured image is no longer available. Please select the region again."
+        : "",
+    );
     vi.stubGlobal("browser", {
+      i18n: { getMessage },
       runtime: {
         onMessage: {
           addListener: vi.fn((next: MessageListener) => {
@@ -430,7 +436,13 @@ describe("background router", () => {
         },
         { tab: { id: 44 }, frameId: 0 },
       ),
-    ).rejects.toThrow(/no longer available/);
+    ).rejects.toThrow(
+      "The captured image is no longer available. Please select the region again.",
+    );
+    expect(getMessage).toHaveBeenCalledWith(
+      "errorCapturedImageUnavailable",
+      undefined,
+    );
     expect(recognize).not.toHaveBeenCalled();
   });
 

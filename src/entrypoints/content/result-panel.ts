@@ -23,6 +23,7 @@ import {
   languageName,
 } from "./language-picker";
 import { sendRequest } from "@/shared/runtime-messaging";
+import { t } from "@/shared/i18n";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 
 const ORIGINAL_SPEECH_OWNER = "panel-original";
@@ -51,12 +52,12 @@ const LOGO_ICON =
   "</svg>";
 
 const MENU_ITEMS: ReadonlyArray<{
-  label: string;
+  messageKey: string;
   icon: string;
   onSelect: () => void;
 }> = [
   {
-    label: "Settings",
+    messageKey: "commonSettings",
     icon: SETTINGS_ICON,
     onSelect: () => {
       void sendRequest({ type: "OPEN_OPTIONS" });
@@ -388,15 +389,15 @@ export function showRecognizedTextWhileTranslating(
 function statusMessage(status: PipelineStatus): string {
   switch (status.stage) {
     case "loading":
-      return "Loading image…";
+      return t("statusLoadingImage");
     case "initializing":
-      return "Initializing OCR engine…";
+      return t("statusInitializingOcr");
     case "recognizing":
       return status.lineCount && status.lineCount > 0
-        ? "Recognizing text…"
-        : "Analyzing image…";
+        ? t("statusRecognizingText")
+        : t("statusAnalyzingImage");
     case "translating":
-      return "Translating…";
+      return t("statusTranslating");
   }
 }
 
@@ -465,13 +466,13 @@ export function showResult(result: PipelineResult): void {
     content.push(
       createTranslationNotice(
         language
-          ? `The text is already in ${language}.`
-          : "The text is already in the target language.",
+          ? t("panelAlreadyInLanguage", language)
+          : t("panelAlreadyInTargetLanguage"),
       ),
     );
   } else if (status.state === "failed") {
     content.push(
-      createTranslationError(status.reason ?? "Translation failed."),
+      createTranslationError(status.reason ?? t("commonTranslationFailed")),
     );
   }
 
@@ -523,8 +524,8 @@ function ensurePopup(): HTMLElement {
   const selectButton = document.createElement("button");
   selectButton.type = "button";
   selectButton.className = "ocr-translate-popup-icon-button";
-  selectButton.setAttribute("aria-label", "Select new region");
-  selectButton.title = "Select new region";
+  selectButton.setAttribute("aria-label", t("panelSelectNewRegion"));
+  selectButton.title = t("panelSelectNewRegion");
   selectButton.innerHTML = SELECT_REGION_ICON;
   selectButton.addEventListener("click", () => {
     closePopup();
@@ -537,8 +538,8 @@ function ensurePopup(): HTMLElement {
   const closeButton = document.createElement("button");
   closeButton.type = "button";
   closeButton.className = "ocr-translate-popup-icon-button";
-  closeButton.setAttribute("aria-label", "Close");
-  closeButton.title = "Close";
+  closeButton.setAttribute("aria-label", t("commonClose"));
+  closeButton.title = t("commonClose");
   closeButton.innerHTML = CLOSE_ICON;
   closeButton.addEventListener("click", () => closePopup());
 
@@ -559,7 +560,7 @@ function ensurePopup(): HTMLElement {
   titleIcon.className = "ocr-translate-popup-title-icon";
   titleIcon.innerHTML = LOGO_ICON;
   const titleText = document.createElement("span");
-  titleText.textContent = "Screen OCR Translator";
+  titleText.textContent = t("extensionName");
   title.append(titleIcon, titleText);
 
   const topbar = document.createElement("div");
@@ -588,7 +589,7 @@ function ensurePopup(): HTMLElement {
 function createResizeHandle(container: HTMLElement): HTMLElement {
   const handle = document.createElement("div");
   handle.className = "ocr-translate-popup-resize";
-  handle.setAttribute("aria-label", "Resize panel");
+  handle.setAttribute("aria-label", t("panelResize"));
 
   let dragging = false;
   // Pointer position and panel size captured at the start of a drag. Sizing from
@@ -656,10 +657,10 @@ function createMenu(): {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ocr-translate-popup-icon-button";
-  button.setAttribute("aria-label", "Menu");
+  button.setAttribute("aria-label", t("commonMenu"));
   button.setAttribute("aria-haspopup", "true");
   button.setAttribute("aria-expanded", "false");
-  button.title = "Menu";
+  button.title = t("commonMenu");
   button.innerHTML = MENU_ICON;
 
   const list = document.createElement("div");
@@ -683,7 +684,7 @@ function createMenu(): {
     icon.innerHTML = item.icon;
 
     const label = document.createElement("span");
-    label.textContent = item.label;
+    label.textContent = t(item.messageKey);
 
     entry.append(icon, label);
     entry.addEventListener("click", () => {
@@ -695,7 +696,7 @@ function createMenu(): {
   }
 
   overlayMenuItemRef = addItem({
-    label: "Show in overlay",
+    messageKey: "panelShowInOverlay",
     icon: OVERLAY_ICON,
     onSelect: () => onShowOverlay?.(),
   });
@@ -735,11 +736,13 @@ function createSourceBadge(source: LangCode | undefined): HTMLElement {
     ? source === selected?.id
       ? selected.label
       : languageName(source)
-    : "Unknown";
+    : t("commonUnknown");
   const badge = document.createElement("span");
   badge.className = "ocr-translate-popup-langbadge";
   badge.textContent = label;
-  badge.title = source ? `Detected language: ${label}` : "Language not detected";
+  badge.title = source
+    ? t("panelDetectedLanguage", label)
+    : t("panelLanguageNotDetected");
   return badge;
 }
 
@@ -856,10 +859,11 @@ function createSourceLanguagePill(): HTMLElement | undefined {
       {
         code: "auto",
         name:
-          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ?? "Auto",
+          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
+          t("commonAuto"),
       },
     ],
-    title: (name) => `Source language: ${name}`,
+    title: (name) => t("panelSourceLanguage", name),
     onChange: (sourceLang) => {
       currentSourceLanguageId = sourceLang;
       onSourceLanguageChange?.(sourceLang);
@@ -875,7 +879,7 @@ function createProviderPill(): HTMLElement | undefined {
   return createOptionPill({
     options: translationProviders,
     currentId: currentProviderId,
-    title: (current) => `Translation provider: ${current.label}`,
+    title: (current) => t("panelTranslationProvider", current.label),
     onSelect: (id) => {
       currentProviderId = id;
       onProviderChange?.(id);
@@ -947,7 +951,7 @@ function createErrorMessage(message: string): HTMLElement {
 // Reads currentOcrText so re-renders keep edits.
 function createRecognizedSection(): HTMLElement {
   return createTextSection(
-    "Source text",
+    t("panelSourceText"),
     currentOcrText,
     createRecognizedExtras(),
     true,
@@ -1039,7 +1043,7 @@ function createTranslateButton(): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ocr-translate-popup-translate";
-  button.textContent = "Translate";
+  button.textContent = t("commonTranslate");
   button.disabled = recognizedReadOnly || !currentTargetLang;
   button.addEventListener("click", () => {
     const text = recognizedBoxRef?.value ?? currentOcrText;
@@ -1051,7 +1055,7 @@ function createTranslateButton(): HTMLButtonElement {
 
 function createTranslationTextSection(text: string): HTMLElement {
   return createTextSection(
-    "Translation",
+    t("panelTranslationHeading"),
     text,
     createTranslationExtras(),
     false,
@@ -1071,7 +1075,7 @@ function createTranslationHeader(): HTMLElement {
   const headingGroup = document.createElement("div");
   headingGroup.className = "ocr-translate-popup-section-heading";
   const heading = document.createElement("h2");
-  heading.textContent = "Translation";
+  heading.textContent = t("panelTranslationHeading");
   headingGroup.append(heading, createTranslationExtras());
 
   const actionGroup = document.createElement("div");
@@ -1092,7 +1096,7 @@ function createTranslatingSection(): HTMLElement {
 
   const placeholder = document.createElement("pre");
   placeholder.className = "ocr-translate-popup-placeholder";
-  placeholder.textContent = "Translating…";
+  placeholder.textContent = t("statusTranslating");
 
   section.append(createTranslationHeader(), placeholder);
 
@@ -1132,7 +1136,7 @@ function createRetryButton(onRetry?: () => void): HTMLButtonElement {
   const retry = document.createElement("button");
   retry.type = "button";
   retry.className = "ocr-translate-popup-retry";
-  retry.textContent = "Retry";
+  retry.textContent = t("commonRetry");
   retry.disabled = !onRetry;
   if (onRetry) {
     retry.addEventListener("click", onRetry, { once: true });
@@ -1147,8 +1151,8 @@ function createCopyButton(getText: () => string): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ocr-translate-popup-copy";
-  button.setAttribute("aria-label", "Copy");
-  button.title = "Copy";
+  button.setAttribute("aria-label", t("commonCopy"));
+  button.title = t("commonCopy");
   button.innerHTML = COPY_ICON;
 
   let resetTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1212,7 +1216,9 @@ function setSpeakButtonState(
   button: HTMLButtonElement,
   active: boolean,
 ): void {
-  const accessibleLabel = active ? "Stop speaking" : "Read aloud";
+  const accessibleLabel = active
+    ? t("commonStopSpeaking")
+    : t("commonReadAloud");
   button.innerHTML = active ? STOP_SPEAK_ICON : SPEAK_ICON;
   button.classList.toggle("is-speaking", active);
   button.setAttribute("aria-label", accessibleLabel);

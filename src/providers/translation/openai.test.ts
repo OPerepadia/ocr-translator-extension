@@ -402,6 +402,7 @@ describe("createOpenAiTranslationProvider", () => {
     expect(error).toBeInstanceOf(RemoteTranslationError);
     expect((error as Error).message).toMatch(/HTTP 401/);
     expect((error as Error).message).toMatch(/Invalid API key/);
+    expect((error as Error).message).not.toMatch(/Check the endpoint/);
   });
 
   it("rejects a non-JSON response body with a helpful error", async () => {

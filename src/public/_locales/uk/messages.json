@@ -1,0 +1,400 @@
+{
+  "extensionName": {
+    "message": "Screen OCR Translator",
+    "description": "Назва розширення"
+  },
+  "extensionDescription": {
+    "message": "Розпізнавайте та перекладайте текст на зображеннях або в будь-якій частині вебсторінки.",
+    "description": "Опис розширення"
+  },
+  "commandTranslateScreenRegion": {
+    "message": "Перекласти ділянку екрана"
+  },
+  "contextTranslateScreenRegion": {
+    "message": "Перекласти ділянку екрана…"
+  },
+  "contextTranslateImage": {
+    "message": "Перекласти це зображення"
+  },
+  "providerGoogle": {
+    "message": "Google"
+  },
+  "providerLlm": {
+    "message": "LLM"
+  },
+  "commonSettings": {
+    "message": "Налаштування"
+  },
+  "commonClose": {
+    "message": "Закрити"
+  },
+  "commonDismiss": {
+    "message": "Закрити"
+  },
+  "commonMenu": {
+    "message": "Меню"
+  },
+  "commonRetry": {
+    "message": "Спробувати ще раз"
+  },
+  "commonCancel": {
+    "message": "Скасувати"
+  },
+  "commonCopy": {
+    "message": "Копіювати"
+  },
+  "commonTranslate": {
+    "message": "Перекласти"
+  },
+  "commonReadAloud": {
+    "message": "Читати вголос"
+  },
+  "commonStopSpeaking": {
+    "message": "Зупинити озвучення"
+  },
+  "commonUnknown": {
+    "message": "Невідомо"
+  },
+  "commonAuto": {
+    "message": "Авто"
+  },
+  "commonNotSet": {
+    "message": "(не вказано)"
+  },
+  "commonCurrentValue": {
+    "message": "$1 (поточне значення)"
+  },
+  "commonAvailable": {
+    "message": "Доступно"
+  },
+  "commonNotAvailable": {
+    "message": "Недоступно"
+  },
+  "commonSaved": {
+    "message": "Збережено."
+  },
+  "commonConnected": {
+    "message": "Підключено"
+  },
+  "commonTranslationFailed": {
+    "message": "Не вдалося перекласти."
+  },
+  "commonNoTextDetected": {
+    "message": "Текст не розпізнано."
+  },
+  "statusLoadingImage": {
+    "message": "Завантаження…"
+  },
+  "statusInitializingOcr": {
+    "message": "Ініціалізація OCR…"
+  },
+  "statusRecognizingText": {
+    "message": "Розпізнавання тексту…"
+  },
+  "statusAnalyzingImage": {
+    "message": "Аналіз зображення…"
+  },
+  "statusTranslating": {
+    "message": "Перекладаємо…"
+  },
+  "optionsPageTitle": {
+    "message": "Налаштування Screen OCR Translator"
+  },
+  "offscreenPageTitle": {
+    "message": "OCR-служба Screen OCR Translator"
+  },
+  "optionsTranslationSectionTitle": {
+    "message": "Налаштування перекладу",
+    "description": "Заголовок розділу налаштувань перекладу"
+  },
+  "optionsTargetLanguage": {
+    "message": "Мова перекладу",
+    "description": "Підпис поля вибору мови перекладу"
+  },
+  "optionsTranslationProvider": {
+    "message": "Сервіс перекладу",
+    "description": "Підпис поля вибору сервісу перекладу"
+  },
+  "optionsGoogleProviderHint": {
+    "message": "Ключ API не потрібен. Можуть діяти обмеження на кількість запитів."
+  },
+  "optionsLlmEndpoint": {
+    "message": "Кінцева точка LLM"
+  },
+  "optionsLlmEndpointHint": {
+    "message": "Будь-який OpenAI-сумісний сервер: OpenAI, OpenRouter або локальний llama.cpp / LM Studio."
+  },
+  "optionsEndpointUrl": {
+    "message": "URL кінцевої точки"
+  },
+  "optionsApiKey": {
+    "message": "Ключ API"
+  },
+  "optionsOptional": {
+    "message": "Необов’язково"
+  },
+  "optionsShowApiKey": {
+    "message": "Показати ключ API"
+  },
+  "optionsHideApiKey": {
+    "message": "Приховати ключ API"
+  },
+  "optionsModel": {
+    "message": "Модель"
+  },
+  "optionsFetchModels": {
+    "message": "Отримати список моделей"
+  },
+  "optionsModelNotFound": {
+    "message": "$1 (не знайдено)"
+  },
+  "optionsRequestTimeout": {
+    "message": "Час очікування запиту"
+  },
+  "optionsSeconds": {
+    "message": "секунд"
+  },
+  "optionsDisableModelThinking": {
+    "message": "Вимкнути міркування моделі"
+  },
+  "optionsDisableModelThinkingHint": {
+    "message": "Пришвидшує відповіді моделей із міркуванням. Працює з llama.cpp. УВАГА: кінцева точка api.openai.com/v1 не підтримує це налаштування."
+  },
+  "optionsTestConnection": {
+    "message": "Перевірити з’єднання"
+  },
+  "optionsOcrSectionTitle": {
+    "message": "Налаштування OCR"
+  },
+  "optionsGpuAcceleration": {
+    "message": "Прискорення за допомогою GPU"
+  },
+  "optionsGpuHint": {
+    "message": "Пришвидшує розпізнавання тексту за допомогою WebGPU. Якщо недоступно, автоматично використовується процесор."
+  },
+  "optionsSee": {
+    "message": "Див."
+  },
+  "optionsEnableWebGpuLink": {
+    "message": "як увімкнути WebGPU у Firefox"
+  },
+  "optionsDisplaySectionTitle": {
+    "message": "Відображення"
+  },
+  "optionsDefaultDisplayMode": {
+    "message": "Режим відображення за замовчуванням"
+  },
+  "optionsDisplayModeOverlay": {
+    "message": "Поверх вибраної ділянки"
+  },
+  "optionsDisplayModePanel": {
+    "message": "Панель у правому нижньому куті"
+  },
+  "optionsDisplayHint": {
+    "message": "Місце, де з’являється переклад після захоплення зображення."
+  },
+  "optionsSetEndpointFirst": {
+    "message": "Спочатку вкажіть URL кінцевої точки."
+  },
+  "optionsFetchingModels": {
+    "message": "Отримання…"
+  },
+  "optionsNoModels": {
+    "message": "Кінцева точка не повернула жодної моделі."
+  },
+  "optionsOneModelFound": {
+    "message": "Знайдено 1 модель."
+  },
+  "optionsModelsFound": {
+    "message": "Знайдено моделей: $1."
+  },
+  "optionsTestingConnection": {
+    "message": "Перевірка з’єднання…"
+  },
+  "optionsSaveFailed": {
+    "message": "Не вдалося зберегти налаштування ($1)."
+  },
+  "popupStartingSelection": {
+    "message": "Запускаємо вибір…"
+  },
+  "popupOpenAddonSettings": {
+    "message": "Відкрити налаштування додатка"
+  },
+  "popupRestrictedPage": {
+    "message": "Ця сторінка браузера має обмежений доступ, тому розширення не може працювати з нею. Спробуйте на звичайній вебсторінці."
+  },
+  "popupCouldNotStart": {
+    "message": "Не вдалося запустити Screen OCR Translator на цій сторінці."
+  },
+  "popupLocalFilePermission": {
+    "message": "Розширенню потрібен дозвіл на доступ до локальних файлів. У налаштуваннях додатка виберіть «Дозволи й дані» та увімкніть «Доступ до локальних файлів на вашому комп’ютері», а потім перезавантажте цей файл."
+  },
+  "popupCouldNotOpenSettings": {
+    "message": "Не вдалося відкрити налаштування додатка. Відкрийте about:addons вручну."
+  },
+  "selectionDragArea": {
+    "message": "Перетягніть, щоб вибрати ділянку"
+  },
+  "selectionPressKeyToCancel": {
+    "message": "Натисніть $1, щоб скасувати"
+  },
+  "selectionResize": {
+    "message": "Змінити розмір виділення"
+  },
+  "selectionRunOcr": {
+    "message": "Розпізнати текст"
+  },
+  "languageTargetTitle": {
+    "message": "Мова перекладу: $1"
+  },
+  "languageSearchPlaceholder": {
+    "message": "Пошук..."
+  },
+  "languageSearchLabel": {
+    "message": "Пошук мов"
+  },
+  "panelSelectNewRegion": {
+    "message": "Вибрати нову ділянку"
+  },
+  "panelResize": {
+    "message": "Змінити розмір панелі"
+  },
+  "panelShowInOverlay": {
+    "message": "Показати поверх зображення"
+  },
+  "panelDetectedLanguage": {
+    "message": "Визначена мова: $1"
+  },
+  "panelLanguageNotDetected": {
+    "message": "Мову не визначено"
+  },
+  "panelSourceLanguage": {
+    "message": "Мова оригіналу: $1"
+  },
+  "panelTranslationProvider": {
+    "message": "Сервіс перекладу: $1"
+  },
+  "panelTranslationHeading": {
+    "message": "Переклад"
+  },
+  "panelSourceText": {
+    "message": "Оригінальний текст"
+  },
+  "panelAlreadyInLanguage": {
+    "message": "Текст уже написано цією мовою: $1."
+  },
+  "panelAlreadyInTargetLanguage": {
+    "message": "Текст уже написано мовою перекладу."
+  },
+  "overlayTranslationUnavailable": {
+    "message": "Переклад недоступний"
+  },
+  "overlayAlreadyInTargetLanguage": {
+    "message": "Текст уже написано мовою перекладу"
+  },
+  "overlayToggleTranslation": {
+    "message": "Показати або приховати переклад поверх зображення"
+  },
+  "overlayCopyAllOriginal": {
+    "message": "Копіювати весь оригінальний текст"
+  },
+  "overlayCopyAllTranslated": {
+    "message": "Копіювати весь текст перекладу"
+  },
+  "overlayReadAllOriginal": {
+    "message": "Прочитати весь оригінальний текст"
+  },
+  "overlayReadAllTranslated": {
+    "message": "Прочитати весь переклад"
+  },
+  "overlayCopyAllText": {
+    "message": "Копіювати весь текст"
+  },
+  "overlayReadAllText": {
+    "message": "Прочитати весь текст"
+  },
+  "overlayShowInPanel": {
+    "message": "Показати на панелі"
+  },
+  "overlayRecognizedAndTranslatedText": {
+    "message": "Розпізнаний і перекладений текст"
+  },
+  "errorGoogleTranslateTimeout": {
+    "message": "Час очікування відповіді від Google Translate ($1 с) минув. Спробуйте ще раз або виберіть інший сервіс перекладу."
+  },
+  "errorGoogleTranslateUnreachable": {
+    "message": "Не вдалося з’єднатися з Google Translate ($1). Перевірте інтернет-з’єднання або виберіть інший сервіс перекладу."
+  },
+  "errorGoogleTranslateRequest": {
+    "message": "Помилка запиту до Google Translate (HTTP $1). Спробуйте пізніше або виберіть інший сервіс перекладу."
+  },
+  "errorLlmEndpointNotConfigured": {
+    "message": "Для сервісу LLM не налаштовано кінцеву точку. Вкажіть її URL на сторінці налаштувань розширення (наприклад, http://localhost:8080/v1 для локального сервера)."
+  },
+  "errorLlmFixEndpoint": {
+    "message": "$1 Виправте URL кінцевої точки на сторінці налаштувань розширення."
+  },
+  "errorLlmInvalidTranslationFormat": {
+    "message": "LLM повернула переклад у неправильному форматі навіть після повторної спроби."
+  },
+  "errorLlmTimeout": {
+    "message": "LLM не відповіла протягом $1 с. Можливо, модель працює повільно — збільште час очікування запиту й спробуйте ще раз або виберіть інший сервіс перекладу."
+  },
+  "errorLlmUnreachable": {
+    "message": "Не вдалося з’єднатися з кінцевою точкою LLM ($1). Перевірте конфігурацію та переконайтеся, що сервер працює."
+  },
+  "errorLlmRequest": {
+    "message": "Помилка запиту до LLM (HTTP $1)."
+  },
+  "errorLlmUnexpectedResponse": {
+    "message": "Кінцева точка LLM повернула неочікувану відповідь. Переконайтеся, що URL веде до OpenAI-сумісного API (зазвичай він закінчується на /v1)."
+  },
+  "errorLlmEmptyResponse": {
+    "message": "LLM повернула порожню відповідь. Спробуйте ще раз або перевірте назву моделі в налаштуваннях."
+  },
+  "errorEndpointUnreachable": {
+    "message": "Не вдалося з’єднатися з кінцевою точкою ($1)."
+  },
+  "errorEndpointHttp": {
+    "message": "Кінцева точка відповіла з кодом HTTP $1."
+  },
+  "errorEndpointNoModelList": {
+    "message": "Кінцева точка не повернула список моделей. Переконайтеся, що URL веде до OpenAI-сумісного API (зазвичай він закінчується на /v1)."
+  },
+  "errorLlmInvalidAbsoluteUrl": {
+    "message": "URL кінцевої точки LLM не є правильним абсолютним URL (наприклад, http://localhost:8080/v1)."
+  },
+  "errorLlmHttpProtocol": {
+    "message": "URL кінцевої точки LLM має починатися з http:// або https://."
+  },
+  "errorLlmNoQueryOrFragment": {
+    "message": "URL кінцевої точки LLM не повинен містити рядок запиту або фрагмент."
+  },
+  "errorCouldNotLoadImage": {
+    "message": "Не вдалося завантажити зображення ($1)."
+  },
+  "errorSelectionOutsideVisibleArea": {
+    "message": "Виділена ділянка перебуває за межами видимої області."
+  },
+  "errorCanvasContext": {
+    "message": "Не вдалося створити полотно для обробки зображення."
+  },
+  "errorEncodeCapturedImage": {
+    "message": "Не вдалося закодувати зняте зображення."
+  },
+  "errorCapturedImageUnavailable": {
+    "message": "Зображення більше недоступне. Виділіть ділянку ще раз."
+  },
+  "errorOcrWorkerCrashed": {
+    "message": "Процес OCR аварійно завершив роботу."
+  },
+  "errorRecognitionStoppedResponding": {
+    "message": "Засіб розпізнавання тексту не відповідає."
+  },
+  "errorOcrInsufficientMemory": {
+    "message": "Помилка OCR: недостатньо пам’яті. Звільніть пам’ять GPU або вимкніть прискорення в налаштуваннях."
+  },
+  "errorOcrHostStoppedResponding": {
+    "message": "OCR-служба не відповідає."
+  }
+}

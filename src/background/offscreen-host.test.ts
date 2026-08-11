@@ -80,6 +80,9 @@ function installChrome(
     offscreen: {
       createDocument,
     },
+    i18n: {
+      getMessage: () => "The OCR host stopped responding.",
+    },
   });
 
   return { ports, createDocument, getContexts };
