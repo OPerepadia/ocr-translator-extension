@@ -82,6 +82,9 @@
   "commonNoTextDetected": {
     "message": "No text detected."
   },
+  "statusLoadingImage": {
+    "message": "Loading…"
+  },
   "statusInitializingOcr": {
     "message": "Initializing OCR engine…"
   },
@@ -316,9 +319,6 @@
   "overlayRecognizedAndTranslatedText": {
     "message": "Recognized and translated text"
   },
-  "overlayCopyText": {
-    "message": "Copy text"
-  },
   "errorGoogleTranslateTimeout": {
     "message": "Google Translate timed out after $1s. Try again, or switch to another translation provider."
   },
@@ -381,6 +381,9 @@
   },
   "errorEncodeCapturedImage": {
     "message": "Could not encode the captured image."
+  },
+  "errorCapturedImageUnavailable": {
+    "message": "The captured image is no longer available. Please select the region again."
   },
   "errorOcrWorkerCrashed": {
     "message": "The OCR worker crashed."

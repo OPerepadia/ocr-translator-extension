@@ -1700,7 +1700,7 @@ function createPopoverCopyButton(
   target: OverlayMode,
   content: { original: string; translated: string },
 ): HTMLButtonElement {
-  const button = popoverButton(COPY_ICON, t("overlayCopyText"), () => {
+  const button = popoverButton(COPY_ICON, t("commonCopy"), () => {
     void copyPopoverText(button, modeText(target, content));
   });
   return button;
@@ -2203,7 +2203,7 @@ function pageToViewportRect(rect: Rect): Rect {
 function statusMessage(status: PipelineStatus): string {
   switch (status.stage) {
     case "loading":
-      return "Loading image…";
+      return t("statusLoadingImage");
     case "initializing":
       return t("statusInitializingOcr");
     case "recognizing":

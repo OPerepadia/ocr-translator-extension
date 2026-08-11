@@ -56,7 +56,7 @@
     "message": "Невідомо"
   },
   "commonAuto": {
-    "message": "Автоматично"
+    "message": "Авто"
   },
   "commonNotSet": {
     "message": "(не вказано)"
@@ -81,6 +81,9 @@
   },
   "commonNoTextDetected": {
     "message": "Текст не розпізнано."
+  },
+  "statusLoadingImage": {
+    "message": "Завантаження…"
   },
   "statusInitializingOcr": {
     "message": "Ініціалізація OCR…"
@@ -316,9 +319,6 @@
   "overlayRecognizedAndTranslatedText": {
     "message": "Розпізнаний і перекладений текст"
   },
-  "overlayCopyText": {
-    "message": "Копіювати текст"
-  },
   "errorGoogleTranslateTimeout": {
     "message": "Час очікування відповіді від Google Translate ($1 с) минув. Спробуйте ще раз або виберіть інший сервіс перекладу."
   },
@@ -381,6 +381,9 @@
   },
   "errorEncodeCapturedImage": {
     "message": "Не вдалося закодувати зняте зображення."
+  },
+  "errorCapturedImageUnavailable": {
+    "message": "Зображення більше недоступне. Виділіть ділянку ще раз."
   },
   "errorOcrWorkerCrashed": {
     "message": "Процес OCR аварійно завершив роботу."

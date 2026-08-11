@@ -22,6 +22,7 @@ import {
   type TranslationProvidersResponse,
 } from "../shared/messages";
 import { encodeSnapshot } from "../shared/image";
+import { t } from "../shared/i18n";
 import { onRequest } from "../shared/runtime-messaging";
 import {
   findOcrSourceLanguage,
@@ -342,9 +343,7 @@ async function handleRerecognizeRequest(
 
   const capture = await readCapture(dependencies, frameKey);
   if (!capture?.image) {
-    throw new Error(
-      "The captured image is no longer available. Please select the region again.",
-    );
+    throw new Error(t("errorCapturedImageUnavailable"));
   }
   const image = capture.image;
 
