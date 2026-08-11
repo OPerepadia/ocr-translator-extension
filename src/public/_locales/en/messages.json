@@ -217,6 +217,33 @@
   "popupStartingSelection": {
     "message": "Starting selection..."
   },
+  "popupSourceLanguage": {
+    "message": "Source"
+  },
+  "popupTargetLanguage": {
+    "message": "Translate to"
+  },
+  "popupProvider": {
+    "message": "Provider"
+  },
+  "popupResultMode": {
+    "message": "Result"
+  },
+  "popupDisplayModeOverlay": {
+    "message": "Overlay"
+  },
+  "popupDisplayModePanel": {
+    "message": "Panel"
+  },
+  "popupSelectArea": {
+    "message": "Select area"
+  },
+  "popupShortcutHint": {
+    "message": "$1 starts selection"
+  },
+  "popupShortcutHintUnassigned": {
+    "message": "You can assign a shortcut for instant access"
+  },
   "popupOpenAddonSettings": {
     "message": "Open add-on settings"
   },
@@ -225,6 +252,9 @@
   },
   "popupCouldNotStart": {
     "message": "Screen OCR Translator could not start on this page."
+  },
+  "popupCouldNotSaveSettings": {
+    "message": "Could not save the popup settings."
   },
   "popupLocalFilePermission": {
     "message": "This extension needs permission to access local files. In add-on settings, select “Permissions and data” and enable “Access local files on your computer”, then reload this file."

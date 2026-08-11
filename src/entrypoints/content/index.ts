@@ -374,16 +374,17 @@ async function runCapture(
   // falls back to the panel later if the result can't be drawn as an overlay.
   activeView = displayMode;
 
-  void loadTargetLanguages();
-  void loadOcrSourceLanguages();
-  void loadTranslationProviders();
-
-  // A fresh capture has no languages yet; clear the previous result's state so
-  // the loading view doesn't show a stale pill that could re-translate old text.
-  // The source selection is per-capture, so both pills go back to "auto".
+  // Clear result-specific state before refreshing the defaults. The refresh
+  // finishes before the pipeline starts, so its setters establish the current
+  // source and provider before any loading UI appears.
   resetForNewCapture();
-  setOverlayOcrSourceLanguages(ocrSourceLanguageList, "auto");
   pendingText = "";
+
+  const [, sourceLanguageId] = await Promise.all([
+    loadTargetLanguages(true),
+    loadOcrSourceLanguages(),
+    loadTranslationProviders(),
+  ]);
 
   cancelActiveRequest();
   const requestId = createRequestId();
@@ -413,7 +414,7 @@ async function runCapture(
       serializeError(error),
       "imageUrl" in source
         ? () => void runImageFlow(source.imageUrl)
-        : () => void runRerecognize("auto"),
+        : () => void runRerecognize(sourceLanguageId ?? "auto"),
     );
   } finally {
     if (activeRequestId === requestId) {
@@ -725,14 +726,10 @@ async function runSwitchProvider(providerId: string): Promise<void> {
   }
 }
 
-// Fetch the supported OCR source languages once and hand them to both views.
-// The list is kept so a pick in one view can be mirrored to the other's pill.
-let ocrSourceLanguagesLoaded = false;
+// Fetch the supported OCR source languages and the saved default. The list is
+// kept so a pick in one view can be mirrored to the other's pill.
 let ocrSourceLanguageList: Array<{ id: string; label: string }> = [];
-async function loadOcrSourceLanguages(): Promise<void> {
-  if (ocrSourceLanguagesLoaded) {
-    return;
-  }
+async function loadOcrSourceLanguages(): Promise<string | undefined> {
   try {
     const response =
       await sendRequest<OcrSourceLanguagesResponse>({
@@ -743,24 +740,20 @@ async function loadOcrSourceLanguages(): Promise<void> {
         id,
         label: id === "auto" ? t("commonAuto") : languageName(id),
       }));
-      ocrSourceLanguagesLoaded = true;
       ocrSourceLanguageList = languages;
       setOcrSourceLanguages(languages, response.currentId);
       setOverlayOcrSourceLanguages(languages, response.currentId);
+      return response.currentId;
     }
   } catch {
     // Leave the list empty; the picker won't show.
   }
+  return undefined;
 }
 
-// Fetch the recognizer-independent translation providers once and hand them
-// (with the current selection) to the popup so its picker can offer choices.
-let translationProvidersLoaded = false;
+// Fetch the recognizer-independent translation providers and the saved default.
 let translationProviderList: Array<{ id: string; label: string }> = [];
 async function loadTranslationProviders(): Promise<void> {
-  if (translationProvidersLoaded) {
-    return;
-  }
   try {
     const response =
       await sendRequest<TranslationProvidersResponse>({
@@ -771,7 +764,6 @@ async function loadTranslationProviders(): Promise<void> {
         id,
         label: translationProviderLabel(id),
       }));
-      translationProvidersLoaded = true;
       translationProviderList = providers;
       setTranslationProviders(providers, response.currentId);
       setOverlayTranslationProviders(providers, response.currentId);

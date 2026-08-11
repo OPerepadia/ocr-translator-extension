@@ -129,19 +129,20 @@ async function initOptions(): Promise<void> {
   });
   const saveSettings = async (): Promise<void> => {
     const formData = new FormData(elements.form);
-    const nextSettings: Settings = {
-      ocr: {
-        providerId: settings.ocr.providerId,
-        backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
-      },
-      translation: {
-        providerId: String(formData.get("translationProvider") ?? "google"),
-        targetLang: String(formData.get("targetLang") ?? "en"),
-        llm: readLlmSettings(formData),
-      },
-    };
-
     try {
+      const latestSettings = await settingsRepository.get();
+      const nextSettings: Settings = {
+        ocr: {
+          providerId: latestSettings.ocr.providerId,
+          sourceLang: latestSettings.ocr.sourceLang,
+          backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
+        },
+        translation: {
+          providerId: String(formData.get("translationProvider") ?? "google"),
+          targetLang: String(formData.get("targetLang") ?? "en"),
+          llm: readLlmSettings(formData),
+        },
+      };
       await settingsRepository.set(nextSettings);
       showStatus(t("commonSaved"));
     } catch (error) {

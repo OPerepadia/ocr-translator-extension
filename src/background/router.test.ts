@@ -110,6 +110,37 @@ describe("background router", () => {
     expect(preload).toHaveBeenCalledOnce();
   });
 
+  it("reports the saved default OCR source language", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+      },
+    });
+
+    startRouter({
+      settingsRepository: {
+        get: async () => ({
+          ocr: { providerId: "paddle", sourceLang: "ja" },
+          translation: { providerId: "google", targetLang: "en" },
+        }),
+      },
+    } as unknown as RouterDependencies);
+
+    await expect(
+      invoke(listener, { type: "GET_OCR_SOURCE_LANGUAGES" }, {}),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        currentId: "ja",
+        languages: expect.arrayContaining([{ id: "auto" }, { id: "ja" }]),
+      }),
+    );
+  });
+
   it("relays iframe selection requests to the top frame", async () => {
     let listener: MessageListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
@@ -137,6 +168,54 @@ describe("background router", () => {
     );
   });
 
+  it("invalidates the previous capture before reading settings", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+    });
+    await captureStore.update("7:0", () => ({
+      requestId: "previous-request",
+      image: new Blob(["previous image"]),
+      sourceLanguage: "ja",
+    }));
+
+    startRouter({
+      captureStore,
+      settingsRepository: {
+        get: async () => {
+          throw new Error("Settings unavailable");
+        },
+      },
+    } as unknown as RouterDependencies);
+
+    await expect(
+      invoke(
+        listener,
+        {
+          type: "OCR_TRANSLATE_REQUEST",
+          requestId: "new-request",
+          rect: { x: 10, y: 20, width: 120, height: 80 },
+          viewport: { width: 800, height: 600 },
+        },
+        { tab: { id: 7 }, frameId: 0 },
+      ),
+    ).rejects.toThrow("Settings unavailable");
+
+    const capture = await captureStore.get("7:0");
+    expect(capture).toMatchObject({
+      requestId: "new-request",
+      sourceLanguage: "auto",
+    });
+    expect(capture?.image).toBeUndefined();
+  });
+
   it("loads a selected image instead of capturing the visible tab", async () => {
     let listener: MessageListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
@@ -162,7 +241,7 @@ describe("background router", () => {
       captureStore,
       settingsRepository: {
         get: async () => ({
-          ocr: { providerId: "test" },
+          ocr: { providerId: "test", sourceLang: "ja" },
           translation: { providerId: "test", targetLang: "uk" },
         }),
       },
@@ -201,10 +280,13 @@ describe("background router", () => {
     );
     await expect(captureStore.get("7:4")).resolves.toMatchObject({ image });
     expect(recognize).toHaveBeenCalledWith(
-      { image, sourceLang: "auto" },
+      { image, sourceLang: "ja" },
       expect.any(AbortSignal),
       expect.any(Function),
     );
+    await expect(captureStore.get("7:4")).resolves.toMatchObject({
+      sourceLanguage: "ja",
+    });
     expect(sendMessage).toHaveBeenCalledWith(
       7,
       expect.objectContaining({ type: "OCR_TRANSLATE_OCR_RESULT" }),

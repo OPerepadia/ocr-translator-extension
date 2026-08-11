@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { defineConfig } from "wxt";
+import { START_SELECTION_COMMAND } from "./src/shared/commands";
 
 const packagedLegalFiles = [
   "LICENSE",
@@ -77,7 +78,7 @@ export default defineConfig({
       default_title: "__MSG_extensionName__",
     },
     commands: {
-      _execute_action: {
+      [START_SELECTION_COMMAND]: {
         suggested_key: {
           default: "Ctrl+Shift+F",
         },

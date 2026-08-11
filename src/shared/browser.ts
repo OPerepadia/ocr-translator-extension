@@ -91,6 +91,10 @@ export interface BrowserApi {
       ) => void
     >;
   };
+  commands: {
+    onCommand: BrowserEvent<(command: string) => void>;
+    getAll(): Promise<Array<{ name?: string; shortcut?: string }>>;
+  };
   i18n: {
     getMessage(messageName: string, substitutions?: string | string[]): string;
     getUILanguage(): string;
