@@ -44,10 +44,10 @@ export const SELECT_REGION_ICON =
   "</svg>";
 
 export const PICK_IMAGE_ICON =
-  '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
-  '<rect x="2.5" y="3.5" width="15" height="13" rx="2"/>' +
-  '<circle cx="7" cy="8" r="1.5"/>' +
-  '<path d="m4.5 14 3.75-3.5 2.5 2 2.25-2 2.5 3.5"/>' +
+  '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true" focusable="false">' +
+  '<rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/>' +
+  '<circle cx="8.5" cy="9" r="1.5" fill="currentColor"/>' +
+  '<path d="M5.5 17.5 10 13l3.25 3.25L15.5 14l3 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
   "</svg>";
 
 export const TRANSLATE_ICON =
