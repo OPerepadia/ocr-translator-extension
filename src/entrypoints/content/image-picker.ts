@@ -6,6 +6,18 @@ export function cancelImagePickerOverlay(): void {
   cancelActivePicker?.();
 }
 
+export function cleanupImagePickerOnNavigation(
+  isTopFrame: boolean,
+  cancelLocal: () => void,
+  endGlobal: () => void,
+): void {
+  if (isTopFrame) {
+    endGlobal();
+  } else {
+    cancelLocal();
+  }
+}
+
 export function startImagePickerOverlay(
   container: HTMLElement,
   options: { showDim?: boolean; showHint?: boolean } = {},

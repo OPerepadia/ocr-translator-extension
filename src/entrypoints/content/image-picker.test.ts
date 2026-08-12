@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { findImageAtPoint } from "./image-picker";
+import { describe, expect, it, vi } from "vitest";
+import {
+  cleanupImagePickerOnNavigation,
+  findImageAtPoint,
+} from "./image-picker";
 
 function imageAt(
   x: number,
@@ -40,5 +43,27 @@ describe("findImageAtPoint", () => {
     const last = imageAt(10, 20, 100, 80);
 
     expect(findImageAtPoint([first, last], 50, 50)).toBe(last);
+  });
+});
+
+describe("cleanupImagePickerOnNavigation", () => {
+  it("ends the global session when the top frame navigates", () => {
+    const cancelLocal = vi.fn();
+    const endGlobal = vi.fn();
+
+    cleanupImagePickerOnNavigation(true, cancelLocal, endGlobal);
+
+    expect(endGlobal).toHaveBeenCalledOnce();
+    expect(cancelLocal).not.toHaveBeenCalled();
+  });
+
+  it("only cancels the local picker when a child frame navigates", () => {
+    const cancelLocal = vi.fn();
+    const endGlobal = vi.fn();
+
+    cleanupImagePickerOnNavigation(false, cancelLocal, endGlobal);
+
+    expect(cancelLocal).toHaveBeenCalledOnce();
+    expect(endGlobal).not.toHaveBeenCalled();
   });
 });

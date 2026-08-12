@@ -88,6 +88,7 @@ import { getRenderedImageRect } from "./overlay-layout";
 import { languageName } from "./language-picker";
 import {
   cancelImagePickerOverlay,
+  cleanupImagePickerOnNavigation,
   startImagePickerOverlay,
 } from "./image-picker";
 import "./style.css";
@@ -278,7 +279,11 @@ function closeOnNavigation(): void {
   selectionGeneration += 1;
   cancelActiveRequest();
   cancelSelectionOverlay();
-  endActiveImagePickerSession();
+  cleanupImagePickerOnNavigation(
+    window === window.top,
+    clearActiveImagePickerSession,
+    endActiveImagePickerSession,
+  );
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
@@ -390,19 +395,22 @@ async function runImagePickerFlow(sessionId: string): Promise<void> {
 
 function endActiveImagePickerSession(): void {
   const sessionId = activeImagePickerSessionId;
-  activeImagePickerSessionId = undefined;
-  cancelImagePickerOverlay();
+  clearActiveImagePickerSession();
   if (sessionId) {
     notifyImagePickerEnded(sessionId);
   }
+}
+
+function clearActiveImagePickerSession(): void {
+  activeImagePickerSessionId = undefined;
+  cancelImagePickerOverlay();
 }
 
 function cancelImagePickerSession(sessionId: string): void {
   if (activeImagePickerSessionId !== sessionId) {
     return;
   }
-  activeImagePickerSessionId = undefined;
-  cancelImagePickerOverlay();
+  clearActiveImagePickerSession();
 }
 
 function notifyImagePickerEnded(sessionId: string): void {
