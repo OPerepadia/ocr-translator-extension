@@ -227,7 +227,7 @@
     "message": "Source language"
   },
   "popupTargetLanguage": {
-    "message": "Translate to"
+    "message": "Target language"
   },
   "popupProvider": {
     "message": "Translation provider"

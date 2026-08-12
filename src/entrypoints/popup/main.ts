@@ -21,6 +21,7 @@ import {
   type DisplayMode,
 } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
+import { SETTINGS_ICON } from "@/entrypoints/content/icons";
 import { languageName } from "@/entrypoints/content/language-picker";
 import "./style.css";
 
@@ -33,6 +34,7 @@ void initPopup();
 
 async function initPopup(): Promise<void> {
   const elements = getPopupElements();
+  elements.openSettings.innerHTML = SETTINGS_ICON;
   elements.openSettings.addEventListener("click", () => {
     void openSettings(elements);
   });
