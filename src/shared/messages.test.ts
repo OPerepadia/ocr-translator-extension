@@ -7,6 +7,7 @@ import {
   isRuntimeMessage,
   isRerecognizeRequest,
   isSpeakRequest,
+  isStartImagePickerMessage,
   isStartImageTranslationMessage,
   isStartSelectionMessage,
   serializeError,
@@ -21,6 +22,9 @@ describe("runtime message guards", () => {
 
   it("recognizes start selection messages", () => {
     expect(isStartSelectionMessage({ type: "START_SELECTION" })).toBe(true);
+    expect(isStartImagePickerMessage({ type: "START_IMAGE_PICKER" })).toBe(
+      true,
+    );
     expect(
       isStartImageTranslationMessage({
         type: "START_IMAGE_TRANSLATION",

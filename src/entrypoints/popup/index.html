@@ -45,20 +45,25 @@
       </fieldset>
 
       <p id="message" class="popup-message" role="status" hidden></p>
-      <button id="select-area" class="primary-button" type="button" disabled>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
-        </svg>
-        <span data-i18n="popupSelectArea"></span>
-      </button>
+      <div class="popup-actions">
+        <button id="select-area" class="primary-button" type="button" disabled>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+          <span data-i18n="popupSelectArea"></span>
+        </button>
+        <button id="pick-image" class="secondary-button" type="button" disabled>
+          <span data-i18n="popupPickImage"></span>
+        </button>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

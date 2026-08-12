@@ -21,7 +21,10 @@ import {
   type DisplayMode,
 } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
-import { SETTINGS_ICON } from "@/entrypoints/content/icons";
+import {
+  PICK_IMAGE_ICON,
+  SETTINGS_ICON,
+} from "@/entrypoints/content/icons";
 import { languageName } from "@/entrypoints/content/language-picker";
 import "./style.css";
 
@@ -35,6 +38,7 @@ void initPopup();
 async function initPopup(): Promise<void> {
   const elements = getPopupElements();
   elements.openSettings.innerHTML = SETTINGS_ICON;
+  elements.pickImage.insertAdjacentHTML("afterbegin", PICK_IMAGE_ICON);
   elements.openSettings.addEventListener("click", () => {
     void openSettings(elements);
   });
@@ -81,9 +85,13 @@ async function initPopup(): Promise<void> {
     });
 
     elements.selectArea.addEventListener("click", () => {
-      void startSelection(elements);
+      void startPageAction(elements, "START_SELECTION");
+    });
+    elements.pickImage.addEventListener("click", () => {
+      void startPageAction(elements, "START_IMAGE_PICKER");
     });
     elements.selectArea.disabled = false;
+    elements.pickImage.disabled = false;
 
     if (
       !isActivationPageSupported(activeTab?.url) ||
@@ -166,16 +174,29 @@ function queuePopupSave(elements: PopupElements): void {
   });
 }
 
-async function startSelection(elements: PopupElements): Promise<void> {
+async function startPageAction(
+  elements: PopupElements,
+  type: "START_SELECTION" | "START_IMAGE_PICKER",
+): Promise<void> {
   elements.selectArea.disabled = true;
+  elements.pickImage.disabled = true;
   elements.openSettings.disabled = true;
   elements.controls.disabled = true;
-  showMessage(elements, t("popupStartingSelection"), false);
+  showMessage(
+    elements,
+    t(
+      type === "START_SELECTION"
+        ? "popupStartingSelection"
+        : "popupStartingImagePicker",
+    ),
+    false,
+  );
 
   try {
     await pendingSave;
   } catch {
     elements.selectArea.disabled = false;
+    elements.pickImage.disabled = false;
     elements.openSettings.disabled = false;
     elements.controls.disabled = false;
     showSettingsSaveError();
@@ -194,11 +215,7 @@ async function startSelection(elements: PopupElements): Promise<void> {
       disableSelection(elements, t("popupRestrictedPage"));
       return;
     }
-    await browserApi.tabs.sendMessage(
-      tab.id,
-      { type: "START_SELECTION" },
-      { frameId: 0 },
-    );
+    await browserApi.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
     window.close();
   } catch (error) {
     const [tab] = await browserApi.tabs.query({
@@ -217,8 +234,9 @@ async function startSelection(elements: PopupElements): Promise<void> {
       return;
     }
 
-    console.error("[Screen OCR Translator] Failed to start selection", error);
+    console.error("[Screen OCR Translator] Failed to start popup action", error);
     elements.selectArea.disabled = false;
+    elements.pickImage.disabled = false;
     elements.openSettings.disabled = false;
     elements.controls.disabled = false;
     showMessage(elements, t("popupCouldNotStart"));
@@ -227,14 +245,17 @@ async function startSelection(elements: PopupElements): Promise<void> {
 
 async function openSettings(elements: PopupElements): Promise<void> {
   const selectAreaWasDisabled = elements.selectArea.disabled;
+  const pickImageWasDisabled = elements.pickImage.disabled;
   elements.openSettings.disabled = true;
   elements.selectArea.disabled = true;
+  elements.pickImage.disabled = true;
   elements.controls.disabled = true;
   try {
     await pendingSave;
   } catch {
     elements.openSettings.disabled = false;
     elements.selectArea.disabled = selectAreaWasDisabled;
+    elements.pickImage.disabled = pickImageWasDisabled;
     elements.controls.disabled = false;
     showSettingsSaveError();
     return;
@@ -247,6 +268,7 @@ async function openSettings(elements: PopupElements): Promise<void> {
     console.error("[Screen OCR Translator] Failed to open settings", error);
     elements.openSettings.disabled = false;
     elements.selectArea.disabled = selectAreaWasDisabled;
+    elements.pickImage.disabled = pickImageWasDisabled;
     elements.controls.disabled = false;
     showMessage(elements, t("popupCouldNotOpenSettings"));
   }
@@ -271,6 +293,7 @@ function clearSaveError(): void {
 
 function disableSelection(elements: PopupElements, message: string): void {
   elements.selectArea.disabled = true;
+  elements.pickImage.disabled = true;
   elements.openSettings.disabled = false;
   elements.controls.disabled = false;
   showMessage(elements, message);
@@ -300,6 +323,7 @@ interface PopupElements {
   displayMode: HTMLSelectElement;
   openSettings: HTMLButtonElement;
   selectArea: HTMLButtonElement;
+  pickImage: HTMLButtonElement;
   message: HTMLParagraphElement;
 }
 
@@ -315,6 +339,7 @@ function getPopupElements(): PopupElements {
     displayMode: requiredElement("display-mode", HTMLSelectElement),
     openSettings: requiredElement("open-settings", HTMLButtonElement),
     selectArea: requiredElement("select-area", HTMLButtonElement),
+    pickImage: requiredElement("pick-image", HTMLButtonElement),
     message: requiredElement("message", HTMLParagraphElement),
   };
 }

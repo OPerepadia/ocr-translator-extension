@@ -2,6 +2,7 @@ import { browserApi } from "@/shared/browser";
 import {
   isOcrTranslateOcrResult,
   isOcrTranslateStatus,
+  isStartImagePickerMessage,
   isStartImageTranslationMessage,
   isStartSelectionMessage,
   serializeError,
@@ -84,6 +85,10 @@ import {
 } from "./navigation-watch";
 import { getRenderedImageRect } from "./overlay-layout";
 import { languageName } from "./language-picker";
+import {
+  cancelImagePickerOverlay,
+  startImagePickerOverlay,
+} from "./image-picker";
 import "./style.css";
 
 // Request id of the OCR/translate pipeline in flight, so status messages pushed
@@ -209,12 +214,22 @@ export default defineContentScript({
 
     browserApi.runtime.onMessage.addListener((message) => {
       if (isStartSelectionMessage(message)) {
+        cancelImagePickerOverlay();
         closePopup();
         closeOverlay();
         void runSelectionFlow();
         return undefined;
       }
+      if (isStartImagePickerMessage(message)) {
+        cancelSelectionOverlay();
+        closePopup();
+        closeOverlay();
+        void runImagePickerFlow();
+        return undefined;
+      }
       if (isStartImageTranslationMessage(message)) {
+        cancelSelectionOverlay();
+        cancelImagePickerOverlay();
         closePopup();
         closeOverlay();
         void runImageFlow(message.imageUrl);
@@ -256,6 +271,7 @@ function closeOnNavigation(): void {
   selectionGeneration += 1;
   cancelActiveRequest();
   cancelSelectionOverlay();
+  cancelImagePickerOverlay();
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
@@ -334,6 +350,23 @@ async function runImageFlow(imageUrl: string): Promise<void> {
   }
 
   await runCapture({ imageUrl }, imageRect);
+}
+
+async function runImagePickerFlow(): Promise<void> {
+  if (!uiRoot) {
+    return;
+  }
+  releaseSelectionDim();
+  startNavigationWatch(closeOnNavigation);
+  void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
+
+  const image = await startImagePickerOverlay(uiRoot);
+  if (!image) {
+    return;
+  }
+
+  lastContextImage = image;
+  await runImageFlow(image.currentSrc || image.src);
 }
 
 function findImageRect(imageUrl: string): Rect | undefined {
