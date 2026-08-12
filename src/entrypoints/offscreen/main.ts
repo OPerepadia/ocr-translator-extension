@@ -8,14 +8,11 @@ import type {
 } from "@/providers/ocr/paddle/protocol";
 import { createInferenceWorker } from "@/providers/ocr/paddle/worker-factory";
 import { browserApi, type BrowserPort } from "@/shared/browser";
-import { localizeMarkedElements, t } from "@/shared/i18n";
 import {
   decodeRequest,
   OCR_RELAY_PORT,
   type RelayedRequest,
 } from "@/shared/offscreen-relay";
-
-localizeMarkedElements();
 
 browserApi.runtime.onConnect.addListener((port: BrowserPort) => {
   if (port.name !== OCR_RELAY_PORT) {
@@ -31,7 +28,7 @@ browserApi.runtime.onConnect.addListener((port: BrowserPort) => {
     port.postMessage({
       type: "error",
       id: -1,
-      error: { message: event.message ?? t("errorOcrWorkerCrashed") },
+      error: { message: event.message ?? "The OCR worker crashed." },
       fatal: true,
     } satisfies WorkerResponse);
 

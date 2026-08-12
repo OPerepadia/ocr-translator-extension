@@ -1,4 +1,6 @@
 node_modules/
+playwright-report/
+test-results/
 
 # WXT generated output and types
 .output/

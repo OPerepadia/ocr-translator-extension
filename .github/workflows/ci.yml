@@ -33,3 +33,39 @@ jobs:
 
       - name: Build extension (Chrome)
         run: npm run build:chrome
+
+      - name: Upload Chrome extension
+        uses: actions/upload-artifact@v7
+        with:
+          name: chrome-extension
+          path: .output/chrome-mv3
+          if-no-files-found: error
+          retention-days: 1
+
+  chrome-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Download Chrome extension
+        uses: actions/download-artifact@v7
+        with:
+          name: chrome-extension
+          path: .output/chrome-mv3
+
+      - name: Smoke test extension in Chromium
+        run: npx playwright test

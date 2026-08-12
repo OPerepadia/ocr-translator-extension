@@ -15,6 +15,7 @@
     "zip:chrome": "wxt zip -b chrome",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
+    "test:browser": "npm run build:chrome && playwright test",
     "test:watch": "vitest",
     "verify:models": "node scripts/verify-models.mjs",
     "quantize:models": "scripts/quantize-models.sh"
@@ -24,6 +25,7 @@
     "tinyld": "^1.3.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20.14.15",
     "fake-indexeddb": "^6.2.5",
     "typescript": "^7.0.2",
