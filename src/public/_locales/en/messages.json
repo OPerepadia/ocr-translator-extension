@@ -223,6 +223,9 @@
   "popupStartingSelection": {
     "message": "Starting selection..."
   },
+  "popupStartingImagePicker": {
+    "message": "Starting image picker..."
+  },
   "popupSourceLanguage": {
     "message": "Source language"
   },
@@ -243,6 +246,9 @@
   },
   "popupSelectArea": {
     "message": "Select area"
+  },
+  "popupPickImage": {
+    "message": "Pick image"
   },
   "popupOpenAddonSettings": {
     "message": "Open add-on settings"
@@ -267,6 +273,9 @@
   },
   "selectionPressKeyToCancel": {
     "message": "Press $1 to cancel"
+  },
+  "imagePickerSelectImage": {
+    "message": "Click an image to translate"
   },
   "selectionResize": {
     "message": "Resize selection"

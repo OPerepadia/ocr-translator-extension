@@ -223,6 +223,9 @@
   "popupStartingSelection": {
     "message": "Запускаємо вибір…"
   },
+  "popupStartingImagePicker": {
+    "message": "Запускаємо вибір зображення…"
+  },
   "popupSourceLanguage": {
     "message": "Мова оригіналу"
   },
@@ -243,6 +246,9 @@
   },
   "popupSelectArea": {
     "message": "Вибрати ділянку"
+  },
+  "popupPickImage": {
+    "message": "Вибрати зображення"
   },
   "popupOpenAddonSettings": {
     "message": "Відкрити налаштування додатка"
@@ -267,6 +273,9 @@
   },
   "selectionPressKeyToCancel": {
     "message": "Натисніть $1, щоб скасувати"
+  },
+  "imagePickerSelectImage": {
+    "message": "Натисніть зображення, щоб перекласти"
   },
   "selectionResize": {
     "message": "Змінити розмір виділення"

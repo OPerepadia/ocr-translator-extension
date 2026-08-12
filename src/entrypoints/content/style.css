@@ -263,6 +263,35 @@
   line-height: var(--ocr-leading-ui);
 }
 
+/* Image picker */
+
+.ocr-translate-image-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ocr-translate-image-picker-frame {
+  position: fixed;
+  z-index: 2;
+  box-sizing: border-box;
+  border: 2px solid var(--ocr-accent);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
+}
+
+.ocr-translate-image-picker-frame[hidden] {
+  display: none;
+}
+
+.ocr-translate-image-picker-hint {
+  top: 24px;
+  transform: translateX(-50%);
+}
+
 /* Hairline outside the dashed edge, so the rectangle reads on any content. */
 .ocr-translate-selection-rect {
   position: fixed;

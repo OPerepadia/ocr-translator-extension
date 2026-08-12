@@ -1,7 +1,9 @@
 import { browserApi } from "@/shared/browser";
 import {
+  isCancelImagePickerMessage,
   isOcrTranslateOcrResult,
   isOcrTranslateStatus,
+  isStartImagePickerMessage,
   isStartImageTranslationMessage,
   isStartSelectionMessage,
   serializeError,
@@ -84,6 +86,11 @@ import {
 } from "./navigation-watch";
 import { getRenderedImageRect } from "./overlay-layout";
 import { languageName } from "./language-picker";
+import {
+  cancelImagePickerOverlay,
+  cleanupImagePickerOnNavigation,
+  startImagePickerOverlay,
+} from "./image-picker";
 import "./style.css";
 
 // Request id of the OCR/translate pipeline in flight, so status messages pushed
@@ -107,6 +114,7 @@ let lastSnapshot: ImageBitmap | undefined;
 let captureGeneration = 0;
 let requestedSnapshotGeneration = 0;
 let selectionGeneration = 0;
+let activeImagePickerSessionId: string | undefined;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -209,12 +217,27 @@ export default defineContentScript({
 
     browserApi.runtime.onMessage.addListener((message) => {
       if (isStartSelectionMessage(message)) {
+        endActiveImagePickerSession();
         closePopup();
         closeOverlay();
         void runSelectionFlow();
         return undefined;
       }
+      if (isStartImagePickerMessage(message)) {
+        activeImagePickerSessionId = message.sessionId;
+        cancelSelectionOverlay();
+        closePopup();
+        closeOverlay();
+        void runImagePickerFlow(message.sessionId);
+        return undefined;
+      }
+      if (isCancelImagePickerMessage(message)) {
+        cancelImagePickerSession(message.sessionId);
+        return undefined;
+      }
       if (isStartImageTranslationMessage(message)) {
+        cancelSelectionOverlay();
+        endActiveImagePickerSession();
         closePopup();
         closeOverlay();
         void runImageFlow(message.imageUrl);
@@ -256,6 +279,11 @@ function closeOnNavigation(): void {
   selectionGeneration += 1;
   cancelActiveRequest();
   cancelSelectionOverlay();
+  cleanupImagePickerOnNavigation(
+    window === window.top,
+    clearActiveImagePickerSession,
+    endActiveImagePickerSession,
+  );
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
@@ -334,6 +362,59 @@ async function runImageFlow(imageUrl: string): Promise<void> {
   }
 
   await runCapture({ imageUrl }, imageRect);
+}
+
+async function runImagePickerFlow(sessionId: string): Promise<void> {
+  if (!uiRoot) {
+    return;
+  }
+  releaseSelectionDim();
+  startNavigationWatch(closeOnNavigation);
+  if (window === window.top) {
+    void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
+  }
+
+  const isTopFrame = window === window.top;
+  const image = await startImagePickerOverlay(uiRoot, {
+    // A parent-frame scrim would paint over highlights inside child frames.
+    showDim: false,
+    showHint: isTopFrame,
+  });
+  if (activeImagePickerSessionId !== sessionId) {
+    return;
+  }
+  activeImagePickerSessionId = undefined;
+  notifyImagePickerEnded(sessionId);
+  if (!image) {
+    return;
+  }
+
+  lastContextImage = image;
+  await runImageFlow(image.currentSrc || image.src);
+}
+
+function endActiveImagePickerSession(): void {
+  const sessionId = activeImagePickerSessionId;
+  clearActiveImagePickerSession();
+  if (sessionId) {
+    notifyImagePickerEnded(sessionId);
+  }
+}
+
+function clearActiveImagePickerSession(): void {
+  activeImagePickerSessionId = undefined;
+  cancelImagePickerOverlay();
+}
+
+function cancelImagePickerSession(sessionId: string): void {
+  if (activeImagePickerSessionId !== sessionId) {
+    return;
+  }
+  clearActiveImagePickerSession();
+}
+
+function notifyImagePickerEnded(sessionId: string): void {
+  void sendRequest({ type: "END_IMAGE_PICKER", sessionId }).catch(() => {});
 }
 
 function findImageRect(imageUrl: string): Rect | undefined {

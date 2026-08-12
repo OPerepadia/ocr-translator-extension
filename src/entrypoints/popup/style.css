@@ -52,7 +52,7 @@ select {
 }
 
 .popup {
-  padding: 14px;
+  padding: 16px;
 }
 
 .popup-header,
@@ -63,13 +63,14 @@ select {
 
 .popup-header {
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding: 2px 0;
 }
 
 .popup-brand {
   min-width: 0;
   gap: 9px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .popup-brand img {
@@ -79,6 +80,7 @@ select {
 
 .popup-brand strong {
   overflow: hidden;
+  font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -111,7 +113,7 @@ select {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 13px 12px;
+  gap: 16px 12px;
   align-items: end;
   margin: 0;
   border: 0;
@@ -121,28 +123,21 @@ select {
 .field {
   display: grid;
   min-width: 0;
-  gap: 5px;
-  color: var(--muted);
+  gap: 8px;
+  color: color-mix(in srgb, var(--muted) 85%, var(--text));
   font-size: 12px;
-  font-weight: 600;
-}
-
-.field > span {
-  color: var(--text);
+  font-weight: 500;
 }
 
 .field:nth-of-type(1) {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: 1 / 1;
 }
 
 .field:nth-of-type(2) {
-  grid-column: 2;
-  grid-row: 1;
+  grid-area: 1 / 2;
 }
 
-.field:nth-of-type(1) select,
-.field:nth-of-type(2) select {
+.field:nth-of-type(-n + 2) select {
   width: calc(100% - 5px);
 }
 
@@ -176,7 +171,8 @@ select {
   background-repeat: no-repeat;
   background-size: 15px;
   color: var(--text);
-  font-weight: 400;
+  font-size: 13px;
+  font-weight: 500;
   text-overflow: ellipsis;
   cursor: pointer;
 }
@@ -191,21 +187,36 @@ select:disabled,
   cursor: default;
 }
 
-.primary-button {
+.popup-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.popup-actions button {
   display: flex;
   width: 100%;
   min-height: 40px;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 17px;
-  border: 1px solid var(--accent);
   border-radius: 7px;
-  padding: 8px 14px;
-  background: var(--accent);
-  color: #ffffff;
+  padding: 8px;
   font-weight: 650;
   cursor: pointer;
+}
+
+.primary-button {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.secondary-button {
+  border: 1px solid var(--border-strong);
+  background: var(--control-bg);
+  color: var(--text);
 }
 
 .primary-button:hover:not(:disabled) {
@@ -213,19 +224,30 @@ select:disabled,
   background: var(--accent-hover);
 }
 
-.primary-button svg {
+.secondary-button:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--hover-bg);
+}
+
+.popup-actions svg {
+  flex: none;
   width: 17px;
   height: 17px;
 }
 
-.primary-button:disabled {
+#pick-image svg {
+  width: 18px;
+  height: 18px;
+}
+
+.popup-actions button:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
 .icon-button:focus-visible,
 select:focus-visible,
-.primary-button:focus-visible {
+.popup-actions button:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 1px;
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  isCancelImagePickerMessage,
+  isEndImagePickerMessage,
   isGetOcrSourceLanguagesRequest,
   isOcrTranslateOcrResult,
   isOcrTranslateRequest,
@@ -7,6 +9,7 @@ import {
   isRuntimeMessage,
   isRerecognizeRequest,
   isSpeakRequest,
+  isStartImagePickerMessage,
   isStartImageTranslationMessage,
   isStartSelectionMessage,
   serializeError,
@@ -21,6 +24,27 @@ describe("runtime message guards", () => {
 
   it("recognizes start selection messages", () => {
     expect(isStartSelectionMessage({ type: "START_SELECTION" })).toBe(true);
+    expect(
+      isStartImagePickerMessage({
+        type: "START_IMAGE_PICKER",
+        sessionId: "picker-1",
+      }),
+    ).toBe(true);
+    expect(isStartImagePickerMessage({ type: "START_IMAGE_PICKER" })).toBe(
+      false,
+    );
+    expect(
+      isEndImagePickerMessage({
+        type: "END_IMAGE_PICKER",
+        sessionId: "picker-1",
+      }),
+    ).toBe(true);
+    expect(
+      isCancelImagePickerMessage({
+        type: "CANCEL_IMAGE_PICKER",
+        sessionId: "picker-1",
+      }),
+    ).toBe(true);
     expect(
       isStartImageTranslationMessage({
         type: "START_IMAGE_TRANSLATION",

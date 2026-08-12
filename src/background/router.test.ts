@@ -168,6 +168,33 @@ describe("background router", () => {
     );
   });
 
+  it("cancels a finished image picker session in every frame", async () => {
+    let listener: MessageListener | undefined;
+    const sendMessage = vi.fn(async () => undefined);
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+      },
+      tabs: { sendMessage },
+    });
+
+    startRouter({} as RouterDependencies);
+    await invoke(
+      listener,
+      { type: "END_IMAGE_PICKER", sessionId: "picker-1" },
+      { tab: { id: 7 }, frameId: 4 },
+    );
+
+    expect(sendMessage).toHaveBeenCalledWith(7, {
+      type: "CANCEL_IMAGE_PICKER",
+      sessionId: "picker-1",
+    });
+  });
+
   it("invalidates the previous capture before reading settings", async () => {
     let listener: MessageListener | undefined;
     vi.stubGlobal("browser", {
