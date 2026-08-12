@@ -33,3 +33,9 @@ jobs:
 
       - name: Build extension (Chrome)
         run: npm run build:chrome
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke test extension in Chromium
+        run: npm run test:browser
