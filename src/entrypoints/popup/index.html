@@ -6,18 +6,59 @@
     <title data-i18n="extensionName"></title>
   </head>
   <body>
-    <main class="popup" aria-live="polite">
-      <img src="/icon/48.png" alt="" width="32" height="32" />
-      <div>
-        <h1 data-i18n="extensionName"></h1>
-        <p id="message" data-i18n="popupStartingSelection"></p>
+    <main class="popup">
+      <header class="popup-header">
+        <span class="popup-brand">
+          <img src="/icon/48.png" alt="" width="28" height="28" />
+          <strong data-i18n="extensionName"></strong>
+        </span>
         <button
           id="open-settings"
+          class="icon-button"
           type="button"
-          data-i18n="popupOpenAddonSettings"
-          hidden
+          data-i18n-aria-label="commonSettings"
+          data-i18n-title="commonSettings"
         ></button>
-      </div>
+      </header>
+
+      <fieldset id="controls" class="popup-fields">
+        <label class="field">
+          <span data-i18n="popupSourceLanguage"></span>
+          <select id="source-language"></select>
+        </label>
+        <span class="direction" aria-hidden="true">→</span>
+        <label class="field">
+          <span data-i18n="popupTargetLanguage"></span>
+          <select id="target-language"></select>
+        </label>
+        <label class="field">
+          <span data-i18n="popupProvider"></span>
+          <select id="translation-provider"></select>
+        </label>
+        <label class="field">
+          <span data-i18n="popupResultMode"></span>
+          <select id="display-mode" data-i18n-title="optionsDisplayHint">
+            <option value="overlay" data-i18n="popupDisplayModeOverlay"></option>
+            <option value="panel" data-i18n="popupDisplayModePanel"></option>
+          </select>
+        </label>
+      </fieldset>
+
+      <p id="message" class="popup-message" role="status" hidden></p>
+      <button id="select-area" class="primary-button" type="button" disabled>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+        </svg>
+        <span data-i18n="popupSelectArea"></span>
+      </button>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

@@ -27,6 +27,7 @@ import { onRequest } from "../shared/runtime-messaging";
 import {
   findOcrSourceLanguage,
   COMMON_OCR_SOURCE_LANGUAGES,
+  resolveOcrSourceLanguage,
   resolveTranslationSourceLanguage,
   TRANSLATION_PROVIDERS,
 } from "../providers/catalog";
@@ -108,7 +109,7 @@ export function startRouter(dependencies: RouterDependencies): void {
       return handleGetTargetLanguages(dependencies);
     }
     if (isGetOcrSourceLanguagesRequest(message)) {
-      return handleGetOcrSourceLanguages();
+      return handleGetOcrSourceLanguages(dependencies);
     }
     if (isGetTranslationProvidersRequest(message)) {
       return handleGetTranslationProviders(dependencies);
@@ -247,6 +248,8 @@ async function handleOcrTranslateRequest(
   if ("imageUrl" in message) {
     sendPipelineStatus(tabId, message.requestId, { stage: "loading" });
   }
+  // Replace the previous capture before any fallible setup so a retry cannot
+  // reprocess stale pixels at the new selection's position.
   await writeCapture(dependencies, frameKey, () => ({
     requestId: message.requestId,
     sourceLanguage: "auto",
@@ -257,6 +260,13 @@ async function handleOcrTranslateRequest(
   }));
 
   const settings = await dependencies.settingsRepository.get();
+  const sourceLanguage = resolveOcrSourceLanguage(settings.ocr.sourceLang);
+  await writeCapture(dependencies, frameKey, (current) =>
+    current?.requestId === message.requestId
+      ? { ...current, sourceLanguage: sourceLanguage.id }
+      : undefined,
+  );
+
   const ocrProvider = dependencies.createOcrProvider(settings.ocr);
   const translationProvider = dependencies.createTranslationProvider(
     settings.translation,
@@ -280,7 +290,7 @@ async function handleOcrTranslateRequest(
     image,
     ocrProvider,
     translationProvider,
-    sourceLang: "auto",
+    sourceLang: sourceLanguage.sourceLang,
     targetLang: settings.translation.targetLang,
     detectLanguage: dependencies.detectLanguage,
     signal,
@@ -426,13 +436,16 @@ async function handleGetTargetLanguages(
 }
 
 // Reports the source languages supported by the packaged recognizers.
-async function handleGetOcrSourceLanguages(): Promise<OcrSourceLanguagesResponse> {
+async function handleGetOcrSourceLanguages(
+  dependencies: RouterDependencies,
+): Promise<OcrSourceLanguagesResponse> {
+  const settings = await dependencies.settingsRepository.get();
   const [auto, ...supported] = COMMON_OCR_SOURCE_LANGUAGES.map(({ id }) => ({
     id,
   }));
   return {
     languages: [auto, ...supported],
-    currentId: "auto",
+    currentId: resolveOcrSourceLanguage(settings.ocr.sourceLang).id,
   };
 }
 

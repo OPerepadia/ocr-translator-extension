@@ -95,7 +95,7 @@ export interface PipelineTranslationResult {
 export interface Settings {
   ocr: {
     providerId: string;
-    /** Set only while re-running the current capture. */
+    /** Default recognizer language. "auto" uses the general multilingual model. */
     sourceLang?: LangCode | "auto";
     /** ORT execution backend; "webgpu" falls back to wasm when unavailable. */
     backend?: "wasm" | "webgpu";

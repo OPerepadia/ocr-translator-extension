@@ -73,6 +73,7 @@ export async function setOverlayMode(mode: OverlayMode): Promise<void> {
 export const defaultSettings: Settings = {
   ocr: {
     providerId: "paddle",
+    sourceLang: "auto",
   },
   translation: {
     providerId: "google",

@@ -1,5 +1,6 @@
 import { captureVisibleArea, loadImage } from "@/background/capture";
 import { createCaptureStore } from "@/background/capture-store";
+import { startKeyboardCommand } from "@/background/command";
 import { startContextMenu } from "@/background/context-menu";
 import {
   canHostWorker,
@@ -31,6 +32,7 @@ export default defineBackground(() => {
   // the page wakes up is not missed.
   const settingsRepository = createSettingsRepository();
 
+  startKeyboardCommand();
   startContextMenu();
   startRouter({
     settingsRepository,

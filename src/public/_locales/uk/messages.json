@@ -223,6 +223,27 @@
   "popupStartingSelection": {
     "message": "Запускаємо вибір…"
   },
+  "popupSourceLanguage": {
+    "message": "Мова оригіналу"
+  },
+  "popupTargetLanguage": {
+    "message": "Мова перекладу"
+  },
+  "popupProvider": {
+    "message": "Сервіс перекладу"
+  },
+  "popupResultMode": {
+    "message": "Режим відображення"
+  },
+  "popupDisplayModeOverlay": {
+    "message": "Поверх тексту"
+  },
+  "popupDisplayModePanel": {
+    "message": "В панелі"
+  },
+  "popupSelectArea": {
+    "message": "Вибрати ділянку"
+  },
   "popupOpenAddonSettings": {
     "message": "Відкрити налаштування додатка"
   },
@@ -231,6 +252,9 @@
   },
   "popupCouldNotStart": {
     "message": "Не вдалося запустити Screen OCR Translator на цій сторінці."
+  },
+  "popupCouldNotSaveSettings": {
+    "message": "Не вдалося зберегти налаштування спливного вікна."
   },
   "popupLocalFilePermission": {
     "message": "Розширенню потрібен дозвіл на доступ до локальних файлів. У налаштуваннях додатка виберіть «Дозволи й дані» та увімкніть «Доступ до локальних файлів на вашому комп’ютері», а потім перезавантажте цей файл."
