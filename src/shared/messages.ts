@@ -18,6 +18,15 @@ export type RuntimeMessage =
     }
   | {
       type: "START_IMAGE_PICKER";
+      sessionId: string;
+    }
+  | {
+      type: "END_IMAGE_PICKER";
+      sessionId: string;
+    }
+  | {
+      type: "CANCEL_IMAGE_PICKER";
+      sessionId: string;
     }
   | {
       type: "START_IMAGE_TRANSLATION";
@@ -153,7 +162,31 @@ export function isStartSelectionMessage(
 export function isStartImagePickerMessage(
   value: unknown,
 ): value is Extract<RuntimeMessage, { type: "START_IMAGE_PICKER" }> {
-  return isRuntimeMessage(value) && value.type === "START_IMAGE_PICKER";
+  return (
+    isRuntimeMessage(value) &&
+    value.type === "START_IMAGE_PICKER" &&
+    typeof (value as { sessionId?: unknown }).sessionId === "string"
+  );
+}
+
+export function isEndImagePickerMessage(
+  value: unknown,
+): value is Extract<RuntimeMessage, { type: "END_IMAGE_PICKER" }> {
+  return (
+    isRuntimeMessage(value) &&
+    value.type === "END_IMAGE_PICKER" &&
+    typeof (value as { sessionId?: unknown }).sessionId === "string"
+  );
+}
+
+export function isCancelImagePickerMessage(
+  value: unknown,
+): value is Extract<RuntimeMessage, { type: "CANCEL_IMAGE_PICKER" }> {
+  return (
+    isRuntimeMessage(value) &&
+    value.type === "CANCEL_IMAGE_PICKER" &&
+    typeof (value as { sessionId?: unknown }).sessionId === "string"
+  );
 }
 
 export function isStartImageTranslationMessage(

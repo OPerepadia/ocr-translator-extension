@@ -3,6 +3,7 @@ import type { TranslationProvider } from "../providers/translation/types";
 import { browserApi } from "../shared/browser";
 import {
   isCancelRequest,
+  isEndImagePickerMessage,
   isGetCaptureSnapshotRequest,
   isGetOcrSourceLanguagesRequest,
   isGetTargetLanguagesRequest,
@@ -78,6 +79,15 @@ export function startRouter(dependencies: RouterDependencies): void {
     if (isStartSelectionMessage(message)) {
       if (typeof tabId === "number") {
         return browserApi.tabs.sendMessage(tabId, message, { frameId: 0 });
+      }
+      return undefined;
+    }
+    if (isEndImagePickerMessage(message)) {
+      if (typeof tabId === "number") {
+        return browserApi.tabs.sendMessage(tabId, {
+          type: "CANCEL_IMAGE_PICKER",
+          sessionId: message.sessionId,
+        });
       }
       return undefined;
     }

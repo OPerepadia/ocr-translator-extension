@@ -26,6 +26,7 @@ import {
   SETTINGS_ICON,
 } from "@/entrypoints/content/icons";
 import { languageName } from "@/entrypoints/content/language-picker";
+import { createRequestId } from "@/shared/request-id";
 import "./style.css";
 
 const settingsRepository = createSettingsRepository();
@@ -215,7 +216,14 @@ async function startPageAction(
       disableSelection(elements, t("popupRestrictedPage"));
       return;
     }
-    await browserApi.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
+    if (type === "START_IMAGE_PICKER") {
+      await browserApi.tabs.sendMessage(tab.id, {
+        type,
+        sessionId: createRequestId(),
+      });
+    } else {
+      await browserApi.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
+    }
     window.close();
   } catch (error) {
     const [tab] = await browserApi.tabs.query({

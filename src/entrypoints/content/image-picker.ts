@@ -8,6 +8,7 @@ export function cancelImagePickerOverlay(): void {
 
 export function startImagePickerOverlay(
   container: HTMLElement,
+  options: { showDim?: boolean; showHint?: boolean } = {},
 ): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     cancelImagePickerOverlay();
@@ -41,7 +42,13 @@ export function startImagePickerOverlay(
     hintSub.append(beforeKey ?? "", key, afterKey ?? "");
     hint.append(hintSub);
 
-    overlay.append(dim, frame, hint);
+    if (options.showDim !== false) {
+      overlay.append(dim);
+    }
+    overlay.append(frame);
+    if (options.showHint !== false) {
+      overlay.append(hint);
+    }
     container.append(overlay);
 
     function cleanup(image: HTMLImageElement | null): void {

@@ -1,5 +1,6 @@
 import { browserApi } from "@/shared/browser";
 import {
+  isCancelImagePickerMessage,
   isOcrTranslateOcrResult,
   isOcrTranslateStatus,
   isStartImagePickerMessage,
@@ -112,6 +113,7 @@ let lastSnapshot: ImageBitmap | undefined;
 let captureGeneration = 0;
 let requestedSnapshotGeneration = 0;
 let selectionGeneration = 0;
+let activeImagePickerSessionId: string | undefined;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -214,22 +216,27 @@ export default defineContentScript({
 
     browserApi.runtime.onMessage.addListener((message) => {
       if (isStartSelectionMessage(message)) {
-        cancelImagePickerOverlay();
+        endActiveImagePickerSession();
         closePopup();
         closeOverlay();
         void runSelectionFlow();
         return undefined;
       }
       if (isStartImagePickerMessage(message)) {
+        activeImagePickerSessionId = message.sessionId;
         cancelSelectionOverlay();
         closePopup();
         closeOverlay();
-        void runImagePickerFlow();
+        void runImagePickerFlow(message.sessionId);
+        return undefined;
+      }
+      if (isCancelImagePickerMessage(message)) {
+        cancelImagePickerSession(message.sessionId);
         return undefined;
       }
       if (isStartImageTranslationMessage(message)) {
         cancelSelectionOverlay();
-        cancelImagePickerOverlay();
+        endActiveImagePickerSession();
         closePopup();
         closeOverlay();
         void runImageFlow(message.imageUrl);
@@ -271,7 +278,7 @@ function closeOnNavigation(): void {
   selectionGeneration += 1;
   cancelActiveRequest();
   cancelSelectionOverlay();
-  cancelImagePickerOverlay();
+  endActiveImagePickerSession();
   releaseSelectionDim();
   closePopup({ notify: false });
   closeOverlay();
@@ -352,21 +359,54 @@ async function runImageFlow(imageUrl: string): Promise<void> {
   await runCapture({ imageUrl }, imageRect);
 }
 
-async function runImagePickerFlow(): Promise<void> {
+async function runImagePickerFlow(sessionId: string): Promise<void> {
   if (!uiRoot) {
     return;
   }
   releaseSelectionDim();
   startNavigationWatch(closeOnNavigation);
-  void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
+  if (window === window.top) {
+    void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
+  }
 
-  const image = await startImagePickerOverlay(uiRoot);
+  const isTopFrame = window === window.top;
+  const image = await startImagePickerOverlay(uiRoot, {
+    // A parent-frame scrim would paint over highlights inside child frames.
+    showDim: false,
+    showHint: isTopFrame,
+  });
+  if (activeImagePickerSessionId !== sessionId) {
+    return;
+  }
+  activeImagePickerSessionId = undefined;
+  notifyImagePickerEnded(sessionId);
   if (!image) {
     return;
   }
 
   lastContextImage = image;
   await runImageFlow(image.currentSrc || image.src);
+}
+
+function endActiveImagePickerSession(): void {
+  const sessionId = activeImagePickerSessionId;
+  activeImagePickerSessionId = undefined;
+  cancelImagePickerOverlay();
+  if (sessionId) {
+    notifyImagePickerEnded(sessionId);
+  }
+}
+
+function cancelImagePickerSession(sessionId: string): void {
+  if (activeImagePickerSessionId !== sessionId) {
+    return;
+  }
+  activeImagePickerSessionId = undefined;
+  cancelImagePickerOverlay();
+}
+
+function notifyImagePickerEnded(sessionId: string): void {
+  void sendRequest({ type: "END_IMAGE_PICKER", sessionId }).catch(() => {});
 }
 
 function findImageRect(imageUrl: string): Rect | undefined {
