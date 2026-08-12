@@ -62,18 +62,17 @@ export function startImagePickerOverlay(
       resolve(image);
     }
 
-    function imageFromEvent(event: Event): HTMLImageElement | undefined {
-      const image = event
+    function imageFromEvent(event: MouseEvent): HTMLImageElement | undefined {
+      const pathImage = event
         .composedPath()
         .find(
           (target): target is HTMLImageElement =>
             target instanceof HTMLImageElement,
         );
-      if (!image || !image.currentSrc && !image.src) {
-        return undefined;
+      if (pathImage && isSelectableImage(pathImage)) {
+        return pathImage;
       }
-      const rect = image.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 ? image : undefined;
+      return findImageAtPoint(document.images, event.clientX, event.clientY);
     }
 
     function onPointerMove(event: PointerEvent): void {
@@ -140,4 +139,35 @@ export function startImagePickerOverlay(
     window.addEventListener("scroll", updateFrame, true);
     window.addEventListener("resize", updateFrame);
   });
+}
+
+export function findImageAtPoint(
+  images: ArrayLike<HTMLImageElement>,
+  x: number,
+  y: number,
+): HTMLImageElement | undefined {
+  for (let index = images.length - 1; index >= 0; index -= 1) {
+    const image = images[index];
+    if (!image || !isSelectableImage(image)) {
+      continue;
+    }
+    const rect = image.getBoundingClientRect();
+    if (
+      x >= rect.x &&
+      x < rect.x + rect.width &&
+      y >= rect.y &&
+      y < rect.y + rect.height
+    ) {
+      return image;
+    }
+  }
+  return undefined;
+}
+
+function isSelectableImage(image: HTMLImageElement): boolean {
+  if (!image.currentSrc && !image.src) {
+    return false;
+  }
+  const rect = image.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
 }
