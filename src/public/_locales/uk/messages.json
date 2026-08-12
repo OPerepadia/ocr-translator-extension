@@ -172,6 +172,12 @@
   "optionsGpuHint": {
     "message": "Пришвидшує розпізнавання тексту за допомогою WebGPU. Якщо недоступно, автоматично використовується процесор."
   },
+  "optionsStartOcrImmediately": {
+    "message": "Запускати OCR одразу після виділення ділянки"
+  },
+  "optionsStartOcrImmediatelyHint": {
+    "message": "Пропускає етап коригування та запускає OCR, щойно ви відпускаєте кнопку миші."
+  },
   "optionsSee": {
     "message": "Див."
   },

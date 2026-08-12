@@ -3,6 +3,7 @@ import {
   createSettingsRepository,
   defaultSettings,
   getDisplayMode,
+  getStartOcrImmediately,
 } from "./storage";
 
 afterEach(() => {
@@ -23,6 +24,16 @@ describe("storage defaults", () => {
   it("uses overlay when no display mode is saved", async () => {
     stubStorage({});
     await expect(getDisplayMode()).resolves.toBe("overlay");
+  });
+
+  it("waits for confirmation when immediate OCR is not enabled", async () => {
+    stubStorage({});
+    await expect(getStartOcrImmediately()).resolves.toBe(false);
+  });
+
+  it("starts OCR immediately when enabled", async () => {
+    stubStorage({ startOcrImmediately: true });
+    await expect(getStartOcrImmediately()).resolves.toBe(true);
   });
 
   it("uses default settings when none are saved", async () => {

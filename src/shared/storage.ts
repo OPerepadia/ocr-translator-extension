@@ -12,6 +12,8 @@ export type DisplayMode = "panel" | "overlay";
 const DISPLAY_MODE_KEY = "displayMode";
 const DEFAULT_DISPLAY_MODE: DisplayMode = "overlay";
 
+const START_OCR_IMMEDIATELY_KEY = "startOcrImmediately";
+
 export async function getDisplayMode(): Promise<DisplayMode> {
   try {
     const values = await browserApi.storage.local.get(DISPLAY_MODE_KEY);
@@ -23,6 +25,21 @@ export async function getDisplayMode(): Promise<DisplayMode> {
 
 export async function setDisplayMode(mode: DisplayMode): Promise<void> {
   await browserApi.storage.local.set({ [DISPLAY_MODE_KEY]: mode });
+}
+
+export async function getStartOcrImmediately(): Promise<boolean> {
+  try {
+    const values = await browserApi.storage.local.get(START_OCR_IMMEDIATELY_KEY);
+    return values[START_OCR_IMMEDIATELY_KEY] === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function setStartOcrImmediately(enabled: boolean): Promise<void> {
+  await browserApi.storage.local.set({
+    [START_OCR_IMMEDIATELY_KEY]: enabled,
+  });
 }
 
 // Which view the overlay boxes open in: the translated text painted over the

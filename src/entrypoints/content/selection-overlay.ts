@@ -43,6 +43,7 @@ export function cancelSelectionOverlay(): void {
 // CSS pixels; the caller pairs them with the current viewport size.
 export function startSelectionOverlay(
   container: HTMLElement,
+  startImmediately = false,
 ): Promise<Rect | null> {
   return new Promise((resolve) => {
     releaseSelectionDim();
@@ -215,7 +216,12 @@ export function startSelectionOverlay(
         return;
       }
 
-      enterAdjustMode(rect);
+      if (startImmediately) {
+        hint.style.display = "none";
+        cleanup(rect);
+      } else {
+        enterAdjustMode(rect);
+      }
     }
 
     function startDrawing(start: Point): void {

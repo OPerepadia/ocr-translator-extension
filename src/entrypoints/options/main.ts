@@ -12,7 +12,9 @@ import {
 import {
   createSettingsRepository,
   getDisplayMode,
+  getStartOcrImmediately,
   setDisplayMode,
+  setStartOcrImmediately,
 } from "@/shared/storage";
 import {
   localizeMarkedElements,
@@ -88,6 +90,13 @@ async function initOptions(): Promise<void> {
     setDisplayMode(
       elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",
     ).then(
+      () => showStatus(t("commonSaved")),
+      (error: unknown) => showSaveError(error),
+    );
+  });
+  elements.startOcrImmediatelyInput.checked = await getStartOcrImmediately();
+  elements.startOcrImmediatelyInput.addEventListener("change", () => {
+    setStartOcrImmediately(elements.startOcrImmediatelyInput.checked).then(
       () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
     );
@@ -439,6 +448,7 @@ function getOptionsElements(): {
   googleProviderNote: HTMLElement;
   targetLangSelect: HTMLSelectElement;
   displayModeSelect: HTMLSelectElement;
+  startOcrImmediatelyInput: HTMLInputElement;
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
   ocrWebGpuStatus: HTMLElement;
@@ -466,6 +476,9 @@ function getOptionsElements(): {
   );
   const displayModeSelect = app.querySelector<HTMLSelectElement>(
     "select[name='displayMode']",
+  );
+  const startOcrImmediatelyInput = app.querySelector<HTMLInputElement>(
+    "input[name='startOcrImmediately']",
   );
   const ocrWebGpuInput = app.querySelector<HTMLInputElement>(
     "input[name='ocrWebGpu']",
@@ -506,6 +519,7 @@ function getOptionsElements(): {
     !googleProviderNote ||
     !targetLangSelect ||
     !displayModeSelect ||
+    !startOcrImmediatelyInput ||
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
     !ocrWebGpuStatus ||
@@ -530,6 +544,7 @@ function getOptionsElements(): {
     googleProviderNote,
     targetLangSelect,
     displayModeSelect,
+    startOcrImmediatelyInput,
     ocrWebGpuInput,
     ocrWebGpuNote,
     ocrWebGpuStatus,

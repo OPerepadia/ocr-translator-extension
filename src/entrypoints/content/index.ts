@@ -23,6 +23,7 @@ import type {
 import {
   getDisplayMode,
   getOverlayMode,
+  getStartOcrImmediately,
   type DisplayMode,
 } from "@/shared/storage";
 import { createRequestId } from "@/shared/request-id";
@@ -105,6 +106,7 @@ let lastContextImage: HTMLImageElement | undefined;
 let lastSnapshot: ImageBitmap | undefined;
 let captureGeneration = 0;
 let requestedSnapshotGeneration = 0;
+let selectionGeneration = 0;
 // Which view is currently on screen, and the default for fresh captures (read
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
@@ -251,6 +253,7 @@ export default defineContentScript({
 // our UI stays up, so drop everything and let the in-flight request finish
 // unseen.
 function closeOnNavigation(): void {
+  selectionGeneration += 1;
   cancelActiveRequest();
   cancelSelectionOverlay();
   releaseSelectionDim();
@@ -278,12 +281,17 @@ async function runSelectionFlow(): Promise<void> {
   if (!uiRoot) {
     return;
   }
+  const generation = selectionGeneration;
   startNavigationWatch(closeOnNavigation);
   // Preload the OCR worker and model while the user is selecting a region,
   // so recognition can start as soon as the screenshot is ready.
   void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
 
-  const viewportRect = await startSelectionOverlay(uiRoot);
+  const startImmediately = await getStartOcrImmediately();
+  if (generation !== selectionGeneration) {
+    return;
+  }
+  const viewportRect = await startSelectionOverlay(uiRoot, startImmediately);
 
   if (!viewportRect) {
     return;

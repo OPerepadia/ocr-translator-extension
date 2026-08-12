@@ -172,6 +172,12 @@
   "optionsGpuHint": {
     "message": "Speeds up text recognition using WebGPU. Falls back to the CPU automatically."
   },
+  "optionsStartOcrImmediately": {
+    "message": "Run OCR immediately after selecting an area"
+  },
+  "optionsStartOcrImmediatelyHint": {
+    "message": "Skips the adjustment step and runs OCR when you release the mouse button."
+  },
   "optionsSee": {
     "message": "See"
   },
