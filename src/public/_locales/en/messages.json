@@ -218,16 +218,16 @@
     "message": "Starting selection..."
   },
   "popupSourceLanguage": {
-    "message": "Source"
+    "message": "Source language"
   },
   "popupTargetLanguage": {
     "message": "Translate to"
   },
   "popupProvider": {
-    "message": "Provider"
+    "message": "Translation provider"
   },
   "popupResultMode": {
-    "message": "Result"
+    "message": "Display mode"
   },
   "popupDisplayModeOverlay": {
     "message": "Overlay"
@@ -237,12 +237,6 @@
   },
   "popupSelectArea": {
     "message": "Select area"
-  },
-  "popupShortcutHint": {
-    "message": "$1 starts selection"
-  },
-  "popupShortcutHintUnassigned": {
-    "message": "You can assign a shortcut for instant access"
   },
   "popupOpenAddonSettings": {
     "message": "Open add-on settings"

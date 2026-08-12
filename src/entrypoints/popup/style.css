@@ -231,13 +231,6 @@ select:focus-visible,
   color: var(--muted);
 }
 
-.shortcut-hint {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  text-align: center;
-}
-
 [hidden] {
   display: none !important;
 }

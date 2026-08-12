@@ -8,7 +8,6 @@ import {
   isContentScriptUnavailableError,
 } from "@/shared/activation";
 import { browserApi } from "@/shared/browser";
-import { START_SELECTION_COMMAND } from "@/shared/commands";
 import {
   localizeMarkedElements,
   t,
@@ -39,11 +38,10 @@ async function initPopup(): Promise<void> {
   });
 
   try {
-    const [settings, displayMode, [activeTab], shortcut] = await Promise.all([
+    const [settings, displayMode, [activeTab]] = await Promise.all([
       settingsRepository.get(),
       getDisplayMode(),
       browserApi.tabs.query({ active: true, currentWindow: true }),
-      getRegisteredShortcut(),
     ]);
     currentSettings = settings;
 
@@ -63,9 +61,6 @@ async function initPopup(): Promise<void> {
       settings.translation.providerId,
     );
     elements.displayMode.value = displayMode;
-    elements.shortcutHint.textContent = shortcut
-      ? t("popupShortcutHint", shortcut)
-      : t("popupShortcutHintUnassigned");
 
     elements.controls.addEventListener("change", () => {
       currentSettings = {
@@ -255,18 +250,6 @@ async function openSettings(elements: PopupElements): Promise<void> {
   }
 }
 
-async function getRegisteredShortcut(): Promise<string | undefined> {
-  try {
-    const commands = await browserApi.commands.getAll();
-    return (
-      commands.find(({ name }) => name === START_SELECTION_COMMAND)?.shortcut ||
-      undefined
-    );
-  } catch {
-    return undefined;
-  }
-}
-
 function showSettingsSaveError(): void {
   showMessage(
     getPopupElements(),
@@ -316,7 +299,6 @@ interface PopupElements {
   openSettings: HTMLButtonElement;
   selectArea: HTMLButtonElement;
   message: HTMLParagraphElement;
-  shortcutHint: HTMLParagraphElement;
 }
 
 function getPopupElements(): PopupElements {
@@ -332,7 +314,6 @@ function getPopupElements(): PopupElements {
     openSettings: requiredElement("open-settings", HTMLButtonElement),
     selectArea: requiredElement("select-area", HTMLButtonElement),
     message: requiredElement("message", HTMLParagraphElement),
-    shortcutHint: requiredElement("shortcut-hint", HTMLParagraphElement),
   };
 }
 

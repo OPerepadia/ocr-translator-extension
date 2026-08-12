@@ -218,31 +218,25 @@
     "message": "Запускаємо вибір…"
   },
   "popupSourceLanguage": {
-    "message": "Оригінал"
+    "message": "Мова оригіналу"
   },
   "popupTargetLanguage": {
-    "message": "Перекласти на"
+    "message": "Мова перекладу"
   },
   "popupProvider": {
-    "message": "Сервіс"
+    "message": "Сервіс перекладу"
   },
   "popupResultMode": {
-    "message": "Результат"
+    "message": "Режим відображення"
   },
   "popupDisplayModeOverlay": {
     "message": "Поверх тексту"
   },
   "popupDisplayModePanel": {
-    "message": "Панель"
+    "message": "В панелі"
   },
   "popupSelectArea": {
     "message": "Вибрати ділянку"
-  },
-  "popupShortcutHint": {
-    "message": "$1 запускає виділення"
-  },
-  "popupShortcutHintUnassigned": {
-    "message": "Для швидкого доступу можна призначити комбінацію клавіш"
   },
   "popupOpenAddonSettings": {
     "message": "Відкрити налаштування додатка"
