@@ -34,7 +34,7 @@ det.onnx 914c768d3987c50ee14c718ecbe3d765736c0958e66c872e58ce2490416284e2
 ```
 
 This archive's `inference.yml` is also the source of the detector settings in
-every folder's `manifest.json`, not just this one, and it carries no dictionary —
+every folder's `model-manifest.json`, not just this one, and it carries no dictionary —
 `dict.txt` comes from the recognizer archive below. Replacing the detector
 therefore touches all five folders; see `Updating the shared detector` in
 `../README.md`.
@@ -64,7 +64,7 @@ Packaged file SHA-256:
 ```txt
 rec.onnx      05d3020e86aaa3b361adc8f8c9d0438fe8f9e5299daf4173a13e6acbfc09cb47
 dict.txt      b5f2bfe2bdd9448429e3e82b51c789775d9b42f2403d082b00662eb77e401c5d
-manifest.json 5163c6f8b2e4e62f8390752cfd062f95df4903aa118ec358a2c7d11348b60afe
+model-manifest.json 5163c6f8b2e4e62f8390752cfd062f95df4903aa118ec358a2c7d11348b60afe
 ```
 
 `dict.txt` has 18,708 entries, so the recognizer emits 18,710 classes.

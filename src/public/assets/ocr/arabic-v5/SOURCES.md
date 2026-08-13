@@ -34,7 +34,7 @@ Packaged file SHA-256:
 ```txt
 rec.onnx      7d7cddfb36496ca65ea6afd321c1b59ee94d06d7c6bcd979d3a5ecaca2b4cfec
 dict.txt      7f92f7dbb9b75a4787a83bfb4f6d14a8ab515525130c9d40a9036f61cf6999e9
-manifest.json 82dfc90051d898f6c5cfc062cce194b48401ee1c74ca492002e1a4e7ad5ac909
+model-manifest.json 82dfc90051d898f6c5cfc062cce194b48401ee1c74ca492002e1a4e7ad5ac909
 ```
 
 `dict.txt` has 747 entries, so the recognizer emits 749 classes.

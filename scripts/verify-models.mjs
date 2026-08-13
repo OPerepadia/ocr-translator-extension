@@ -55,7 +55,7 @@ async function verifyModelDir(modelDir) {
   console.log(`Verifying models in ${modelDir}\n`);
 
   const manifest = JSON.parse(
-    await readFile(path.join(modelDir, "manifest.json"), "utf8"),
+    await readFile(path.join(modelDir, "model-manifest.json"), "utf8"),
   );
   const dictText = await readFile(path.join(modelDir, "dict.txt"), "utf8");
   const dictLines = dictText.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n");

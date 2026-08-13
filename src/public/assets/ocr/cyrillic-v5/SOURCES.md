@@ -36,7 +36,7 @@ Packaged file SHA-256:
 ```txt
 rec.onnx      3873c7da60d186d4eda418228c37e961a1136c03e94ff25376fe7f7c261e315a
 dict.txt      db40aa52ceb112055be80c694afdf655d5d2c4f7873704524cc16a447ca913ba
-manifest.json 9608c7d4ebaf05e60b5bd7358a3f687943bd6cd59cd317f3f8186d6c161e6243
+model-manifest.json 9608c7d4ebaf05e60b5bd7358a3f687943bd6cd59cd317f3f8186d6c161e6243
 ```
 
 `dict.txt` has 850 entries — Latin, Greek, Cyrillic, and common symbols — so the

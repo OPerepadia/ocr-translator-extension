@@ -107,7 +107,7 @@ export class PaddleEngine {
     const backendPromise = resolveBackend(options.backend);
 
     const manifest = await fetchJson<Manifest>(
-      options.model.modelBaseUrl + "manifest.json",
+      options.model.modelBaseUrl + "model-manifest.json",
     );
     const dictText = await fetchText(
       options.model.modelBaseUrl + manifest.recognizer.dictPath,
@@ -594,7 +594,7 @@ async function loadRecognizer(
   backend: OrtBackend,
 ): Promise<LoadedRecognizer> {
   const manifest = await fetchJson<Manifest>(
-    model.modelBaseUrl + "manifest.json",
+    model.modelBaseUrl + "model-manifest.json",
   );
   const [dictText, session] = await Promise.all([
     fetchText(model.modelBaseUrl + manifest.recognizer.dictPath),

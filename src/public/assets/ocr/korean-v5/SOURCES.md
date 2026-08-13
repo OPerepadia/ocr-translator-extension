@@ -34,7 +34,7 @@ Packaged file SHA-256:
 ```txt
 rec.onnx      3b2f9aa0dc9adc6db612100b31b8e35d3b7e0609bfc4e85c7c84feab6cf0bd72
 dict.txt      a88071c68c01707489baa79ebe0405b7beb5cca229f4fc94cc3ef992328802d7
-manifest.json 1de7a367248664e99d3631edd140a29ee50a7185223ebed98ad1b7bb9247d38b
+model-manifest.json 1de7a367248664e99d3631edd140a29ee50a7185223ebed98ad1b7bb9247d38b
 ```
 
 `dict.txt` has 11,945 entries — Hangul, Latin, numbers, and common symbols — so
