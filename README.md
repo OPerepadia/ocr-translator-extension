@@ -66,9 +66,12 @@ If that happens, try selecting a smaller area with only the text you want to tra
 
 ## Privacy
 
-- Screenshots never leave your device. The captured image is processed locally.
-- Recognized text is sent to the selected translation service.
-- All settings, including API keys, stay in browser storage.
+- Captured images are processed locally.
+- Recognized text is sent to the selected translation provider for translation.
+- Settings and API keys are stored locally. An API key is sent only to the
+  endpoint configured by the user.
+
+See the [Privacy Policy](PRIVACY.md) for details.
 
 ## Development
 
