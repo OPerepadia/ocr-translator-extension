@@ -12,7 +12,7 @@ const UNSUPPORTED_ACTIVATION_PROTOCOLS = new Set([
 
 export function isActivationPageSupported(url: string | undefined): boolean {
   if (!url) {
-    return true;
+    return false;
   }
 
   try {

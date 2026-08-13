@@ -19,8 +19,11 @@ describe("activation page support", () => {
     expect(isActivationPageSupported("chrome://extensions")).toBe(false);
   });
 
-  it("lets missing or malformed URLs fall through to messaging", () => {
-    expect(isActivationPageSupported(undefined)).toBe(true);
+  it("blocks tabs whose URL is unavailable", () => {
+    expect(isActivationPageSupported(undefined)).toBe(false);
+  });
+
+  it("lets malformed URLs fall through to messaging", () => {
     expect(isActivationPageSupported("not a url")).toBe(true);
   });
 });

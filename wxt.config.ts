@@ -63,7 +63,6 @@ export default defineConfig({
     default_locale: "en",
     homepage_url: "https://github.com/OPerepadia/ocr-translator-extension",
     permissions: [
-      "activeTab",
       "contextMenus",
       "storage",
       // Chrome service workers cannot spawn the dedicated OCR worker, so on
