@@ -3,12 +3,84 @@ import { cropBitmapToBlob, dataUrlToImageBitmap } from "../shared/image";
 import { t } from "../shared/i18n";
 import type { Rect, Viewport } from "../shared/types";
 
-export async function loadImage(url: string): Promise<Blob> {
-  const response = await fetch(url, { credentials: "include" });
+export async function loadImage(url: string, pageUrl?: string): Promise<Blob> {
+  // Image hosts such as pixiv reject extension requests without the page Referer.
+  const referrer = resolveReferrer(url, pageUrl);
+  const response = referrer
+    ? await fetchWithReferrer(url, referrer)
+    : await fetch(url, { credentials: "include" });
   if (!response.ok) {
     throw new Error(t("errorCouldNotLoadImage", String(response.status)));
   }
   return response.blob();
+}
+
+async function fetchWithReferrer(
+  url: string,
+  referrer: string,
+): Promise<Response> {
+  const requestUrl = new URL(url).href;
+  const ruleId = createRuleId();
+  const initiator = new URL(browserApi.runtime.getURL("")).hostname;
+
+  // Limit the temporary rule to this extension and this exact image URL.
+  await browserApi.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [ruleId],
+    addRules: [
+      {
+        id: ruleId,
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          requestHeaders: [
+            { header: "Referer", operation: "set", value: referrer },
+          ],
+        },
+        condition: {
+          regexFilter: `^${escapeRegex(requestUrl)}$`,
+          isUrlFilterCaseSensitive: true,
+          initiatorDomains: [initiator],
+          resourceTypes: ["xmlhttprequest"],
+        },
+      },
+    ],
+  });
+
+  try {
+    return await fetch(requestUrl, { credentials: "include" });
+  } finally {
+    await browserApi.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [ruleId],
+    });
+  }
+}
+
+function resolveReferrer(imageUrl: string, pageUrl?: string): string | undefined {
+  if (!pageUrl) {
+    return undefined;
+  }
+
+  const image = new URL(imageUrl);
+  const page = new URL(pageUrl);
+  if (
+    !["http:", "https:"].includes(image.protocol) ||
+    !["http:", "https:"].includes(page.protocol) ||
+    (page.protocol === "https:" && image.protocol === "http:")
+  ) {
+    return undefined;
+  }
+
+  page.hash = "";
+  return page.origin === image.origin ? page.href : `${page.origin}/`;
+}
+
+function createRuleId(): number {
+  const value = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
+  return (value & 0x7fffffff) || 1;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

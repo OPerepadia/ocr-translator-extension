@@ -64,6 +64,7 @@ export default defineConfig({
     homepage_url: "https://github.com/OPerepadia/ocr-translator-extension",
     permissions: [
       "contextMenus",
+      "declarativeNetRequestWithHostAccess",
       "storage",
       // Chrome service workers cannot spawn the dedicated OCR worker, so on
       // Chrome the engine runs in an offscreen document instead.
