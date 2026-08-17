@@ -124,11 +124,13 @@ export class PaddleEngine {
       );
     }
 
-    const [detSession, recSession, regionGrouper] = await Promise.all([
-      createSession(
-        options.model.modelBaseUrl + manifest.detector.modelPath,
-        backend,
-      ),
+    // ORT's WebGPU and WASM providers share one runtime but initialize under
+    // separate backend names. Finish one cold-start before mixing providers.
+    const detSession = await createSession(
+      options.model.modelBaseUrl + manifest.detector.modelPath,
+      backend,
+    );
+    const [recSession, regionGrouper] = await Promise.all([
       createSession(
         options.model.modelBaseUrl + manifest.recognizer.modelPath,
         backend,
