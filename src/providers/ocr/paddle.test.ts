@@ -144,6 +144,7 @@ describe("createPaddleOcrProvider", () => {
     await provider.preload?.();
 
     expect(fake.ofType("init")[0]).toMatchObject({
+      layoutModelBaseUrl: "extension://assets/layout-grouping/",
       model: {
         id: "v6-multi",
         modelBaseUrl: "extension://models/general/",

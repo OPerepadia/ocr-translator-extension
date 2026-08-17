@@ -16,6 +16,7 @@ export interface InitRequest {
   id: number;
   model: WorkerModelConfig;
   autoModels?: WorkerModelConfig[];
+  layoutModelBaseUrl: string;
   wasmBaseUrl: string;
   backend: OrtBackend;
   debug: boolean;

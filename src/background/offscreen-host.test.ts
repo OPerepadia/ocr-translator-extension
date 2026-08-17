@@ -155,6 +155,7 @@ describe("createOffscreenWorker", () => {
       type: "init",
       id: 1,
       model: { id: "m", modelBaseUrl: "u", script: "general" },
+      layoutModelBaseUrl: "layout",
       wasmBaseUrl: "w",
       backend: "wasm",
       debug: false,

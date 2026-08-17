@@ -1,7 +1,7 @@
 // PP-OCRv6 inference engine. Runs detector -> crop -> recognizer and assembles
 // the result. Lives in the worker; uses ORT, OffscreenCanvas, and createImageBitmap.
 
-import { assembleResult, type RecognizedLine } from "./assemble";
+import { assembleGroupedResult, type RecognizedLine } from "./assemble";
 import {
   chooseAutoRecognizer,
   initialAutoProbeCount,
@@ -33,6 +33,7 @@ import {
   type OrtBackend,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
+import { RegionGrouper } from "./region-grouper";
 import type { OrientedRect, PipelineOcrResult } from "../../../shared/types";
 
 interface Manifest {
@@ -61,6 +62,7 @@ interface Manifest {
 export interface EngineOptions {
   model: EngineModelOptions;
   autoModels?: EngineModelOptions[];
+  layoutModelBaseUrl: string;
   wasmBaseUrl: string;
   backend: OrtBackend;
   debug?: boolean;
@@ -94,6 +96,7 @@ export class PaddleEngine {
     private readonly primaryModelId: string,
     private readonly modelOptions: Map<string, EngineModelOptions>,
     private readonly recognizers: Map<string, Promise<LoadedRecognizer>>,
+    private readonly regionGrouper: RegionGrouper,
     private readonly backend: OrtBackend,
     private readonly debug: boolean,
   ) {}
@@ -121,15 +124,18 @@ export class PaddleEngine {
       );
     }
 
-    const [detSession, recSession] = await Promise.all([
-      createSession(
-        options.model.modelBaseUrl + manifest.detector.modelPath,
-        backend,
-      ),
+    // ORT's WebGPU and WASM providers share one runtime but initialize under
+    // separate backend names. Finish one cold-start before mixing providers.
+    const detSession = await createSession(
+      options.model.modelBaseUrl + manifest.detector.modelPath,
+      backend,
+    );
+    const [recSession, regionGrouper] = await Promise.all([
       createSession(
         options.model.modelBaseUrl + manifest.recognizer.modelPath,
         backend,
       ),
+      RegionGrouper.create(options.layoutModelBaseUrl),
     ]);
     const primaryRecognizer: LoadedRecognizer = {
       candidate: options.model,
@@ -149,7 +155,7 @@ export class PaddleEngine {
 
     if (debug) {
       console.log(
-        `${LOG_PREFIX} engine ready in ${elapsed(startedAt)} (backend=${backend}, model=${options.model.id}, dict=${dict.length} chars, recMaxWidth=${manifest.recognizer.maxImageWidth})`,
+          `${LOG_PREFIX} engine ready in ${elapsed(startedAt)} (backend=${backend}, model=${options.model.id}, grouping=${regionGrouper.metadata.id}/${regionGrouper.metadata.backend}, dict=${dict.length} chars, recMaxWidth=${manifest.recognizer.maxImageWidth})`,
       );
     }
 
@@ -159,6 +165,7 @@ export class PaddleEngine {
       options.model.id,
       modelOptions,
       recognizers,
+      regionGrouper,
       backend,
       debug,
     );
@@ -209,16 +216,38 @@ export class PaddleEngine {
             onProgress,
           ),
           modelId: this.primaryModelId,
-        };
+      };
 
       const script = this.modelOptions.get(recognized.modelId)?.script;
-      const result = assembleResult(recognized.lines, {
+      throwIfCancelled(isCancelled);
+      const groupingStartedAt = now();
+      const grouping = await this.regionGrouper.group(
+        sourceImageData,
+        recognized.lines,
+      );
+      throwIfCancelled(isCancelled);
+      if (this.debug) {
+        console.log(
+          `${LOG_PREFIX} region grouping produced ${grouping.groups.length} group(s) from ${grouping.regionCount} region(s) in ${elapsed(groupingStartedAt)} (model=${this.regionGrouper.metadata.id}, threshold=${this.regionGrouper.metadata.confidenceThreshold}, matched=${grouping.matchedLineCount}/${recognized.lines.length})`,
+        );
+      }
+      const result = assembleGroupedResult(grouping.groups, {
         backend: this.backend,
         direction: script === "arabic" ? "rtl" : "ltr",
       });
       result.providerMeta = {
         ...(result.providerMeta as Record<string, unknown>),
         modelId: recognized.modelId,
+        grouping: {
+          modelId: this.regionGrouper.metadata.id,
+          backend: this.regionGrouper.metadata.backend,
+          confidenceThreshold:
+            this.regionGrouper.metadata.confidenceThreshold,
+          nmsIouThreshold: this.regionGrouper.metadata.nmsIouThreshold,
+          regionCount: grouping.regionCount,
+          matchedLineCount: grouping.matchedLineCount,
+          groupCount: grouping.groups.length,
+        },
         ...(autoRecognition
           ? {
               autoSelection: {
@@ -253,6 +282,7 @@ export class PaddleEngine {
 
   dispose(): void {
     void this.detSession.release();
+    this.regionGrouper.dispose();
     for (const recognizer of this.recognizers.values()) {
       void recognizer
         .then(({ session }) => session.release())

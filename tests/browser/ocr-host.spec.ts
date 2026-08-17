@@ -11,10 +11,25 @@ interface OcrResponse {
   ok: boolean;
   value?: {
     ocr?: {
-      blocks?: unknown[];
+      blocks?: Array<{
+        text?: string;
+        paragraph?: number;
+        bbox: { x: number; y: number; width: number; height: number };
+      }>;
       imageHeight?: number;
       imageWidth?: number;
-      providerMeta?: { modelId?: string };
+      providerMeta?: {
+        modelId?: string;
+        grouping?: {
+          modelId?: string;
+          backend?: string;
+          confidenceThreshold?: number;
+          nmsIouThreshold?: number;
+          regionCount?: number;
+          matchedLineCount?: number;
+          groupCount?: number;
+        };
+      };
       text?: string;
     };
   };
@@ -48,8 +63,8 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
 
     const response = (await page.evaluate(async () => {
       const canvas = document.createElement("canvas");
-      canvas.width = 320;
-      canvas.height = 96;
+      canvas.width = 400;
+      canvas.height = 192;
       const drawing = canvas.getContext("2d");
       if (!drawing) {
         throw new Error("Canvas 2D is unavailable.");
@@ -57,9 +72,10 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
       drawing.fillStyle = "white";
       drawing.fillRect(0, 0, canvas.width, canvas.height);
       drawing.fillStyle = "black";
-      drawing.font = "bold 64px sans-serif";
+      drawing.font = "bold 52px sans-serif";
       drawing.textBaseline = "middle";
-      drawing.fillText("HELLO", 16, canvas.height / 2);
+      drawing.fillText("SAMPLE LINE", 16, 48);
+      drawing.fillText("SECOND LINE", 16, 144);
 
       const extensionApi = (
         globalThis as typeof globalThis & {
@@ -97,12 +113,23 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
     }
     expect(pageErrors).toEqual([]);
     expect(response.value?.ocr).toMatchObject({
-      imageHeight: 96,
-      imageWidth: 320,
-      providerMeta: { modelId: "v6-multi" },
+      imageHeight: 192,
+      imageWidth: 400,
+      providerMeta: {
+        modelId: "v6-multi",
+        grouping: {
+          modelId: "comic-text-bubble-rtdetr-v4-s-int8",
+          backend: "wasm",
+          confidenceThreshold: 0.4,
+          nmsIouThreshold: 0.25,
+        },
+      },
     });
-    expect(response.value?.ocr?.blocks).not.toHaveLength(0);
-    expect(response.value?.ocr?.text).toMatch(/hello/i);
+    expect(response.value?.ocr?.blocks?.length).toBeGreaterThanOrEqual(2);
+    expect(response.value?.ocr?.text).toMatch(/sample/i);
+    expect(
+      response.value?.ocr?.providerMeta?.grouping?.groupCount,
+    ).toBeGreaterThan(0);
   } finally {
     await context.close();
   }

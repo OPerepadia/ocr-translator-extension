@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "comic-text-bubble-rtdetr-v4-s-int8",
+  "modelPath": "detector.onnx",
+  "inputShape": [3, 640, 640],
+  "inputScale": 0.00392156862745098,
+  "origTargetSizeOrder": ["width", "height"],
+  "classes": {
+    "0": "bubble",
+    "1": "text_bubble",
+    "2": "text_free"
+  },
+  "textClassIds": [1, 2],
+  "confidenceThreshold": 0.4,
+  "nmsIouThreshold": 0.25
+}
