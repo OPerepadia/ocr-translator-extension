@@ -16,6 +16,25 @@ interface BrowserEvent<TListener> {
   removeListener?(listener: TListener): void;
 }
 
+interface DeclarativeNetRequestRule {
+  id: number;
+  priority: number;
+  action: {
+    type: "modifyHeaders";
+    requestHeaders: Array<{
+      header: string;
+      operation: "set";
+      value: string;
+    }>;
+  };
+  condition: {
+    regexFilter: string;
+    isUrlFilterCaseSensitive: boolean;
+    initiatorDomains: string[];
+    resourceTypes: ["xmlhttprequest"];
+  };
+}
+
 /** A long-lived connection. Used for the OCR relay, whose traffic is too
  * chatty and too ordered for one-off messages. */
 export interface BrowserPort {
@@ -57,6 +76,12 @@ export interface BrowserApi {
       url: string;
       reasons: string[];
       justification: string;
+    }): Promise<void>;
+  };
+  declarativeNetRequest: {
+    updateSessionRules(options: {
+      addRules?: DeclarativeNetRequestRule[];
+      removeRuleIds?: number[];
     }): Promise<void>;
   };
   storage: {

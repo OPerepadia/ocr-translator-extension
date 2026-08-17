@@ -292,10 +292,17 @@ describe("background router", () => {
         requestId: "request-1",
         imageUrl: "https://example.com/sample.png",
       },
-      { tab: { id: 7 }, frameId: 4 },
+      {
+        tab: { id: 7 },
+        frameId: 4,
+        url: "https://reader.example/chapter/1",
+      },
     );
 
-    expect(loadImage).toHaveBeenCalledWith("https://example.com/sample.png");
+    expect(loadImage).toHaveBeenCalledWith(
+      "https://example.com/sample.png",
+      "https://reader.example/chapter/1",
+    );
     expect(captureVisibleArea).not.toHaveBeenCalled();
     expect(sendMessage).toHaveBeenNthCalledWith(1, 7, {
       type: "OCR_TRANSLATE_STATUS",
@@ -760,7 +767,10 @@ describe("background router", () => {
       4,
     );
     await vi.waitFor(() =>
-      expect(loadImage).toHaveBeenCalledWith("https://example.com/slow.png"),
+      expect(loadImage).toHaveBeenCalledWith(
+        "https://example.com/slow.png",
+        undefined,
+      ),
     );
     await capture("fast-request", "https://example.com/fast.png", 4);
     resolveSlowImage(slowImage);

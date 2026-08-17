@@ -55,7 +55,7 @@ export interface RouterDependencies {
   /** Screenshots retained past the request that took them. */
   captureStore: CaptureStore;
   captureVisibleArea(args: { rect: Rect; viewport: Viewport }): Promise<Blob>;
-  loadImage(url: string): Promise<Blob>;
+  loadImage(url: string, pageUrl?: string): Promise<Blob>;
   createOcrProvider(settings: Settings["ocr"]): OcrProvider;
   createTranslationProvider(
     settings: Settings["translation"],
@@ -68,7 +68,7 @@ export interface RouterDependencies {
 export function startRouter(dependencies: RouterDependencies): void {
   onRequest((message, sender) => {
     const messageSender = sender as
-      | { tab?: { id?: number }; frameId?: number }
+      | { tab?: { id?: number }; frameId?: number; url?: string }
       | undefined;
     const tabId = messageSender?.tab?.id;
     const frameKey =
@@ -103,6 +103,7 @@ export function startRouter(dependencies: RouterDependencies): void {
             message,
             tabId,
             frameKey,
+            messageSender?.url,
             signal,
           ),
         ),
@@ -253,6 +254,7 @@ async function handleOcrTranslateRequest(
   message: Extract<RuntimeMessage, { type: "OCR_TRANSLATE_REQUEST" }>,
   tabId: number | undefined,
   frameKey: string | undefined,
+  pageUrl: string | undefined,
   signal: AbortSignal,
 ): Promise<PipelineResult> {
   if ("imageUrl" in message) {
@@ -283,7 +285,7 @@ async function handleOcrTranslateRequest(
   );
   const image =
     "imageUrl" in message
-      ? await dependencies.loadImage(message.imageUrl)
+      ? await dependencies.loadImage(message.imageUrl, pageUrl)
       : await dependencies.captureVisibleArea({
           rect: message.rect,
           viewport: message.viewport,
