@@ -105,13 +105,6 @@ npm test
 npm run typecheck
 ```
 
-The Chrome OCR host also has a real-browser smoke test:
-
-```sh
-npx playwright install chromium
-npm run test:browser
-```
-
 ## License
 
 Screen OCR Translator is licensed under the [MIT License](LICENSE).
