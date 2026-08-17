@@ -16,7 +16,7 @@ source image
   -> translate each assembled group
 ```
 
-The region detector model is `ogkalu/comic-text-and-bubble-detector`, an RT-DETR-v2 model
+The region detector model is [`ogkalu/comic-text-and-bubble-detector`](https://huggingface.co/ogkalu/comic-text-and-bubble-detector), an RT-DETR-v2 model
 trained on about 11,000 Manga, Webtoon, Manhua, and Western Comic style images.
 
 This model was selected because it detects both text inside comic bubbles and
