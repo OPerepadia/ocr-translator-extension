@@ -33,13 +33,15 @@ The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:add
 ## How it works
 
 - **OCR** — PaddleOCR, running locally in the browser.
+- **Text grouping** — a local RT-DETR model detects speech bubbles and free-text regions before translation. See [Text layout grouping](docs/LAYOUT-GROUPING.md) for implementation details.
 - **Translation** — two options:
     - Google Translate (no API key needed)
     - LLM translation via a user-configured OpenAI-compatible endpoint (llama.cpp, LM Studio, or a cloud provider).
 - **Text-to-speech** — Google TTS. Support for local TTS is planned.
 
 > [!TIP]
-> Enable GPU acceleration in settings for faster OCR. The extension falls back to CPU processing when WebGPU is unavailable.
+> Enable GPU acceleration in settings for faster OCR. The extension falls back
+> to CPU processing when WebGPU is unavailable.
 
 ## Supported languages
 
@@ -57,12 +59,9 @@ Translations can target any of 70+ languages supported by Google Translate, or a
 
 ## Limitations
 
-The recognized text boxes are grouped into paragraphs using geometric heuristics. It accounts for spacing, box size, alignment, and reading direction, and tries to separate columns. Dense or irregular layouts can still confuse it:
-
-- Tables or multi-column layouts: cells may get grouped or read in the wrong order.
-- Dense manga or comic pages: sound effects and background text can get mixed into nearby speech bubbles.
-
-If that happens, try selecting a smaller area with only the text you want to translate.
+Recognized text lines are grouped into regions using a bundled RT-DETR model.
+It may still miss or incorrectly group very small text, tables, or dense
+multi-column layouts. Selecting a smaller area can improve results.
 
 ## Privacy
 

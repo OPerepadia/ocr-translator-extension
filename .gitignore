@@ -8,4 +8,4 @@ test-results/
 
 # Python virtualenv for scripts/quantize-models.py
 scripts/.venv/
-scripts/__pycache__/
+scripts/**/__pycache__/

@@ -33,6 +33,7 @@ describe("offscreen relay encoding", () => {
         modelBaseUrl: "extension://models/general/",
         script: "general" as const,
       },
+      layoutModelBaseUrl: "extension://models/layout/",
       wasmBaseUrl: "extension://ort/",
       backend: "webgpu" as const,
       debug: false,

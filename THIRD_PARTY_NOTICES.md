@@ -19,6 +19,7 @@ with extension builds.
 | [protobuf.js](https://github.com/protobufjs/protobuf.js) and its `@protobufjs/*` runtime modules | 7.6.4 | BSD-3-Clause |
 | [tinyld](https://github.com/komodojp/tinyld) | 1.3.4 | MIT |
 | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) OCR models and dictionaries | PP-OCRv5 and PP-OCRv6 | Apache-2.0 |
+| [Comic Text and Bubble Detector](https://huggingface.co/ogkalu/comic-text-and-bubble-detector) model | RT-DETR-v2 v4-s INT8 | Apache-2.0 |
 
 The ONNX Runtime Web package uses FlatBuffers, guid-typescript, long.js,
 platform.js, and protobuf.js. Their notices are included because their code may
@@ -79,6 +80,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Comic text and bubble region detector
+
+The packaged `comic-text-bubble-rtdetr-v4-s-int8` ONNX weights were published
+by `ogkalu` under Apache-2.0. The upstream model card describes training on
+about 11,000 Manga, Webtoon, Manhua, and Western Comic style images.
+
+Source: <https://huggingface.co/ogkalu/comic-text-and-bubble-detector>
+
+The extension packages the upstream INT8 ONNX export without changing its
+weights. Source revision, preprocessing details, and checksums are in
+[`src/public/assets/layout-grouping/SOURCES.md`](src/public/assets/layout-grouping/SOURCES.md).
 
 ## platform.js
 
@@ -185,6 +198,7 @@ The Apache License below applies to:
 
 - FlatBuffers 25.9.23
 - long.js 5.3.2
+- the Comic Text and Bubble Detector RT-DETR-v2 model
 - the packaged PaddleOCR PP-OCRv5 and PP-OCRv6 models, dictionaries, and
   derived model metadata
 

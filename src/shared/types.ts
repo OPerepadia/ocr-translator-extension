@@ -58,8 +58,8 @@ export interface OcrBlock {
    * could locate them. */
   chars?: OcrChar[];
   confidence?: number;
-  /** Index of the paragraph this block was grouped into (see assembleResult).
-   * Blocks sharing a value belong to the same translated paragraph. */
+  /** Index of the translated paragraph this block belongs to. Blocks sharing a
+   * value were assigned to the same text region. */
   paragraph?: number;
   /** Reading orientation of this block's paragraph, when the provider
    * distinguishes it — a mixed capture can hold e.g. vertical CJK columns and
@@ -99,6 +99,8 @@ export interface Settings {
     sourceLang?: LangCode | "auto";
     /** ORT execution backend; "webgpu" falls back to wasm when unavailable. */
     backend?: "wasm" | "webgpu";
+    /** Developer diagnostics. Not exposed in the options UI. */
+    debug?: boolean;
   };
   translation: {
     providerId: string;

@@ -11,9 +11,10 @@ import type { RecognizerScript } from "./paddle/auto-select";
 import type { OcrProvider, OcrStatus } from "./types";
 
 const WASM_DIR = "ort/";
+const LAYOUT_MODEL_DIR = "assets/layout-grouping/";
 const DEFAULT_RECOGNITION_TIMEOUT_MS = 60_000;
 
-const DEBUG_PPOCR = false;
+const DEBUG_PPOCR = true;
 
 export interface PaddleModelConfig {
   id: string;
@@ -158,6 +159,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
             modelBaseUrl: resolve(model.modelDir),
             script: model.script,
           })),
+          layoutModelBaseUrl: resolve(LAYOUT_MODEL_DIR),
           wasmBaseUrl: resolve(WASM_DIR),
           backend,
           debug,

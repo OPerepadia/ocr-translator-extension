@@ -51,6 +51,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         engine = await PaddleEngine.create({
           model: message.model,
           autoModels: message.autoModels,
+          layoutModelBaseUrl: message.layoutModelBaseUrl,
           wasmBaseUrl: message.wasmBaseUrl,
           backend: message.backend,
           debug: message.debug,
