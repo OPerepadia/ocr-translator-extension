@@ -132,19 +132,37 @@ export default defineContentScript({
   async main(ctx) {
     setNavigationContext(ctx);
 
-    const ui = await createShadowRootUi(ctx, {
-      name: "ocr-translate-ui",
-      position: "inline",
-      anchor: "body",
-      onMount: (container) => {
-        container.lang = uiLanguage();
-        container.dir = uiDirection();
-        uiRoot = container;
-        setUiRoot(container);
-        setOverlayUiRoot(container);
-      },
-    });
-    ui.mount();
+    let uiPromise: ReturnType<typeof createShadowRootUi> | undefined;
+    const ensureUi = async (): Promise<void> => {
+      try {
+        const ui = await (uiPromise ??= createShadowRootUi(ctx, {
+          name: "ocr-translate-ui",
+          position: "inline",
+          anchor: "body",
+          onMount: (container) => {
+            container.lang = uiLanguage();
+            container.dir = uiDirection();
+            uiRoot = container;
+            setUiRoot(container);
+            setOverlayUiRoot(container);
+          },
+        }));
+        if (!ui.uiContainer.isConnected) {
+          ui.mount();
+        }
+      } catch (error) {
+        uiPromise = undefined;
+        throw error;
+      }
+    };
+    const withUi = (action: () => void): void => {
+      void ensureUi().then(action).catch((error: unknown) => {
+        console.error(
+          "[Screen OCR Translator] Failed to initialize page UI",
+          error,
+        );
+      });
+    };
 
     document.addEventListener(
       "contextmenu",
@@ -220,7 +238,7 @@ export default defineContentScript({
         endActiveImagePickerSession();
         closePopup();
         closeOverlay();
-        void runSelectionFlow();
+        withUi(() => void runSelectionFlow());
         return undefined;
       }
       if (isStartImagePickerMessage(message)) {
@@ -228,7 +246,11 @@ export default defineContentScript({
         cancelSelectionOverlay();
         closePopup();
         closeOverlay();
-        void runImagePickerFlow(message.sessionId);
+        withUi(() => {
+          if (activeImagePickerSessionId === message.sessionId) {
+            void runImagePickerFlow(message.sessionId);
+          }
+        });
         return undefined;
       }
       if (isCancelImagePickerMessage(message)) {
@@ -240,7 +262,7 @@ export default defineContentScript({
         endActiveImagePickerSession();
         closePopup();
         closeOverlay();
-        void runImageFlow(message.imageUrl);
+        withUi(() => void runImageFlow(message.imageUrl));
         return undefined;
       }
       if (
