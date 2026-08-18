@@ -328,6 +328,12 @@
   display: block;
 }
 
+/* In immediate mode the selection is confirmed as soon as the drag ends, so
+   the handles would only flash without anything to resize. */
+.ocr-translate-selection-rect.is-immediate .ocr-translate-selection-handle {
+  display: none;
+}
+
 .ocr-translate-selection-handle.is-nw,
 .ocr-translate-selection-handle.is-ne,
 .ocr-translate-selection-handle.is-se,

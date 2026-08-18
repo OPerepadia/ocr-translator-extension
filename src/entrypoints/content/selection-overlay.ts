@@ -77,6 +77,10 @@ export function startSelectionOverlay(
 
     const selection = document.createElement("div");
     selection.className = "ocr-translate-selection-rect";
+    if (startImmediately) {
+      // Hide the handles
+      selection.classList.add("is-immediate");
+    }
     for (const handle of RESIZE_HANDLES) {
       const button = document.createElement("button");
       button.type = "button";
