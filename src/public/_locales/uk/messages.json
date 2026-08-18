@@ -250,6 +250,21 @@
   "popupPickImage": {
     "message": "Вибрати зображення"
   },
+  "popupShortcutPrefix": {
+    "message": "Натисніть"
+  },
+  "popupShortcutSuffix": {
+    "message": "для вибору ділянки"
+  },
+  "popupEditShortcut": {
+    "message": "Змінити комбінацію клавіш"
+  },
+  "popupShortcutNotSet": {
+    "message": "Швидку клавішу не задано."
+  },
+  "popupSetShortcut": {
+    "message": "Налаштувати"
+  },
   "popupOpenAddonSettings": {
     "message": "Відкрити налаштування додатка"
   },
@@ -267,6 +282,9 @@
   },
   "popupCouldNotOpenSettings": {
     "message": "Не вдалося відкрити налаштування додатка. Відкрийте about:addons вручну."
+  },
+  "popupCouldNotOpenShortcutSettings": {
+    "message": "Не вдалося відкрити налаштування комбінацій клавіш."
   },
   "selectionDragArea": {
     "message": "Перетягніть, щоб вибрати ділянку"

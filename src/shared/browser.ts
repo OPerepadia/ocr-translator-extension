@@ -91,6 +91,7 @@ export interface BrowserApi {
     };
   };
   tabs: {
+    create?(createProperties: { url: string }): Promise<BrowserTab>;
     captureVisibleTab(
       windowId?: number | null,
       options?: { format?: "jpeg" | "png"; quality?: number },
@@ -119,6 +120,7 @@ export interface BrowserApi {
   commands: {
     onCommand: BrowserEvent<(command: string) => void>;
     getAll(): Promise<Array<{ name?: string; shortcut?: string }>>;
+    openShortcutSettings?(): Promise<void>;
   };
   i18n: {
     getMessage(messageName: string, substitutions?: string | string[]): string;

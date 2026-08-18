@@ -250,6 +250,21 @@
   "popupPickImage": {
     "message": "Pick image"
   },
+  "popupShortcutPrefix": {
+    "message": "Press"
+  },
+  "popupShortcutSuffix": {
+    "message": "to select an area"
+  },
+  "popupEditShortcut": {
+    "message": "Edit keyboard shortcut"
+  },
+  "popupShortcutNotSet": {
+    "message": "Keyboard shortcut not set."
+  },
+  "popupSetShortcut": {
+    "message": "Set shortcut"
+  },
   "popupOpenAddonSettings": {
     "message": "Open add-on settings"
   },
@@ -267,6 +282,9 @@
   },
   "popupCouldNotOpenSettings": {
     "message": "Could not open add-on settings. Open about:addons manually."
+  },
+  "popupCouldNotOpenShortcutSettings": {
+    "message": "Could not open keyboard shortcut settings."
   },
   "selectionDragArea": {
     "message": "Drag to select an area"

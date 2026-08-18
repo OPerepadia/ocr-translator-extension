@@ -27,6 +27,7 @@ import {
 } from "@/entrypoints/content/icons";
 import { languageName } from "@/entrypoints/content/language-picker";
 import { createRequestId } from "@/shared/request-id";
+import { START_SELECTION_COMMAND } from "@/shared/commands";
 import "./style.css";
 
 const settingsRepository = createSettingsRepository();
@@ -43,6 +44,10 @@ async function initPopup(): Promise<void> {
   elements.openSettings.addEventListener("click", () => {
     void openSettings(elements);
   });
+  elements.shortcutKey.addEventListener("click", () => {
+    void openShortcutSettings(elements);
+  });
+  void showShortcutHint(elements);
 
   try {
     const [settings, displayMode, [activeTab]] = await Promise.all([
@@ -107,6 +112,54 @@ async function initPopup(): Promise<void> {
   } catch (error) {
     console.error("[Screen OCR Translator] Failed to initialize popup", error);
     disableSelection(elements, t("popupCouldNotStart"));
+  }
+}
+
+async function showShortcutHint(elements: PopupElements): Promise<void> {
+  try {
+    const commands = await browserApi.commands.getAll();
+    const shortcut = commands.find(
+      ({ name }) => name === START_SELECTION_COMMAND,
+    )?.shortcut;
+    if (shortcut) {
+      elements.shortcutKeyLabel.textContent = shortcut
+        .split("+")
+        .map((key) => key.trim())
+        .join(" + ");
+    } else {
+      elements.shortcutPrefix.textContent = t("popupShortcutNotSet");
+      elements.shortcutKeyLabel.textContent = t("popupSetShortcut");
+      elements.shortcutSuffix.textContent = "";
+      const label = t("popupEditShortcut");
+      elements.shortcutKey.setAttribute("aria-label", label);
+      elements.shortcutKey.title = label;
+    }
+    elements.shortcutHint.hidden = false;
+  } catch {
+    elements.shortcutHint.hidden = true;
+  }
+}
+
+async function openShortcutSettings(elements: PopupElements): Promise<void> {
+  try {
+    if (browserApi.commands.openShortcutSettings) {
+      await browserApi.commands.openShortcutSettings();
+    } else {
+      const openedTab = browserApi.tabs.create?.({
+        url: "chrome://extensions/shortcuts",
+      });
+      if (!openedTab) {
+        throw new Error("Shortcut settings are unavailable");
+      }
+      await openedTab;
+    }
+    window.close();
+  } catch (error) {
+    console.error(
+      "[Screen OCR Translator] Failed to open shortcut settings",
+      error,
+    );
+    showMessage(elements, t("popupCouldNotOpenShortcutSettings"));
   }
 }
 
@@ -333,6 +386,11 @@ interface PopupElements {
   selectArea: HTMLButtonElement;
   pickImage: HTMLButtonElement;
   message: HTMLParagraphElement;
+  shortcutHint: HTMLParagraphElement;
+  shortcutPrefix: HTMLElement;
+  shortcutKey: HTMLButtonElement;
+  shortcutKeyLabel: HTMLElement;
+  shortcutSuffix: HTMLElement;
 }
 
 function getPopupElements(): PopupElements {
@@ -349,6 +407,11 @@ function getPopupElements(): PopupElements {
     selectArea: requiredElement("select-area", HTMLButtonElement),
     pickImage: requiredElement("pick-image", HTMLButtonElement),
     message: requiredElement("message", HTMLParagraphElement),
+    shortcutHint: requiredElement("shortcut-hint", HTMLParagraphElement),
+    shortcutPrefix: requiredElement("shortcut-prefix", HTMLElement),
+    shortcutKey: requiredElement("shortcut-key", HTMLButtonElement),
+    shortcutKeyLabel: requiredElement("shortcut-key-label", HTMLElement),
+    shortcutSuffix: requiredElement("shortcut-suffix", HTMLElement),
   };
 }
 

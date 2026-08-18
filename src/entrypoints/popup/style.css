@@ -245,8 +245,44 @@ select:disabled,
   cursor: default;
 }
 
+.shortcut-hint {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 16px -16px -16px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  padding: 9px 16px;
+  background: color-mix(in srgb, var(--bg) 96%, var(--muted));
+  color: color-mix(in srgb, var(--muted) 92%, var(--text));
+  font-size: 12px;
+}
+
+.shortcut-key {
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 75%, transparent);
+  border-radius: 4px;
+  padding: 2px 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 45%, var(--text));
+  cursor: pointer;
+}
+
+.shortcut-key:hover {
+  border-color: var(--muted);
+  background: var(--bg);
+}
+
+.shortcut-key kbd {
+  font: inherit;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
 .icon-button:focus-visible,
 select:focus-visible,
+.shortcut-key:focus-visible,
 .popup-actions button:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 1px;
