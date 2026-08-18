@@ -1892,11 +1892,16 @@ function positionPopoverView(view: PopoverView): void {
   if (!pageRect) {
     return;
   }
-  // Against what the box covers on screen, so a tilted one's corners don't end
-  // up underneath the popover.
-  const rect = pageToViewportRect(
-    rotatedBounds(pageRect, boxAngles[view.boxIndex] ?? 0),
-  );
+  const box = boxes[view.boxIndex];
+  const translationPanel =
+    mode === "translation" ? box?.firstElementChild : undefined;
+  // In translation mode, anchor to the visible panel rather than the full OCR box.
+  const rect =
+    translationPanel instanceof HTMLElement
+      ? translationPanel.getBoundingClientRect()
+      : pageToViewportRect(
+          rotatedBounds(pageRect, boxAngles[view.boxIndex] ?? 0),
+        );
   // Widen to the box before measuring: a wide box gets a wide popover, which is
   // what keeps a long paragraph from turning into a narrow column of many lines.
   view.el.style.maxWidth = `${popoverMaxWidth(rect.width, window.innerWidth)}px`;

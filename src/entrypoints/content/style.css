@@ -198,19 +198,13 @@
 
 .ocr-translate-selection-dim.is-cutout {
   inset: auto;
-  border-radius: 8px;
   background: transparent;
   box-shadow: 0 0 0 9999px var(--ocr-scrim);
 }
 
-/* Square cutout corners, so the rounded dim doesn't bleed into the screenshot. */
 .ocr-translate-selection-overlay.is-capturing {
   pointer-events: none;
   cursor: default;
-}
-
-.ocr-translate-selection-overlay.is-capturing .ocr-translate-selection-dim.is-cutout {
-  border-radius: 0;
 }
 
 .ocr-translate-selection-hint {
@@ -279,7 +273,6 @@
   z-index: 2;
   box-sizing: border-box;
   border: 2px solid var(--ocr-accent);
-  border-radius: 6px;
   box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
 }
 
@@ -299,7 +292,6 @@
   display: none;
   box-sizing: border-box;
   border: 2px dashed var(--ocr-accent);
-  border-radius: 8px;
   background: transparent;
   box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   pointer-events: none;
@@ -1090,10 +1082,11 @@
 
 /* Ring in the opposite tone, so the edge survives whatever is underneath. */
 .ocr-translate-overlay-frame-box {
-  border: 1px solid var(--ocr-marker);
+  border: 1px solid color-mix(in srgb, var(--ocr-marker) 55%, transparent);
   border-radius: var(--ocr-radius-box);
-  background: var(--ocr-marker-tint);
-  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
+  background: transparent;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ocr-halo-fixed) 50%, transparent);
   color: transparent;
   transition:
     background-color var(--ocr-duration-fast) ease,
@@ -1103,12 +1096,11 @@
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible,
 .ocr-translate-overlay-frame-box.is-active {
-  background: var(--ocr-marker-tint-strong);
-  border-color: var(--ocr-marker);
+  background: color-mix(in srgb, var(--ocr-marker-tint-strong) 50%, transparent);
 }
 
-/* Only the hovered/focused box rises above overlapping boxes and the toolbar:
-   a box merely holding the popover open would block the one underneath. */
+/* Only the hovered/focused box rises above overlapping boxes; a box merely
+   holding the popover open would block the one underneath. */
 .ocr-translate-overlay-frame-box:hover,
 .ocr-translate-overlay-frame-box:focus-visible {
   z-index: 4;
@@ -1120,11 +1112,10 @@
   justify-content: center;
   /* The panel may hang over the frame, so this must not clip. */
   overflow: visible;
-  border: 1px solid var(--ocr-marker);
+  border: 0;
   border-radius: var(--ocr-radius-box);
-  background: var(--ocr-marker-tint);
-  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
-  backdrop-filter: blur(3px);
+  background: transparent;
+  box-shadow: none;
   cursor: text;
   user-select: text;
   transition: opacity var(--ocr-duration-fast) ease;
@@ -1142,6 +1133,7 @@
   padding: 0.2em 0.4em;
   border-radius: var(--ocr-radius-box);
   background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(3px);
   color: #152034;
   font-family: var(--ocr-font);
   line-height: 1.25;
@@ -1346,7 +1338,6 @@
   position: absolute;
   z-index: 0;
   box-sizing: border-box;
-  border-radius: var(--ocr-radius-control);
   /* Clicks must not reach content the frozen pixels now hide. */
   pointer-events: auto;
 }
@@ -1354,7 +1345,6 @@
 .ocr-translate-overlay-dim {
   position: absolute;
   box-sizing: border-box;
-  border-radius: var(--ocr-radius-control);
   background: transparent;
   box-shadow: 0 0 0 9999px var(--ocr-scrim);
   pointer-events: none;
@@ -1363,11 +1353,8 @@
 .ocr-translate-overlay-region {
   position: absolute;
   box-sizing: border-box;
-  border: 1px solid var(--ocr-accent-border);
-  border-radius: var(--ocr-radius-control);
-  box-shadow:
-    0 0 0 1px var(--ocr-halo) inset,
-    0 1px 8px rgba(15, 23, 42, 0.08);
+  border: 2px dashed var(--ocr-accent);
+  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   pointer-events: none;
 }
 
@@ -1453,7 +1440,7 @@
    cluster, 10px between the pills and the actions. */
 .ocr-translate-overlay-toolbar {
   position: absolute;
-  z-index: 3;
+  z-index: 6;
   display: inline-flex;
   align-items: center;
   gap: 2px;
