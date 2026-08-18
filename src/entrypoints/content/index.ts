@@ -331,7 +331,8 @@ async function runSelectionFlow(): Promise<void> {
   if (!uiRoot) {
     return;
   }
-  const generation = selectionGeneration;
+  const generation = ++selectionGeneration;
+  cancelSelectionOverlay();
   startNavigationWatch(closeOnNavigation);
   // Preload the OCR worker and model while the user is selecting a region,
   // so recognition can start as soon as the screenshot is ready.
