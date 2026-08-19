@@ -26,6 +26,8 @@ import { detectAll as detectAllTinyLanguages } from "tinyld";
 
 const DEBUG_LANGUAGE_DETECTION = false;
 
+const MIN_I18N_PERCENTAGE = 50;
+
 export default defineBackground(() => {
   // Firefox runs an MV3 background as an event page. Listeners must be
   // registered synchronously here, before any await, so the first event after
@@ -150,15 +152,20 @@ async function detectLanguage(text: string): Promise<string | undefined> {
     }
     const result = await browserApi.i18n.detectLanguage(text);
     const top = result.languages?.[0]?.language ?? "";
+    const topPercentage = result.languages?.[0]?.percentage ?? 0;
     const normalized = normalizeDetectedLanguage(top);
     if (DEBUG_LANGUAGE_DETECTION) {
       console.debug("[Screen OCR Translator] i18n detectLanguage result", {
         raw: result,
         top,
+        topPercentage,
         normalized,
       });
     }
-    if (normalized && result.isReliable) {
+    if (
+      normalized &&
+      (result.isReliable || topPercentage >= MIN_I18N_PERCENTAGE)
+    ) {
       return normalized;
     }
 
