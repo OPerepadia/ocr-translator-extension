@@ -140,6 +140,8 @@ export default defineContentScript({
           name: "ocr-translate-ui",
           position: "inline",
           anchor: "body",
+          // Prevent page shortcuts from intercepting UI keystrokes
+          isolateEvents: true,
           onMount: (container) => {
             container.lang = uiLanguage();
             container.dir = uiDirection();
