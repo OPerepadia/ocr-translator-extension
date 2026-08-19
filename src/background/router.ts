@@ -350,7 +350,7 @@ async function handlePreloadOcrRequest(
 }
 
 // Re-runs OCR (and translation) on the last captured image for a different
-// source language. The selection lasts only for the current capture.
+// source language and uses the selection as the default for future captures.
 async function handleRerecognizeRequest(
   dependencies: RouterDependencies,
   message: Extract<RuntimeMessage, { type: "RERECOGNIZE_REQUEST" }>,
@@ -380,6 +380,9 @@ async function handleRerecognizeRequest(
     ...settings.ocr,
     sourceLang: selection.id,
   };
+  if (selection.id !== settings.ocr.sourceLang) {
+    await dependencies.settingsRepository.set({ ...settings, ocr });
+  }
   const ocrProvider = dependencies.createOcrProvider(ocr);
   const translationProvider = dependencies.createTranslationProvider(
     settings.translation,

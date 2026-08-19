@@ -100,9 +100,9 @@ export type RuntimeMessage =
     }
   // Content -> background: re-run OCR on the last captured image for a different
   // source language, then translate. The background chooses the recognizer and
-  // keeps the language only for the current capture. The pixels stay in the
-  // background's capture store: Chrome serializes messages as JSON, so a Blob
-  // would not survive the trip.
+  // saves the language as the default for future captures. The pixels stay in
+  // the background's capture store: Chrome serializes messages as JSON, so a
+  // Blob would not survive the trip.
   | {
       type: "RERECOGNIZE_REQUEST";
       requestId: string;

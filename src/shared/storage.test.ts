@@ -4,6 +4,7 @@ import {
   defaultSettings,
   getDisplayMode,
   getStartOcrImmediately,
+  setDisplayMode,
 } from "./storage";
 
 afterEach(() => {
@@ -25,6 +26,18 @@ describe("storage defaults", () => {
     stubStorage({});
     await expect(getDisplayMode()).resolves.toBe("overlay");
   });
+
+  it.each(["panel", "overlay"] as const)(
+    "saves %s as the display mode",
+    async (mode) => {
+      const set = vi.fn(async () => {});
+      vi.stubGlobal("browser", { storage: { local: { set } } });
+
+      await setDisplayMode(mode);
+
+      expect(set).toHaveBeenCalledWith({ displayMode: mode });
+    },
+  );
 
   it("waits for confirmation when immediate OCR is not enabled", async () => {
     stubStorage({});

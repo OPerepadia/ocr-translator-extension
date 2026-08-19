@@ -351,7 +351,7 @@ describe("background router", () => {
       targetLang: input.targetLang,
     }));
     let settings = {
-      ocr: { providerId: "test" },
+      ocr: { providerId: "test", sourceLang: "auto" },
       translation: { providerId: "test", targetLang: "uk" },
     };
 
@@ -398,6 +398,7 @@ describe("background router", () => {
       translation: { text: "Translated", targetLang: "uk" },
       translationStatus: { state: "ok" },
     });
+    expect(settings.ocr.sourceLang).toBe("ja");
 
     await invoke(
       listener,
@@ -476,6 +477,7 @@ describe("background router", () => {
           ocr: { providerId: "test" },
           translation: { providerId: "test", targetLang: "uk" },
         }),
+        set: vi.fn(async () => {}),
       },
       createOcrProvider: () => ({ id: "test", recognize }),
       createTranslationProvider: () => ({
@@ -706,8 +708,8 @@ describe("background router", () => {
       return Promise.resolve(fastImage);
     });
     const recognize = vi.fn(async () => ({ text: "Sample", lang: "en" }));
-    const settings = {
-      ocr: { providerId: "test" },
+    let settings = {
+      ocr: { providerId: "test", sourceLang: "auto" },
       translation: { providerId: "test", targetLang: "uk" },
     };
 
@@ -715,6 +717,9 @@ describe("background router", () => {
       captureStore,
       settingsRepository: {
         get: async () => settings,
+        set: async (next: typeof settings) => {
+          settings = next;
+        },
       },
       loadImage,
       createOcrProvider: () => ({ id: "test", recognize }),

@@ -26,6 +26,7 @@ import {
   getDisplayMode,
   getOverlayMode,
   getStartOcrImmediately,
+  setDisplayMode,
   type DisplayMode,
 } from "@/shared/storage";
 import { createRequestId } from "@/shared/request-id";
@@ -695,6 +696,7 @@ function switchToOverlay(): void {
     return;
   }
   activeView = "overlay";
+  void setDisplayMode(activeView).catch(() => {});
   closePopup({ notify: false });
   showResultOverlay(lastResult, lastRect);
 }
@@ -719,6 +721,7 @@ function switchToPanel(): void {
     return;
   }
   activeView = "panel";
+  void setDisplayMode(activeView).catch(() => {});
   closeOverlay();
   setOverlayAvailable(isOverlayable(lastResult) && Boolean(lastRect));
   showResult(lastResult);
@@ -759,7 +762,7 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
 }
 
 // Re-run OCR on the last captured image for a different source language. The
-// background chooses the recognizer for the current capture only.
+// background also saves it as the default for future captures.
 async function runRerecognize(sourceLang: LangCode | "auto"): Promise<void> {
   cancelActiveRequest();
   const requestId = createRequestId();
