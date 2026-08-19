@@ -2,17 +2,15 @@
 
 Browser extension that uses optical character recognition (OCR) to capture text from any selected area of a web page and translate it.
 
-<a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"><img src="media/firefox-badge.png" alt="Get the add-on" width="172" height="60"></a>
-
-## Installation
-
-Firefox: install from [Mozilla Add-ons](https://addons.mozilla.org/firefox/addon/screen-ocr-translator/).
-
-Chrome: download zip from the [latest release](https://github.com/OPerepadia/ocr-translator-extension/releases/latest) and load it manually:
-
-1. Unpack the zip.
-2. Open `chrome://extensions` and turn on **Developer mode**.
-3. Click **Load unpacked** and select the unpacked folder.
+<div style="display: flex; align-items: center; gap: 10px;">
+  <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/">
+    <img src="media/firefox-badge.png" alt="Get the Firefox add-on" width="172" height="60">
+  </a>
+  
+  <a href="https://chromewebstore.google.com/detail/screen-ocr-translator/legljemohhhablgapleoakcepoofloae">
+    <img src="media/chrome-badge.png" alt="Get from Chrome Web Store" height="60">
+  </a>
+</div>
 
 ## Usage
 
@@ -20,15 +18,12 @@ Activate the extension from the browser toolbar, or the context menu, or by pres
 
 To translate an image directly, right-click it and select "Translate this image".
 
-The translation appears over the original text. Hover over a text box to view the original text and its translation, which can be copied or read aloud. Use the extension toolbar to show or hide the translation overlay.
-
-> [!NOTE]
-> On Firefox 153 and later, using this extension on local files require separate permission.
-> Open the add-on's **Permissions and data** settings and enable **Access local files on your computer**, then reload the local file.
-
-## Keyboard shortcut
+Translation appears over the original text. Hover over a text box to view the original text and its translation, which can be copied or read aloud. Use the extension toolbar to show or hide the translation overlay.
 
 The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**. In Chrome, open `chrome://extensions/shortcuts`.
+
+> [!NOTE]
+> On Firefox 153 and later, if you want to run this extension on local image files, open the add-on's **Permissions and data** settings and enable **Access local files on your computer**, then reload the image.
 
 ## How it works
 
@@ -45,7 +40,9 @@ The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:add
 
 ## Supported languages
 
-The extension bundles several recognizers. By default, it uses [PP-OCRv6](https://www.paddleocr.ai/main/en/version3.x/algorithm/PP-OCRv6/PP-OCRv6.html), which supports 50 languages and offers the best accuracy. Scripts that PP-OCRv6 doesn't cover (Cyrillic, Korean and others) use PP-OCRv5 recognizers.
+### Text recognition
+
+The extension bundles several recognizers. By default, it uses [PP-OCRv6](https://www.paddleocr.ai/main/en/version3.x/algorithm/PP-OCRv6/PP-OCRv6.html), which supports 50 languages and provides the best accuracy. Scripts that PP-OCRv6 doesn't cover (Cyrillic, Korean and others) use PP-OCRv5 recognizers.
 
 | Script model | Recognized languages |
 |---|---|
@@ -55,7 +52,9 @@ The extension bundles several recognizers. By default, it uses [PP-OCRv6](https:
 | Arabic | Arabic, Pashto, Persian, Urdu |
 | Devanagari | Hindi, Marathi, Nepali |
 
-Translations can target any of 70+ languages supported by Google Translate, or any language your configured LLM supports.
+### Translation
+
+Recognized text can be translated into any language supported by Google Translate, or any language supported by your configured LLM endpoint.
 
 ## Limitations
 
