@@ -1,6 +1,7 @@
 # Screen OCR Translator
 
-Browser extension that uses optical character recognition (OCR) to capture text from any selected area of a web page and translate it.
+Browser extension that captures text from images or any selected area of a web page using local OCR, then displays the translation in an overlay.
+It uses Google Translate by default, or you can point it to your own LLM endpoint.
 
 <div style="display: flex; align-items: center; gap: 10px;">
   <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/">
