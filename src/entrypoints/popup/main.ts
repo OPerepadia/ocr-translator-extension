@@ -283,15 +283,20 @@ async function startPageAction(
       active: true,
       currentWindow: true,
     });
-    if (
-      isContentScriptUnavailableError(error) &&
-      (await isFirefoxLocalFileAccessDenied(browserApi, tab?.url))
-    ) {
-      disableSelection(elements, t("popupLocalFilePermission"));
-      return;
-    }
     if (isContentScriptUnavailableError(error)) {
-      disableSelection(elements, t("popupRestrictedPage"));
+      let message: string;
+      if (await isFirefoxLocalFileAccessDenied(browserApi, tab?.url)) {
+        message = t("popupLocalFilePermission");
+      } else if (!tab || !isActivationPageSupported(tab.url)) {
+        // A known restricted page (chrome://, devtools://, …) where a content
+        // script can never run, or a tab we can no longer identify.
+        message = t("popupRestrictedPage");
+      } else {
+        // A regular web page without our content script, e.g. a tab that was
+        // opened before the extension was installed. Reloading injects it.
+        message = t("popupReloadPage");
+      }
+      disableSelection(elements, message);
       return;
     }
 

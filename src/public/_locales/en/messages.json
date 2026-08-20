@@ -271,6 +271,9 @@
   "popupRestrictedPage": {
     "message": "This browser page is restricted, so the extension can't access it. Try it on a regular web page."
   },
+  "popupReloadPage": {
+    "message": "Could not start. Please refresh the page and try again."
+  },
   "popupCouldNotStart": {
     "message": "Screen OCR Translator could not start on this page."
   },

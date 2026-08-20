@@ -23,6 +23,20 @@ describe("activation page support", () => {
     expect(isActivationPageSupported(undefined)).toBe(false);
   });
 
+  it("blocks the Chrome Web Store, which hides content scripts", () => {
+    expect(
+      isActivationPageSupported(
+        "https://chromewebstore.google.com/detail/abcdefghijklmnopabcdefghijklmnop",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps other hosts on regular web pages", () => {
+    expect(
+      isActivationPageSupported("https://example.com/item/example"),
+    ).toBe(true);
+  });
+
   it("lets malformed URLs fall through to messaging", () => {
     expect(isActivationPageSupported("not a url")).toBe(true);
   });
