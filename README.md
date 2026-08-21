@@ -1,7 +1,7 @@
 # Screen OCR Translator
 
-Browser extension that captures text from images or any selected area of a web page using local OCR, then displays the translation in an overlay.
-It uses Google Translate by default, or you can point it to your own LLM endpoint.
+Browser extension that captures text from images, comics, scans, or any selected area of a web page using local OCR, then displays the translation in an overlay.
+It uses Google Translate by default, or you can connect it to your own LLM endpoint.
 
 <div style="display: flex; align-items: center; gap: 10px;">
   <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/">
@@ -115,8 +115,6 @@ The builds generate unpacked extensions in `.output/firefox-mv3` and `.output/ch
 
 - Firefox: load the directory as a temporary add-on. See [Temporary installation in Firefox](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/).
 - Chrome: load the directory via **Load unpacked** on `chrome://extensions` with Developer mode on.
-
-Both engines run MV3, but the background differs: Firefox uses an event page that hosts the OCR engine directly, while Chrome uses an offscreen document because its service worker cannot create the dedicated OCR worker.
 
 Run the test suite and type checks with:
 
