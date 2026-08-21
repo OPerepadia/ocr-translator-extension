@@ -103,9 +103,6 @@
   "optionsPageTitle": {
     "message": "Screen OCR Translator Options"
   },
-  "offscreenPageTitle": {
-    "message": "Screen OCR Translator OCR host"
-  },
   "optionsTranslationSectionTitle": {
     "message": "Translation",
     "description": "Heading for the translation settings section"
@@ -267,9 +264,6 @@
   },
   "popupSetShortcut": {
     "message": "Set shortcut"
-  },
-  "popupOpenAddonSettings": {
-    "message": "Open add-on settings"
   },
   "popupRestrictedPage": {
     "message": "This browser page is restricted, so the extension can't access it. Try it on a regular web page."

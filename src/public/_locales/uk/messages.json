@@ -103,9 +103,6 @@
   "optionsPageTitle": {
     "message": "Налаштування Screen OCR Translator"
   },
-  "offscreenPageTitle": {
-    "message": "OCR-служба Screen OCR Translator"
-  },
   "optionsTranslationSectionTitle": {
     "message": "Налаштування перекладу",
     "description": "Заголовок розділу налаштувань перекладу"
@@ -267,9 +264,6 @@
   },
   "popupSetShortcut": {
     "message": "Налаштувати"
-  },
-  "popupOpenAddonSettings": {
-    "message": "Відкрити налаштування додатка"
   },
   "popupRestrictedPage": {
     "message": "Ця сторінка браузера має обмежений доступ, тому розширення не може працювати з нею. Спробуйте на звичайній вебсторінці."
