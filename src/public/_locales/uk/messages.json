@@ -67,6 +67,9 @@
   "commonAvailable": {
     "message": "Доступно"
   },
+  "commonSoftwareOnly": {
+    "message": "Лише програмно"
+  },
   "commonNotAvailable": {
     "message": "Недоступно"
   },

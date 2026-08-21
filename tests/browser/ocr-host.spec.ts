@@ -135,6 +135,47 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
   }
 });
 
+test("reports a fallback WebGPU adapter as software-only", async () => {
+  const extensionPath = resolve(".output/chrome-mv3");
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  const context = await chromium.launchPersistentContext("", {
+    ...(executablePath ? { executablePath } : { channel: "chromium" }),
+    headless: true,
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+    ],
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "gpu", {
+      configurable: true,
+      value: {
+        requestAdapter: async () => ({ info: { isFallbackAdapter: true } }),
+      },
+    });
+  });
+
+  try {
+    const serviceWorker = await findServiceWorker(context);
+    const extensionId = new URL(serviceWorker.url()).host;
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+
+    const status = page.locator(".ocr-webgpu-status");
+    await expect(status).toHaveText("Software only");
+    await expect(status).toHaveClass(/is-software/);
+    await expect(page.locator("input[name='ocrWebGpu']")).toBeDisabled();
+    const guide = page.locator(".ocr-webgpu-note");
+    await expect(guide).toBeVisible();
+    await expect(guide.locator("a")).toHaveAttribute(
+      "href",
+      "https://github.com/OPerepadia/ocr-translator-extension#webgpu-setup",
+    );
+  } finally {
+    await context.close();
+  }
+});
+
 async function findServiceWorker(context: BrowserContext) {
   return (
     context.serviceWorkers()[0] ??

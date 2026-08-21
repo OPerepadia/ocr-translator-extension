@@ -2,21 +2,52 @@
 // onnxruntime-web (which the OCR worker's ort-env module loads) into its
 // bundle.
 
-/** True when this context (page or worker) exposes a usable WebGPU adapter.
- * The API can exist while requestAdapter resolves to null (e.g. blocklisted
- * hardware). */
-export async function hasWebGpuAdapter(): Promise<boolean> {
+export type WebGpuAdapterStatus = "available" | "software" | "unavailable";
+
+interface WebGpuAdapterInfo {
+  description?: string;
+  isFallbackAdapter?: boolean;
+}
+
+interface WebGpuAdapter {
+  info?: WebGpuAdapterInfo;
+  isFallbackAdapter?: boolean;
+  requestAdapterInfo?(): Promise<WebGpuAdapterInfo>;
+}
+
+export async function getWebGpuAdapterStatus(): Promise<WebGpuAdapterStatus> {
   const gpu = (
-    globalThis.navigator as Navigator & {
-      gpu?: { requestAdapter(): Promise<unknown> };
+    globalThis.navigator as unknown as {
+      gpu?: { requestAdapter(): Promise<WebGpuAdapter | null> };
     }
   )?.gpu;
   if (!gpu) {
-    return false;
+    return "unavailable";
   }
   try {
-    return Boolean(await gpu.requestAdapter());
+    const adapter = await gpu.requestAdapter();
+    if (!adapter) {
+      return "unavailable";
+    }
+    let info = adapter.info;
+    if (!info && adapter.requestAdapterInfo) {
+      try {
+        info = await adapter.requestAdapterInfo();
+      } catch {
+        // Adapter identity is optional; availability still has a useful answer.
+      }
+    }
+    const fallback =
+      info?.isFallbackAdapter === true ||
+      adapter.isFallbackAdapter === true ||
+      /swiftshader/i.test(info?.description ?? "");
+    return fallback ? "software" : "available";
   } catch {
-    return false;
+    return "unavailable";
   }
+}
+
+/** True when this context exposes a hardware-backed WebGPU adapter. */
+export async function hasWebGpuAdapter(): Promise<boolean> {
+  return (await getWebGpuAdapterStatus()) === "available";
 }

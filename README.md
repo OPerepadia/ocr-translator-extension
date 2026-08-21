@@ -35,9 +35,29 @@ The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:add
     - LLM translation via a user-configured OpenAI-compatible endpoint (llama.cpp, LM Studio, or a cloud provider).
 - **Text-to-speech** — Google TTS. Support for local TTS is planned.
 
+### WebGPU setup
+
 > [!TIP]
-> Enable GPU acceleration in settings for faster OCR. The extension falls back
-> to CPU processing when WebGPU is unavailable.
+> You can enable GPU acceleration in extension settings to run OCR faster.
+
+On Linux, WebGPU is generally disabled by default. Follow the steps below to enable it.
+
+#### Firefox
+
+1. Open `about:config`.
+2. Set `dom.webgpu.enabled` to `true`.
+3. Restart the browser.
+
+See the [Firefox guide on enableGPU.com](https://enablegpu.com/guides/firefox/)
+for a walkthrough.
+
+#### Chromium
+
+1. Open `chrome://flags`
+2. Enable both of these flags:
+    - **Unsafe WebGPU Support** (`chrome://flags/#enable-unsafe-webgpu`)
+    - **Vulkan** (`chrome://flags/#enable-vulkan`)
+3. Restart the browser.
 
 ## Supported languages
 

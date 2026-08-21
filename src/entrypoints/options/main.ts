@@ -23,7 +23,7 @@ import {
   uiLanguage,
 } from "@/shared/i18n";
 import type { Settings } from "@/shared/types";
-import { hasWebGpuAdapter } from "@/shared/webgpu";
+import { getWebGpuAdapterStatus } from "@/shared/webgpu";
 import "./index.css";
 
 // The extra settings section each translation provider needs on this page.
@@ -69,19 +69,29 @@ async function initOptions(): Promise<void> {
     : "";
 
   elements.ocrWebGpuInput.checked = settings.ocr.backend === "webgpu";
-  // The engine probes WebGPU in its worker and falls back on its own; this
-  // note only warns early, from the options page, that the browser has no
-  // usable adapter (the API can exist while requestAdapter returns null).
-  void hasWebGpuAdapter().then((supported) => {
-    elements.ocrWebGpuNote.hidden = supported;
-    elements.ocrWebGpuStatus.textContent = supported
-      ? t("commonAvailable")
-      : t("commonNotAvailable");
-    elements.ocrWebGpuStatus.classList.toggle("is-unavailable", !supported);
+  // The engine probes WebGPU in its worker and falls back on its own; mirror
+  // that result here so a software adapter is not advertised as acceleration.
+  void getWebGpuAdapterStatus().then((adapterStatus) => {
+    const available = adapterStatus === "available";
+    elements.ocrWebGpuNote.hidden = available;
+    elements.ocrWebGpuStatus.textContent =
+      adapterStatus === "available"
+        ? t("commonAvailable")
+        : adapterStatus === "software"
+          ? t("commonSoftwareOnly")
+          : t("commonNotAvailable");
+    elements.ocrWebGpuStatus.classList.toggle(
+      "is-software",
+      adapterStatus === "software",
+    );
+    elements.ocrWebGpuStatus.classList.toggle(
+      "is-unavailable",
+      adapterStatus === "unavailable",
+    );
     elements.ocrWebGpuStatus.hidden = false;
     // A disabled checkbox is absent from FormData, so the next save also
     // clears a stale "webgpu" choice on a browser that can't run it.
-    elements.ocrWebGpuInput.disabled = !supported;
+    elements.ocrWebGpuInput.disabled = !available;
   });
 
   // Display mode lives under its own storage key, separate from Settings.

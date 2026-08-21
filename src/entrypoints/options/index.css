@@ -112,9 +112,14 @@ main {
   content: "✓ ";
 }
 
+.ocr-webgpu-status.is-software,
 .ocr-webgpu-status.is-unavailable {
   background: color-mix(in srgb, var(--warning) 14%, transparent);
   color: var(--warning);
+}
+
+.ocr-webgpu-status.is-software::before {
+  content: "! ";
 }
 
 .ocr-webgpu-status.is-unavailable::before {

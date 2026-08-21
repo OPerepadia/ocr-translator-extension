@@ -67,6 +67,9 @@
   "commonAvailable": {
     "message": "Available"
   },
+  "commonSoftwareOnly": {
+    "message": "Software only"
+  },
   "commonNotAvailable": {
     "message": "Not available"
   },
