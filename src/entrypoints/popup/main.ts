@@ -327,17 +327,8 @@ async function openSettings(elements: PopupElements): Promise<void> {
     return;
   }
 
-  try {
-    await browserApi.runtime.openOptionsPage();
-    window.close();
-  } catch (error) {
-    console.error("[Screen OCR Translator] Failed to open settings", error);
-    elements.openSettings.disabled = false;
-    elements.selectArea.disabled = selectAreaWasDisabled;
-    elements.pickImage.disabled = pickImageWasDisabled;
-    elements.controls.disabled = false;
-    showMessage(elements, t("popupCouldNotOpenSettings"));
-  }
+  await browserApi.runtime.openOptionsPage();
+  window.close();
 }
 
 function showSettingsSaveError(): void {

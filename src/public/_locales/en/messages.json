@@ -283,9 +283,6 @@
   "popupLocalFilePermission": {
     "message": "This extension needs permission to access local files. In add-on settings, select “Permissions and data” and enable “Access local files on your computer”, then reload this file."
   },
-  "popupCouldNotOpenSettings": {
-    "message": "Could not open add-on settings. Open about:addons manually."
-  },
   "popupCouldNotOpenShortcutSettings": {
     "message": "Could not open keyboard shortcut settings."
   },
