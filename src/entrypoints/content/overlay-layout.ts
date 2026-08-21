@@ -77,7 +77,7 @@ const VERTICAL_TRANSLATION_MIN_WIDTH = 120;
 // A line only votes on tilt if it is clearly oblong, the same bar the OCR
 // assembler sets for reading orientation.
 const ANGLE_VOTE_MIN_ASPECT = 1.5;
-const ANGLE_SNAP_RADIANS = (2 * Math.PI) / 180;
+const ANGLE_SNAP_RADIANS = (3 * Math.PI) / 180;
 
 export function getRenderedImageRect(args: {
   elementRect: Rect;
