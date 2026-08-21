@@ -63,6 +63,7 @@ import {
   setOnOverlayClose,
   setOnOverlayNewSelection,
   setOnOverlayProviderChange,
+  setOnOverlayRetranslate,
   setOnOverlaySourceLanguageChange,
   setOnOverlayTargetLangChange,
   setOnShowPanel,
@@ -227,6 +228,9 @@ export default defineContentScript({
     setOnOverlayProviderChange((providerId) => {
       setTranslationProviders(translationProviderList, providerId);
       void runSwitchProvider(providerId);
+    });
+    setOnOverlayRetranslate((targetLang) => {
+      void runRetranslate(targetLang);
     });
 
     setOnTranslateRequest((text, targetLang) => {

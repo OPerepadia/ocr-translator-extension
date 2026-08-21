@@ -6,6 +6,7 @@ import {
   CLOSE_ICON,
   COPY_ICON,
   MENU_ICON,
+  RETRANSLATE_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
   SPEAK_ICON,
@@ -101,6 +102,7 @@ let onSourceLanguageChange:
   | ((sourceLang: LangCode | "auto") => void)
   | undefined;
 let onProviderChange: ((providerId: string) => void) | undefined;
+let onRetranslate: ((targetLang: LangCode) => void) | undefined;
 
 let keydownHandler: ((event: KeyboardEvent) => void) | undefined;
 let resizeHandler: (() => void) | undefined;
@@ -191,6 +193,12 @@ export function setOnOverlayProviderChange(
   handler: (providerId: string) => void,
 ): void {
   onProviderChange = handler;
+}
+
+export function setOnOverlayRetranslate(
+  handler: (targetLang: LangCode) => void,
+): void {
+  onRetranslate = handler;
 }
 
 /** The text used to build the overlay. Failed translations fall back to the
@@ -528,6 +536,7 @@ function createToolbar(): HTMLElement {
   const sourcePicker = createSourceLanguagePicker();
   const languagePicker = createLanguagePicker();
   const providerPicker = createProviderPicker();
+  const retranslateButton = createRetranslateButton();
   const menu = createMenu();
   outsideClickHandlers.push(menu.handleOutsideClick);
   const selectButton = iconButton(
@@ -563,9 +572,20 @@ function createToolbar(): HTMLElement {
   if (providerPicker) {
     bar.append(providerPicker);
   }
+  bar.append(retranslateButton);
   bar.append(modeButtonWrapper);
   bar.append(selectButton, menu.element, divider, closeButton);
   return bar;
+}
+
+function createRetranslateButton(): HTMLButtonElement {
+  const button = iconButton(RETRANSLATE_ICON, t("commonTranslateAgain"), () => {
+    if (currentTargetLang) {
+      onRetranslate?.(currentTargetLang);
+    }
+  });
+  button.disabled = !hasTranslationText || !currentTargetLang || !onRetranslate;
+  return button;
 }
 
 function createModeButton(): HTMLButtonElement {

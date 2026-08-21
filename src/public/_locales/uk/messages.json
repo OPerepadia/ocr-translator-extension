@@ -46,6 +46,9 @@
   "commonTranslate": {
     "message": "Перекласти"
   },
+  "commonTranslateAgain": {
+    "message": "Повторити переклад"
+  },
   "commonReadAloud": {
     "message": "Читати вголос"
   },

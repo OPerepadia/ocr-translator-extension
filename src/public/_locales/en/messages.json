@@ -46,6 +46,9 @@
   "commonTranslate": {
     "message": "Translate"
   },
+  "commonTranslateAgain": {
+    "message": "Translate again"
+  },
   "commonReadAloud": {
     "message": "Read aloud"
   },
