@@ -238,9 +238,14 @@ describe("buildOverlayLayout", () => {
     expect(layout.combinedTranslation).toBe("bonjour le monde");
   });
 
-  it("widens and centers painted boxes for narrow vertical source text", () => {
+  it("widens and centers painted boxes for vertical source text", () => {
     const layout = buildOverlayLayout({
-      blocks: [block(0, { x: 40, y: 0, width: 20, height: 100 })],
+      blocks: [
+        {
+          ...block(0, { x: 40, y: 0, width: 20, height: 100 }),
+          orientation: "vertical",
+        },
+      ],
       imageWidth: 100,
       imageHeight: 100,
       rect: { x: 0, y: 0, width: 80, height: 100 },
@@ -248,18 +253,10 @@ describe("buildOverlayLayout", () => {
       translationText: "Generic translated phrase",
     });
 
-    expect(layout.paragraphs[0].sourceRect).toEqual({
-      x: 32,
-      y: 0,
-      width: 16,
-      height: 100,
-    });
-    expect(layout.paragraphs[0].translationRect).toEqual({
-      x: -20,
-      y: 0,
-      width: 120,
-      height: 100,
-    });
+    expect(layout.paragraphs[0].sourceRect.width).toBeCloseTo(100);
+    expect(layout.paragraphs[0].sourceRect.height).toBeCloseTo(16);
+    expect(layout.paragraphs[0].translationRect.width).toBe(120);
+    expect(layout.paragraphs[0].translationRect.height).toBeCloseTo(16);
     expect(layout.combinedRect).toEqual({
       x: -20,
       y: 0,
@@ -272,7 +269,12 @@ describe("buildOverlayLayout", () => {
   // where the painted box was widened away from it.
   it("keeps the combined source rect on the vertical source text", () => {
     const layout = buildOverlayLayout({
-      blocks: [block(0, { x: 40, y: 0, width: 20, height: 100 })],
+      blocks: [
+        {
+          ...block(0, { x: 40, y: 0, width: 20, height: 100 }),
+          orientation: "vertical",
+        },
+      ],
       imageWidth: 100,
       imageHeight: 100,
       rect: { x: 0, y: 0, width: 80, height: 100 },
@@ -280,17 +282,20 @@ describe("buildOverlayLayout", () => {
       translationText: "Generic translated phrase",
     });
 
-    expect(layout.combinedSourceRect).toEqual({
-      x: 32,
-      y: 0,
-      width: 16,
-      height: 100,
-    });
+    expect(layout.combinedSourceRect.x).toBeCloseTo(32);
+    expect(layout.combinedSourceRect.y).toBeCloseTo(0);
+    expect(layout.combinedSourceRect.width).toBeCloseTo(16);
+    expect(layout.combinedSourceRect.height).toBeCloseTo(100);
   });
 
-  it("keeps vertical CJK translations on the source text box", () => {
+  it("widens vertical CJK translations", () => {
     const layout = buildOverlayLayout({
-      blocks: [block(0, { x: 50, y: 0, width: 20, height: 100 })],
+      blocks: [
+        {
+          ...block(0, { x: 50, y: 0, width: 20, height: 100 }),
+          orientation: "vertical",
+        },
+      ],
       imageWidth: 100,
       imageHeight: 100,
       rect: { x: 0, y: 0, width: 100, height: 100 },
@@ -298,9 +303,7 @@ describe("buildOverlayLayout", () => {
       translationText: "翻訳の例文です",
     });
 
-    expect(layout.paragraphs[0].translationRect).toEqual(
-      layout.paragraphs[0].sourceRect,
-    );
+    expect(layout.paragraphs[0].translationRect.width).toBe(120);
   });
 
   it("marks paragraphs vertical so the original view can match the layout", () => {

@@ -118,7 +118,8 @@ let anchor:
 
 // Smallest/largest font the auto-fit will use inside a painted box.
 const MIN_FONT_PX = 12;
-const MAX_FONT_PX = 24;
+const MAX_FONT_PX_HORIZONTAL_SOURCE = 24;
+const MAX_FONT_PX_VERTICAL_SOURCE = 18;
 // How far past its frame a panel may spill, in fractions of a line, so a last
 // line that only just misses is kept rather than dropped. The frame is only an
 // approximate OCR box, so a slight overhang beats losing a line.
@@ -939,6 +940,7 @@ function renderTranslationBoxes(
   layout: OverlayLayout,
   overlayContainer: HTMLElement,
 ): void {
+  const verticalBoxes: boolean[] = [];
   // Without a per-paragraph split, one combined box, so the whole translation is
   // never misattributed to a single region.
   if (!layout.segmented) {
@@ -949,6 +951,10 @@ function renderTranslationBoxes(
     );
     overlayContainer.append(box);
     boxes.push(box);
+    verticalBoxes.push(
+      layout.paragraphs.length > 0 &&
+        layout.paragraphs.every((paragraph) => paragraph.vertical),
+    );
     boxRects.push(layout.combinedRect);
     boxAngles.push(0);
     boxContents.push({
@@ -964,6 +970,7 @@ function renderTranslationBoxes(
       );
       overlayContainer.append(box);
       boxes.push(box);
+      verticalBoxes.push(paragraph.vertical);
       boxRects.push(paragraph.translationRect);
       boxAngles.push(paragraph.angle);
       boxContents.push({
@@ -973,9 +980,9 @@ function renderTranslationBoxes(
     });
   }
 
-  for (const box of boxes) {
-    fitFontSize(box);
-  }
+  boxes.forEach((box, index) => {
+    fitFontSize(box, verticalBoxes[index]);
+  });
 }
 
 function renderSourceBoxes(
@@ -1054,18 +1061,20 @@ function createTranslationBox(
 }
 
 // Shrink the font with a binary search until the translation fits, flooring at
-// MIN_FONT_PX (`clampToWholeLines` truncates whatever still overflows). The two
-// axes measure different things: the panel is capped at the box's width, so a
-// word too wide overflows the panel rather than widening it; its height is its
-// own, so that one is measured against the box.
-function fitFontSize(box: HTMLElement): void {
+// the configured minimum. `clampToWholeLines` truncates whatever still
+// overflows. The panel is capped at the box's width, so a wide word overflows
+// the panel rather than widening it. Its height is measured against the box.
+function fitFontSize(box: HTMLElement, vertical: boolean): void {
   const panel = box.firstElementChild;
   if (!(panel instanceof HTMLElement)) {
     return;
   }
+  const maxFontSize = vertical
+    ? MAX_FONT_PX_VERTICAL_SOURCE
+    : MAX_FONT_PX_HORIZONTAL_SOURCE;
   const cap = Math.max(
     MIN_FONT_PX,
-    Math.min(MAX_FONT_PX, Math.floor(box.clientHeight)),
+    Math.min(maxFontSize, Math.floor(box.clientHeight)),
   );
   let lo = MIN_FONT_PX;
   let hi = cap;

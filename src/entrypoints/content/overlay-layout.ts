@@ -72,7 +72,6 @@ export interface BuildOverlayInput {
   orientation?: "horizontal" | "vertical";
 }
 
-const VERTICAL_TRANSLATION_ASPECT_RATIO = 2.0;
 const VERTICAL_TRANSLATION_MIN_WIDTH = 120;
 // A line only votes on tilt if it is clearly oblong, the same bar the OCR
 // assembler sets for reading orientation.
@@ -398,7 +397,7 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
     return {
       sourceRect,
       translationRect: translated
-        ? buildTranslationRect(sourceRect, input.rect, translated)
+        ? buildTranslationRect(sourceRect, input.rect, vertical)
         : sourceRect,
       angle,
       original: vertical
@@ -415,6 +414,8 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
     paragraphs.length > 0
       ? unionRect(paragraphs.map((p) => rotatedBounds(p.sourceRect, p.angle)))
       : { ...input.rect };
+  const combinedVertical =
+    paragraphs.length > 0 && paragraphs.every((paragraph) => paragraph.vertical);
 
   return {
     paragraphs,
@@ -422,7 +423,7 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
     combinedRect: buildTranslationRect(
       combinedSourceRect,
       input.rect,
-      input.translationText,
+      combinedVertical,
     ),
     combinedSourceRect,
     combinedTranslation: input.translationText,
@@ -473,11 +474,14 @@ export function moveOverlayLayout(
   };
 }
 
-// Painted translations only. A tall narrow column of CJK becomes a much longer
-// run of Latin words, which will not fit the source box at a readable size, so
-// the painted box is widened and re-centered inside the capture.
-function buildTranslationRect(sourceRect: Rect, bounds: Rect, text: string): Rect {
-  if (!shouldWidenVerticalTranslation(sourceRect, text)) {
+// Painted translations only. Translated vertical text gets more horizontal
+// room and is re-centered in the capture.
+function buildTranslationRect(
+  sourceRect: Rect,
+  bounds: Rect,
+  vertical: boolean,
+): Rect {
+  if (!vertical) {
     return sourceRect;
   }
 
@@ -491,13 +495,6 @@ function buildTranslationRect(sourceRect: Rect, bounds: Rect, text: string): Rec
       height,
     },
     bounds,
-  );
-}
-
-function shouldWidenVerticalTranslation(sourceRect: Rect, text: string): boolean {
-  return (
-    sourceRect.height / Math.max(1, sourceRect.width) >=
-      VERTICAL_TRANSLATION_ASPECT_RATIO && !isMostlyCjk(text)
   );
 }
 
@@ -515,26 +512,6 @@ function fitAxis(start: number, size: number, boundsStart: number, boundsSize: n
   }
   const boundsEnd = boundsStart + boundsSize;
   return clamp(start, boundsStart, boundsEnd - size);
-}
-
-const CJK_CHAR = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}]/u;
-const MEANINGFUL_CHAR = /[\p{L}\p{N}]/u;
-
-// A CJK translation of a vertical column stays about as narrow as the source, so
-// widening it would only push the text off the glyphs it belongs to.
-function isMostlyCjk(text: string): boolean {
-  let cjk = 0;
-  let meaningful = 0;
-  for (const ch of text) {
-    if (!MEANINGFUL_CHAR.test(ch)) {
-      continue;
-    }
-    meaningful++;
-    if (CJK_CHAR.test(ch)) {
-      cjk++;
-    }
-  }
-  return meaningful > 0 && cjk / meaningful >= 0.5;
 }
 
 function clamp(value: number, min: number, max: number): number {
