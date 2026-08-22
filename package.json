@@ -15,7 +15,8 @@
     "zip:chrome": "wxt zip -b chrome",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
-    "test:browser": "npm run build:chrome && playwright test",
+    "test:browser:chrome": "playwright test",
+    "test:browser:firefox": "node --test tests/browser/firefox/ocr-host.test.mjs",
     "test:watch": "vitest",
     "verify:models": "node scripts/verify-models.mjs",
     "quantize:models": "scripts/quantize-models.sh"
@@ -28,6 +29,7 @@
     "@playwright/test": "^1.62.1",
     "@types/node": "^20.14.15",
     "fake-indexeddb": "^6.2.5",
+    "selenium-webdriver": "^4.47.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.0",
     "vitest": "^4.1.9",

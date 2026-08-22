@@ -6,12 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Use Node.js
         uses: actions/setup-node@v7
@@ -42,12 +47,22 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload Firefox extension
+        uses: actions/upload-artifact@v7
+        with:
+          name: firefox-extension
+          path: .output/firefox-mv3
+          if-no-files-found: error
+          retention-days: 1
+
   chrome-smoke:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Use Node.js
         uses: actions/setup-node@v7
@@ -68,4 +83,35 @@ jobs:
           path: .output/chrome-mv3
 
       - name: Smoke test extension in Chromium
-        run: npx playwright test
+        run: npm run test:browser:chrome
+
+  firefox-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Firefox extension
+        uses: actions/download-artifact@v7
+        with:
+          name: firefox-extension
+          path: .output/firefox-mv3
+
+      - name: Smoke test extension in Firefox
+        run: npm run test:browser:firefox
+        env:
+          SE_AVOID_STATS: true
+          SE_BROWSER_VERSION: stable
+          SE_FORCE_BROWSER_DOWNLOAD: true

@@ -59,6 +59,8 @@ Useful verification commands after runtime changes are:
 ```sh
 npm run typecheck
 npm test
-npm run test:browser
 npm run build
+npm run test:browser:firefox
+npm run build:chrome
+npm run test:browser:chrome
 ```
