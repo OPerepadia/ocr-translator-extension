@@ -3,14 +3,18 @@ import type {
   WorkerRequest,
   WorkerResponse,
 } from "../providers/ocr/paddle/protocol";
-import { browserApi, type BrowserPort } from "../shared/browser";
+import { browser } from "wxt/browser";
 import { t } from "../shared/i18n";
 import { encodeRequest, OCR_RELAY_PORT } from "../shared/offscreen-relay";
+
+type BrowserPort = ReturnType<typeof browser.runtime.connect>;
 
 const OFFSCREEN_PAGE = "offscreen.html";
 // Chrome offscreen API reference:
 // https://developer.chrome.com/docs/extensions/reference/api/offscreen
-const OFFSCREEN_REASONS = ["WORKERS"];
+const OFFSCREEN_REASONS: Parameters<
+  typeof browser.offscreen.createDocument
+>[0]["reasons"] = ["WORKERS"];
 const OFFSCREEN_JUSTIFICATION =
   "Runs the dedicated OCR worker that the service worker cannot create.";
 
@@ -30,14 +34,15 @@ function ensureDocument(): Promise<void> {
 }
 
 async function openDocumentIfNeeded(): Promise<void> {
-  const offscreen = browserApi.offscreen;
+  const offscreen = browser.offscreen;
   if (!offscreen) {
     throw new Error("This browser has no offscreen documents.");
   }
 
-  const contexts = await browserApi.runtime.getContexts({
+  const getUrl = browser.runtime.getURL as (path: string) => string;
+  const contexts = await browser.runtime.getContexts({
     contextTypes: ["OFFSCREEN_DOCUMENT"],
-    documentUrls: [browserApi.runtime.getURL(OFFSCREEN_PAGE)],
+    documentUrls: [getUrl(OFFSCREEN_PAGE)],
   });
   if (contexts.length > 0) {
     return;
@@ -98,7 +103,7 @@ export function createOffscreenWorker(): WorkerLike {
   }
 
   function connect(): BrowserPort {
-    const connected = browserApi.runtime.connect({ name: OCR_RELAY_PORT });
+    const connected = browser.runtime.connect({ name: OCR_RELAY_PORT });
     connected.onMessage.addListener((message) => {
       if (!closed) {
         relay.onmessage?.({ data: message as WorkerResponse });

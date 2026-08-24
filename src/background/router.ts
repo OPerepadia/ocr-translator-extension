@@ -1,6 +1,6 @@
 import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
-import { browserApi } from "../shared/browser";
+import { browser } from "wxt/browser";
 import {
   isCancelRequest,
   isEndImagePickerMessage,
@@ -78,13 +78,13 @@ export function startRouter(dependencies: RouterDependencies): void {
 
     if (isStartSelectionMessage(message)) {
       if (typeof tabId === "number") {
-        return browserApi.tabs.sendMessage(tabId, message, { frameId: 0 });
+        return browser.tabs.sendMessage(tabId, message, { frameId: 0 });
       }
       return undefined;
     }
     if (isEndImagePickerMessage(message)) {
       if (typeof tabId === "number") {
-        return browserApi.tabs.sendMessage(tabId, {
+        return browser.tabs.sendMessage(tabId, {
           type: "CANCEL_IMAGE_PICKER",
           sessionId: message.sessionId,
         });
@@ -113,7 +113,7 @@ export function startRouter(dependencies: RouterDependencies): void {
       return withKeepAlive(() => handlePreloadOcrRequest(dependencies));
     }
     if (isOpenOptionsRequest(message)) {
-      void browserApi.runtime.openOptionsPage();
+      void browser.runtime.openOptionsPage();
       return undefined;
     }
     if (isGetTargetLanguagesRequest(message)) {
@@ -191,7 +191,7 @@ async function handleSpeakRequest(
 // while any long-running background request is active.
 const KEEPALIVE_INTERVAL_MS = 20_000;
 const withKeepAlive = createKeepAlive(
-  () => browserApi.runtime.getPlatformInfo(),
+  () => browser.runtime.getPlatformInfo(),
   KEEPALIVE_INTERVAL_MS,
 );
 
@@ -413,7 +413,7 @@ function sendPipelineStatus(
     return;
   }
   // Fire-and-forget status to the originating tab; ignore if it closed.
-  void browserApi.tabs
+  void browser.tabs
     .sendMessage(tabId, {
       type: "OCR_TRANSLATE_STATUS",
       requestId,
@@ -430,7 +430,7 @@ async function sendPipelineOcrResult(
   if (tabId === undefined) {
     return;
   }
-  await browserApi.tabs
+  await browser.tabs
     .sendMessage(tabId, {
       type: "OCR_TRANSLATE_OCR_RESULT",
       requestId,

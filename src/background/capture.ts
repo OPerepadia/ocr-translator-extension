@@ -1,4 +1,4 @@
-import { browserApi } from "../shared/browser";
+import { browser } from "wxt/browser";
 import { cropBitmapToBlob, dataUrlToImageBitmap } from "../shared/image";
 import { t } from "../shared/i18n";
 import type { Rect, Viewport } from "../shared/types";
@@ -21,10 +21,10 @@ async function fetchWithReferrer(
 ): Promise<Response> {
   const requestUrl = new URL(url).href;
   const ruleId = createRuleId();
-  const initiator = new URL(browserApi.runtime.getURL("")).hostname;
+  const initiator = new URL(browser.runtime.getURL("")).hostname;
 
   // Limit the temporary rule to this extension and this exact image URL.
-  await browserApi.declarativeNetRequest.updateSessionRules({
+  await browser.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [ruleId],
     addRules: [
       {
@@ -49,7 +49,7 @@ async function fetchWithReferrer(
   try {
     return await fetch(requestUrl, { credentials: "include" });
   } finally {
-    await browserApi.declarativeNetRequest.updateSessionRules({
+    await browser.declarativeNetRequest.updateSessionRules({
       removeRuleIds: [ruleId],
     });
   }
@@ -95,7 +95,7 @@ export async function captureVisibleArea(args: {
   rect: Rect;
   viewport: Viewport;
 }): Promise<Blob> {
-  const dataUrl = await browserApi.tabs.captureVisibleTab(null, {
+  const dataUrl = await browser.tabs.captureVisibleTab({
     format: "png",
   });
   const bitmap = await dataUrlToImageBitmap(dataUrl);

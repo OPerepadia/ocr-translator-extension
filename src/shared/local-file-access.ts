@@ -1,10 +1,17 @@
-import type { BrowserApi } from "./browser";
+import { browser } from "wxt/browser";
+
+export type LocalFileAccessApi = {
+  runtime: Pick<typeof browser.runtime, "getBrowserInfo">;
+  extension?: {
+    isAllowedFileSchemeAccess?: () => Promise<boolean>;
+  };
+};
 
 // https://blog.mozilla.org/addons/2026/07/23/firefox-153-webextensions-api-updates/
 const FIREFOX_FILE_ACCESS_PERMISSION_VERSION = 153;
 
 export async function isFirefoxLocalFileAccessDenied(
-  api: BrowserApi,
+  api: LocalFileAccessApi,
   url: string | undefined,
 ): Promise<boolean> {
   if (!isLocalFileUrl(url)) {

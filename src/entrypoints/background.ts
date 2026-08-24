@@ -18,7 +18,7 @@ import type { OcrProvider } from "@/providers/ocr/types";
 import { translationRegistry } from "@/providers/translation/registry";
 import type { TranslationProvider } from "@/providers/translation/types";
 import { speakText } from "@/providers/tts/google";
-import { browserApi } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import { normalizeDetectedLanguage } from "@/shared/language";
 import { createSettingsRepository } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
@@ -65,11 +65,12 @@ function createOcrProvider(settings: Settings["ocr"]): OcrProvider {
   // Resolve asset URLs here, in the composition root, so providers stay free of
   // any browser-API dependency.
   const model = ocrModel(settings);
+  const getUrl = browser.runtime.getURL as (path: string) => string;
   const config = {
     ...settings,
     model,
     autoModels: isAutoOcr(settings) ? OCR_MODELS : undefined,
-    resolveUrl: (path: string) => browserApi.runtime.getURL(path),
+    resolveUrl: getUrl,
     // A Chrome service worker cannot spawn the worker itself, so there the
     // engine is hosted by an offscreen document.
     createWorker: canHostWorker() ? undefined : createOffscreenWorker,
@@ -150,7 +151,7 @@ async function detectLanguage(text: string): Promise<string | undefined> {
         text,
       });
     }
-    const result = await browserApi.i18n.detectLanguage(text);
+    const result = await browser.i18n.detectLanguage(text);
     const top = result.languages?.[0]?.language ?? "";
     const topPercentage = result.languages?.[0]?.percentage ?? 0;
     const normalized = normalizeDetectedLanguage(top);

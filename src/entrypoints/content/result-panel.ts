@@ -1,4 +1,4 @@
-import { browserApi } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import type {
   LangCode,
   PipelineOcrResult,
@@ -150,7 +150,7 @@ function clampPanelHeight(height: number): number {
 async function loadPanelSize(): Promise<void> {
   let stored: unknown;
   try {
-    const values = await browserApi.storage.local.get(PANEL_SIZE_KEY);
+    const values = await browser.storage.local.get(PANEL_SIZE_KEY);
     stored = values[PANEL_SIZE_KEY];
   } catch {
     return;
@@ -183,7 +183,7 @@ function savePanelSize(): void {
   if (panelWidth === undefined || panelHeight === undefined) {
     return;
   }
-  void browserApi.storage.local.set({
+  void browser.storage.local.set({
     [PANEL_SIZE_KEY]: { width: panelWidth, height: panelHeight },
   });
 }

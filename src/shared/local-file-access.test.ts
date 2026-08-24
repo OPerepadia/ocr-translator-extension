@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BrowserApi } from "./browser";
-import { isFirefoxLocalFileAccessDenied } from "./local-file-access";
+import {
+  isFirefoxLocalFileAccessDenied,
+  type LocalFileAccessApi,
+} from "./local-file-access";
 
 describe("Firefox local file access", () => {
   it("reports denied access on local files in Firefox 153 and later", async () => {
@@ -9,7 +11,7 @@ describe("Firefox local file access", () => {
       version: "153.0.1",
     }));
     const isAllowedFileSchemeAccess = vi.fn(async () => false);
-    const api = createBrowserApi({
+    const api = createLocalFileAccessApi({
       getBrowserInfo,
       isAllowedFileSchemeAccess,
     });
@@ -22,7 +24,7 @@ describe("Firefox local file access", () => {
   });
 
   it("does not report denied access when the user allowed local files", async () => {
-    const api = createBrowserApi({
+    const api = createLocalFileAccessApi({
       getBrowserInfo: async () => ({ name: "Firefox", version: "153" }),
       isAllowedFileSchemeAccess: async () => true,
     });
@@ -34,7 +36,7 @@ describe("Firefox local file access", () => {
 
   it("ignores the unreliable result from Firefox versions before 153", async () => {
     const isAllowedFileSchemeAccess = vi.fn(async () => false);
-    const api = createBrowserApi({
+    const api = createLocalFileAccessApi({
       getBrowserInfo: async () => ({ name: "Firefox", version: "152.0" }),
       isAllowedFileSchemeAccess,
     });
@@ -51,7 +53,7 @@ describe("Firefox local file access", () => {
       version: "153",
     }));
     const isAllowedFileSchemeAccess = vi.fn(async () => false);
-    const api = createBrowserApi({
+    const api = createLocalFileAccessApi({
       getBrowserInfo,
       isAllowedFileSchemeAccess,
     });
@@ -61,7 +63,7 @@ describe("Firefox local file access", () => {
     ).resolves.toBe(false);
     expect(getBrowserInfo).not.toHaveBeenCalled();
 
-    const otherBrowserApi = createBrowserApi({
+    const otherBrowserApi = createLocalFileAccessApi({
       getBrowserInfo: async () => ({ name: "Chrome", version: "153" }),
       isAllowedFileSchemeAccess,
     });
@@ -76,12 +78,12 @@ describe("Firefox local file access", () => {
   it("falls back when the browser APIs are unavailable or fail", async () => {
     await expect(
       isFirefoxLocalFileAccessDenied(
-        { runtime: {} } as BrowserApi,
+        { runtime: {} },
         "file:///tmp/sample.html",
       ),
     ).resolves.toBe(false);
 
-    const api = createBrowserApi({
+    const api = createLocalFileAccessApi({
       getBrowserInfo: async () => {
         throw new Error("Unavailable");
       },
@@ -93,10 +95,10 @@ describe("Firefox local file access", () => {
   });
 });
 
-function createBrowserApi(overrides: {
+function createLocalFileAccessApi(overrides: {
   getBrowserInfo: () => Promise<{ name: string; version: string }>;
   isAllowedFileSchemeAccess: () => Promise<boolean>;
-}): BrowserApi {
+}): LocalFileAccessApi {
   return {
     runtime: {
       getBrowserInfo: overrides.getBrowserInfo,
@@ -104,5 +106,5 @@ function createBrowserApi(overrides: {
     extension: {
       isAllowedFileSchemeAccess: overrides.isAllowedFileSchemeAccess,
     },
-  } as BrowserApi;
+  };
 }

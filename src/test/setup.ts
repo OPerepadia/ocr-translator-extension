@@ -1,4 +1,5 @@
 import messages from "../public/_locales/en/messages.json";
+import { vi } from "vitest";
 
 type MessageCatalog = Record<string, { message: string }>;
 
@@ -24,3 +25,16 @@ Object.defineProperty(globalThis, "browser", {
     },
   },
 });
+
+vi.mock("wxt/browser", () => ({
+  browser: new Proxy(
+    {},
+    {
+      get(_target, property) {
+        return (globalThis as { browser?: Record<PropertyKey, unknown> }).browser?.[
+          property
+        ];
+      },
+    },
+  ),
+}));

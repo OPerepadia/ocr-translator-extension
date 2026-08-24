@@ -1,4 +1,4 @@
-import { browserApi } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import {
   isCancelImagePickerMessage,
   isOcrTranslateOcrResult,
@@ -124,7 +124,7 @@ const contentControls: ContentControls = {
 };
 
 const requestRunner = new LatestRequestRunner(createRequestId, (requestId) => {
-  void browserApi.runtime
+  void browser.runtime
     .sendMessage({ type: "CANCEL_REQUEST", requestId })
     .catch(() => {});
 });
@@ -282,7 +282,7 @@ export default defineContentScript({
       }
       return undefined;
     };
-    browserApi.runtime.onMessage.addListener(handleRuntimeMessage);
+    browser.runtime.onMessage.addListener(handleRuntimeMessage);
     ctx.onInvalidated(() => {
       selectionGeneration += 1;
       requestRunner.dispose();
@@ -293,7 +293,7 @@ export default defineContentScript({
       disposeResultPanel();
       disposeOverlay();
       uiRoot = undefined;
-      browserApi.runtime.onMessage.removeListener?.(handleRuntimeMessage);
+      browser.runtime.onMessage.removeListener(handleRuntimeMessage);
     });
   },
 });
