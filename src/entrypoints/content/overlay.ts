@@ -6,6 +6,7 @@ import {
   CLOSE_ICON,
   COPY_ICON,
   MENU_ICON,
+  PANEL_ICON,
   RETRANSLATE_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
@@ -39,14 +40,6 @@ export interface OverlayConfig {
   onNewSelection(): void;
 }
 const OVERLAY_SPEECH_OWNER = "overlay";
-
-const PANEL_ICON =
-  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
-  '<rect x="4" y="4" width="16" height="16" rx="2.4" stroke="currentColor" stroke-width="1.8"/>' +
-  '<path d="M8.5 8.5L13.5 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
-  '<path d="M13.5 10.3V13.5H10.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<rect x="14.5" y="14.5" width="5" height="5" rx="1.2" fill="currentColor"/>' +
-  "</svg>";
 
 let uiRoot: HTMLElement | undefined;
 let container: HTMLElement | undefined;

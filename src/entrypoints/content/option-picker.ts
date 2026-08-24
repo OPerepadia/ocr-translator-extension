@@ -1,4 +1,4 @@
-import { CHEVRON_ICON } from "./language-picker";
+import { CHEVRON_ICON } from "./icons";
 
 export function createOptionPicker(config: {
   options: ReadonlyArray<{ id: string; label: string }>;
