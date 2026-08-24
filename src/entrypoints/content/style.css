@@ -1116,7 +1116,7 @@
   border-radius: var(--ocr-radius-box);
   background: transparent;
   box-shadow: none;
-  cursor: text;
+  cursor: default;
   user-select: text;
   transition: opacity var(--ocr-duration-fast) ease;
 }
@@ -1135,6 +1135,7 @@
   background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(3px);
   color: #152034;
+  cursor: text;
   font-family: var(--ocr-font);
   line-height: 1.25;
   text-align: start;
