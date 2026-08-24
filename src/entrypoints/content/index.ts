@@ -1,11 +1,6 @@
 import { browser } from "wxt/browser";
 import {
-  isCancelImagePickerMessage,
-  isOcrTranslateOcrResult,
-  isOcrTranslateStatus,
-  isStartImagePickerMessage,
-  isStartImageTranslationMessage,
-  isStartSelectionMessage,
+  isRuntimeMessage,
   serializeError,
 } from "@/shared/messages";
 import type {
@@ -226,14 +221,17 @@ export default defineContentScript({
     });
 
     const handleRuntimeMessage = (message: unknown): undefined => {
-      if (isStartSelectionMessage(message)) {
+      if (isRuntimeMessage(message, "START_SELECTION")) {
         endActiveImagePickerSession();
         closePopup();
         closeOverlay();
         withUi(() => void runSelectionFlow());
         return undefined;
       }
-      if (isStartImagePickerMessage(message)) {
+      if (
+        isRuntimeMessage(message, "START_IMAGE_PICKER") &&
+        typeof message.sessionId === "string"
+      ) {
         activeImagePickerSessionId = message.sessionId;
         cancelSelectionOverlay();
         closePopup();
@@ -245,11 +243,14 @@ export default defineContentScript({
         });
         return undefined;
       }
-      if (isCancelImagePickerMessage(message)) {
+      if (
+        isRuntimeMessage(message, "CANCEL_IMAGE_PICKER") &&
+        typeof message.sessionId === "string"
+      ) {
         cancelImagePickerSession(message.sessionId);
         return undefined;
       }
-      if (isStartImageTranslationMessage(message)) {
+      if (isRuntimeMessage(message, "START_IMAGE_TRANSLATION")) {
         cancelSelectionOverlay();
         endActiveImagePickerSession();
         closePopup();
@@ -258,7 +259,7 @@ export default defineContentScript({
         return undefined;
       }
       if (
-        isOcrTranslateStatus(message) &&
+        isRuntimeMessage(message, "OCR_TRANSLATE_STATUS") &&
         message.requestId === requestRunner.activeRequestId
       ) {
         showActiveLoading(message.status);
@@ -270,7 +271,7 @@ export default defineContentScript({
         return undefined;
       }
       if (
-        isOcrTranslateOcrResult(message) &&
+        isRuntimeMessage(message, "OCR_TRANSLATE_OCR_RESULT") &&
         message.requestId === requestRunner.activeRequestId
       ) {
         pendingText = message.ocr.text;
