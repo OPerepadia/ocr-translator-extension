@@ -19,8 +19,13 @@ import {
   STOP_SPEAK_ICON,
   WARNING_ICON,
 } from "./icons";
-import { createLanguagePill, languageName } from "./language-picker";
-import { createOptionPicker } from "./option-picker";
+import { languageName } from "./language-picker";
+import {
+  createOcrSourceLanguagePicker,
+  createTargetLanguagePicker,
+  createTranslationProviderPicker,
+  type ContentControlPicker,
+} from "./content-control-pickers";
 import {
   pipelineStatusMessage,
   pipelineStatusProgress,
@@ -634,7 +639,11 @@ function createSourceBadge(source: LangCode | undefined): HTMLElement {
 // picker plus the detected-language badge.
 function createRecognizedExtras(): HTMLElement {
   const badge = createSourceBadge(currentSourceLang);
-  const picker = createSourceLanguagePill();
+  const picker = mountControlPicker(
+    config
+      ? createOcrSourceLanguagePicker(config.controls)
+      : undefined,
+  );
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-recognized-extras";
   if (picker) {
@@ -644,85 +653,30 @@ function createRecognizedExtras(): HTMLElement {
   return wrapper;
 }
 
-// The source-language picker shown next to "Source text". Picking one re-runs
-// OCR on the same region with the matching recognizer.
-function createSourceLanguagePill(): HTMLElement | undefined {
-  const controls = config?.controls;
-  if (!controls || controls.ocrSourceLanguages.length < 2) {
-    return undefined;
-  }
-  const pill = createLanguagePill({
-    target: controls.currentOcrSourceLanguageId,
-    languages: controls.ocrSourceLanguages
-      .map(({ id }) => id)
-      .filter((id) => id !== "auto"),
-    specialEntries: [
-      {
-        code: "auto",
-        name:
-          controls.ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
-          t("commonAuto"),
-      },
-    ],
-    title: (name) => t("panelSourceLanguage", name),
-    onChange: controls.selectOcrSourceLanguage,
-  });
-  mountedControlDisposers.push(pill.dispose);
-  return pill.element;
-}
-
-// The translation-provider picker shown next to "Translation". Picking one
-// re-translates the current text.
-function createProviderPill(): HTMLElement | undefined {
-  const controls = config?.controls;
-  if (!controls) {
-    return undefined;
-  }
-  const picker = createOptionPicker({
-    options: controls.translationProviders,
-    currentId: controls.currentTranslationProviderId,
-    title: (current) => t("panelTranslationProvider", current.label),
-    onSelect: controls.selectTranslationProvider,
-  });
-  if (!picker) {
-    return undefined;
-  }
-  mountedControlDisposers.push(picker.dispose);
-  return picker.element;
-}
-
-// The interactive target-language pill shown next to the "Translation" heading.
-// Returns undefined until a result sets the target language.
-function createTargetPill(): HTMLElement | undefined {
-  const controls = config?.controls;
-  if (!controls || !currentTargetLang) {
-    return undefined;
-  }
-  const pill = createLanguagePill({
-    target: currentTargetLang,
-    languages: controls.targetLanguages,
-    onChange: (targetLang) => {
-      if (targetLang !== currentTargetLang) {
-        currentTargetLang = targetLang;
-        controls.selectTargetLanguage(targetLang);
-      }
-    },
-  });
-  mountedControlDisposers.push(pill.dispose);
-  return pill.element;
-}
-
 // The extras shown next to the "Translation" heading: the provider picker plus
 // the target-language pill, with the Translate button grouped right after them.
 // Mirrors createRecognizedExtras on the source side.
 function createTranslationExtras(): HTMLElement {
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-translation-extras";
-  const provider = createProviderPill();
+  const controls = config?.controls;
+  const provider = mountControlPicker(
+    controls ? createTranslationProviderPicker(controls) : undefined,
+  );
   if (provider) {
     wrapper.append(provider);
   }
-  const target = createTargetPill();
+  const target = mountControlPicker(
+    controls
+      ? createTargetLanguagePicker({
+          controls,
+          target: currentTargetLang,
+          onSelect: (targetLang) => {
+            currentTargetLang = targetLang;
+          },
+        })
+      : undefined,
+  );
   if (target) {
     wrapper.append(target);
   }
@@ -1035,6 +989,16 @@ function disposeAll(disposers: Array<() => void>): void {
   for (const disposeControl of disposers) {
     disposeControl();
   }
+}
+
+function mountControlPicker(
+  picker: ContentControlPicker | undefined,
+): HTMLElement | undefined {
+  if (!picker) {
+    return undefined;
+  }
+  mountedControlDisposers.push(picker.dispose);
+  return picker.element;
 }
 
 export function dispose(): void {

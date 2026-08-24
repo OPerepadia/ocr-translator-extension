@@ -14,8 +14,12 @@ import {
   WARNING_ICON,
 } from "./icons";
 import { setOverlayMode, type OverlayMode } from "../../shared/storage";
-import { createLanguagePill } from "./language-picker";
-import { createOptionPicker } from "./option-picker";
+import {
+  createOcrSourceLanguagePicker,
+  createTargetLanguagePicker,
+  createTranslationProviderPicker,
+  type ContentControlPicker,
+} from "./content-control-pickers";
 import {
   pipelineStatusMessage,
   pipelineStatusProgress,
@@ -439,6 +443,16 @@ function clearOutsideClickHandlers(): void {
   controlDisposers = [];
 }
 
+function mountControlPicker(
+  picker: ContentControlPicker | undefined,
+): HTMLElement | undefined {
+  if (!picker) {
+    return undefined;
+  }
+  controlDisposers.push(picker.dispose);
+  return picker.element;
+}
+
 function disposePopover(): void {
   popover?.dispose();
   popover = undefined;
@@ -457,9 +471,29 @@ function createToolbar(): HTMLElement {
   }
   modeButtonWrapper.append(createModeButton());
 
-  const sourcePicker = createSourceLanguagePicker();
-  const languagePicker = createLanguagePicker();
-  const providerPicker = createProviderPicker();
+  const controls = config?.controls;
+  const sourcePicker = mountControlPicker(
+    controls
+      ? createOcrSourceLanguagePicker(controls, { position: "auto" })
+      : undefined,
+  );
+  const languagePicker = mountControlPicker(
+    controls
+      ? createTargetLanguagePicker({
+          controls,
+          target: currentTargetLang,
+          position: "auto",
+          onSelect: (targetLang) => {
+            currentTargetLang = targetLang;
+          },
+        })
+      : undefined,
+  );
+  const providerPicker = mountControlPicker(
+    controls
+      ? createTranslationProviderPicker(controls, { overlay: true })
+      : undefined,
+  );
   const retranslateButton = createRetranslateButton();
   const menu = createMenu();
   controlDisposers.push(menu.dispose);
@@ -694,72 +728,6 @@ function speakAll(target: OverlayMode): void {
       popover?.setWholeSpeechState(false);
     },
   });
-}
-
-function createSourceLanguagePicker(): HTMLElement | undefined {
-  const controls = config?.controls;
-  if (!controls || controls.ocrSourceLanguages.length < 2) {
-    return undefined;
-  }
-  const pill = createLanguagePill({
-    target: controls.currentOcrSourceLanguageId,
-    languages: controls.ocrSourceLanguages
-      .map(({ id }) => id)
-      .filter((id) => id !== "auto"),
-    specialEntries: [
-      {
-        code: "auto",
-        name:
-          controls.ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
-          t("commonAuto"),
-      },
-    ],
-    position: "auto",
-    title: (name) => t("panelSourceLanguage", name),
-    onChange: controls.selectOcrSourceLanguage,
-  });
-  controlDisposers.push(pill.dispose);
-  return pill.element;
-}
-
-function createLanguagePicker(): HTMLElement | undefined {
-  const controls = config?.controls;
-  if (!controls || !currentTargetLang) {
-    return undefined;
-  }
-
-  const pill = createLanguagePill({
-    target: currentTargetLang,
-    languages: controls.targetLanguages,
-    position: "auto",
-    onChange: (targetLang) => {
-      if (targetLang !== currentTargetLang) {
-        currentTargetLang = targetLang;
-        controls.selectTargetLanguage(targetLang);
-      }
-    },
-  });
-  controlDisposers.push(pill.dispose);
-  return pill.element;
-}
-
-function createProviderPicker(): HTMLElement | undefined {
-  const controls = config?.controls;
-  if (!controls) {
-    return undefined;
-  }
-  const picker = createOptionPicker({
-    options: controls.translationProviders,
-    currentId: controls.currentTranslationProviderId,
-    overlay: true,
-    title: (current) => t("panelTranslationProvider", current.label),
-    onSelect: controls.selectTranslationProvider,
-  });
-  if (!picker) {
-    return undefined;
-  }
-  controlDisposers.push(picker.dispose);
-  return picker.element;
 }
 
 function renderBoxes(): void {
