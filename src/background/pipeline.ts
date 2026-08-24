@@ -1,6 +1,8 @@
 import type { OcrProvider } from "../providers/ocr/types";
-import { isRemoteTranslationError } from "../providers/translation/errors";
-import type { TranslationProvider } from "../providers/translation/types";
+import {
+  RemoteTranslationError,
+  type TranslationProvider,
+} from "../providers/translation/types";
 import type {
   LangCode,
   PipelineOcrResult,
@@ -126,7 +128,7 @@ function translationStatusForError(
   // A remote provider's request failed (network/HTTP). Report it as a status so
   // the recognized text survives and the UI can offer a retry, rather than
   // throwing and discarding the whole result.
-  if (isRemoteTranslationError(error)) {
+  if (error instanceof RemoteTranslationError) {
     return { state: "failed", reason: error.message, targetLang };
   }
   return null;

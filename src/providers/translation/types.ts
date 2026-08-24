@@ -3,6 +3,13 @@ import type {
   PipelineTranslationResult,
 } from "../../shared/types";
 
+export class RemoteTranslationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RemoteTranslationError";
+  }
+}
+
 export interface TranslationProvider {
   readonly id: string;
 
@@ -37,4 +44,3 @@ export interface LanguagePair {
 export interface TranslationProviderFactory<TConfig = unknown> {
   (config?: TConfig): TranslationProvider;
 }
-

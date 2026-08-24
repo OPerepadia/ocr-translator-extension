@@ -1,8 +1,7 @@
 import type { LangCode } from "../../shared/types";
 import { t } from "../../shared/i18n";
-import { RemoteTranslationError } from "./errors";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
-import type { TranslationProvider } from "./types";
+import { RemoteTranslationError, type TranslationProvider } from "./types";
 
 // Translation through an OpenAI-compatible chat-completions endpoint: OpenAI
 // itself or a local server such as llama.cpp or LM Studio. The user configures

@@ -1,8 +1,7 @@
 import type { LangCode } from "../../shared/types";
 import { t } from "../../shared/i18n";
-import { RemoteTranslationError } from "./errors";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
-import type { TranslationProvider } from "./types";
+import { RemoteTranslationError, type TranslationProvider } from "./types";
 
 // Google Translate via the unofficial "batchexecute" endpoint at
 // translate.google.com — the same gateway the web UI uses, with no API key.

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { RemoteTranslationError } from "./errors";
+import { RemoteTranslationError } from "./types";
 import {
   createGoogleTranslationProvider,
   parseBatchResponse,
