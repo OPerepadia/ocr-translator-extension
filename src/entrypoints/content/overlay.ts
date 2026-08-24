@@ -29,8 +29,15 @@ import {
   type OverlayLine,
 } from "./overlay-layout";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
+import type { ContentControls } from "./content-controls";
 
 type OverlayMode = "translation" | "original";
+export interface OverlayConfig {
+  controls: ContentControls;
+  onClose(): void;
+  onShowPanel(): void;
+  onNewSelection(): void;
+}
 const OVERLAY_SPEECH_OWNER = "overlay";
 
 const PANEL_ICON =
@@ -89,24 +96,7 @@ let currentOriginalText = "";
 let currentDisplayText = "";
 let currentSourceLang: LangCode | undefined;
 let currentTargetLang: LangCode | undefined;
-let targetLanguages: LangCode[] = [];
-// Source languages supported by the packaged recognizers, and the current
-// selection shown by the toolbar's source pill (updated optimistically when
-// the user picks one).
-let ocrSourceLanguages: Array<{ id: string; label: string }> = [];
-let currentSourceLanguageId: string | undefined;
-let translationProviders: Array<{ id: string; label: string }> = [];
-let currentProviderId: string | undefined;
-
-let onClose: (() => void) | undefined;
-let onShowPanel: (() => void) | undefined;
-let onNewSelection: (() => void) | undefined;
-let onTargetLangChange: ((targetLang: LangCode) => void) | undefined;
-let onSourceLanguageChange:
-  | ((sourceLang: LangCode | "auto") => void)
-  | undefined;
-let onProviderChange: ((providerId: string) => void) | undefined;
-let onRetranslate: ((targetLang: LangCode) => void) | undefined;
+let config: OverlayConfig | undefined;
 
 let keydownHandler: ((event: KeyboardEvent) => void) | undefined;
 let resizeHandler: (() => void) | undefined;
@@ -147,63 +137,8 @@ export function setOverlayDefaultMode(nextMode: OverlayMode): void {
   defaultMode = nextMode;
 }
 
-export function setOnOverlayClose(handler: () => void): void {
-  onClose = handler;
-}
-
-export function setOnShowPanel(handler: () => void): void {
-  onShowPanel = handler;
-}
-
-export function setOnOverlayNewSelection(handler: () => void): void {
-  onNewSelection = handler;
-}
-
-export function setOnOverlayTargetLangChange(
-  handler: (targetLang: LangCode) => void,
-): void {
-  onTargetLangChange = handler;
-}
-
-export function setOverlayTargetLanguages(languages: LangCode[]): void {
-  targetLanguages = languages;
-  rerenderToolbar();
-}
-
-export function setOverlayOcrSourceLanguages(
-  languages: Array<{ id: string; label: string }>,
-  currentId: string,
-): void {
-  ocrSourceLanguages = languages;
-  currentSourceLanguageId = currentId;
-  rerenderToolbar();
-}
-
-export function setOnOverlaySourceLanguageChange(
-  handler: (sourceLang: LangCode | "auto") => void,
-): void {
-  onSourceLanguageChange = handler;
-}
-
-export function setOverlayTranslationProviders(
-  providers: Array<{ id: string; label: string }>,
-  currentId: string,
-): void {
-  translationProviders = providers;
-  currentProviderId = currentId;
-  rerenderToolbar();
-}
-
-export function setOnOverlayProviderChange(
-  handler: (providerId: string) => void,
-): void {
-  onProviderChange = handler;
-}
-
-export function setOnOverlayRetranslate(
-  handler: (targetLang: LangCode) => void,
-): void {
-  onRetranslate = handler;
+export function configureOverlay(nextConfig: OverlayConfig): void {
+  config = nextConfig;
 }
 
 /** The text used to build the overlay. Failed translations fall back to the
@@ -260,13 +195,12 @@ export function showOverlay(args: {
   hasTranslationText = Boolean(result.translation?.text);
   currentOriginalText = result.ocr.text;
   currentDisplayText = displayText;
+  const sourceLanguageId = config?.controls.currentOcrSourceLanguageId;
   currentSourceLang =
     result.translation?.sourceLang ??
     result.ocr.lang ??
     result.translationStatus.sourceLang ??
-    (currentSourceLanguageId !== "auto"
-      ? currentSourceLanguageId
-      : undefined);
+    (sourceLanguageId !== "auto" ? sourceLanguageId : undefined);
   currentTargetLang = overlayTargetLanguage(result);
   currentTranslationError =
     result.translationStatus.state === "failed"
@@ -365,7 +299,7 @@ export function closeOverlay(): void {
   currentTargetLang = undefined;
   currentTranslationError = undefined;
   anchor = undefined;
-  onClose?.();
+  config?.onClose();
 
   if (!closingToolbar) {
     closingContainer.remove();
@@ -514,17 +448,6 @@ function clearOutsideClickHandlers(): void {
   controlDisposers = [];
 }
 
-function rerenderToolbar(): void {
-  if (!toolbar) {
-    return;
-  }
-  clearOutsideClickHandlers();
-  const nextToolbar = createToolbar();
-  toolbar.replaceWith(nextToolbar);
-  toolbar = nextToolbar;
-  positionToolbar();
-}
-
 function createToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "ocr-translate-overlay-toolbar";
@@ -549,7 +472,7 @@ function createToolbar(): HTMLElement {
     t("panelSelectNewRegion"),
     () => {
       closeOverlay();
-      onNewSelection?.();
+      config?.onNewSelection();
     },
   );
   const closeButton = iconButton(CLOSE_ICON, t("commonClose"), () => {
@@ -586,10 +509,10 @@ function createToolbar(): HTMLElement {
 function createRetranslateButton(): HTMLButtonElement {
   const button = iconButton(RETRANSLATE_ICON, t("commonTranslateAgain"), () => {
     if (currentTargetLang) {
-      onRetranslate?.(currentTargetLang);
+      config?.controls.selectTargetLanguage(currentTargetLang);
     }
   });
-  button.disabled = !hasTranslationText || !currentTargetLang || !onRetranslate;
+  button.disabled = !hasTranslationText || !currentTargetLang || !config;
   return button;
 }
 
@@ -706,7 +629,7 @@ function createMenu(): {
       speakAll("original");
     });
   }
-  addItem(PANEL_ICON, t("overlayShowInPanel"), () => onShowPanel?.());
+  addItem(PANEL_ICON, t("overlayShowInPanel"), () => config?.onShowPanel());
   addItem(SETTINGS_ICON, t("commonSettings"), openSettings);
 
   button.addEventListener("click", () => {
@@ -777,48 +700,45 @@ function speakAll(target: OverlayMode): void {
 }
 
 function createSourceLanguagePicker(): HTMLElement | undefined {
-  if (ocrSourceLanguages.length < 2) {
+  const controls = config?.controls;
+  if (!controls || controls.ocrSourceLanguages.length < 2) {
     return undefined;
   }
   const pill = createLanguagePill({
-    target: currentSourceLanguageId ?? "auto",
-    languages: ocrSourceLanguages
+    target: controls.currentOcrSourceLanguageId,
+    languages: controls.ocrSourceLanguages
       .map(({ id }) => id)
       .filter((id) => id !== "auto"),
     specialEntries: [
       {
         code: "auto",
         name:
-          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
+          controls.ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
           t("commonAuto"),
       },
     ],
     position: "auto",
     title: (name) => t("panelSourceLanguage", name),
-    onChange: (sourceLang) => {
-      if (sourceLang !== currentSourceLanguageId) {
-        currentSourceLanguageId = sourceLang;
-        onSourceLanguageChange?.(sourceLang);
-      }
-    },
+    onChange: controls.selectOcrSourceLanguage,
   });
   controlDisposers.push(pill.dispose);
   return pill.element;
 }
 
 function createLanguagePicker(): HTMLElement | undefined {
-  if (!currentTargetLang) {
+  const controls = config?.controls;
+  if (!controls || !currentTargetLang) {
     return undefined;
   }
 
   const pill = createLanguagePill({
     target: currentTargetLang,
-    languages: targetLanguages,
+    languages: controls.targetLanguages,
     position: "auto",
     onChange: (targetLang) => {
       if (targetLang !== currentTargetLang) {
         currentTargetLang = targetLang;
-        onTargetLangChange?.(targetLang);
+        controls.selectTargetLanguage(targetLang);
       }
     },
   });
@@ -827,15 +747,16 @@ function createLanguagePicker(): HTMLElement | undefined {
 }
 
 function createProviderPicker(): HTMLElement | undefined {
+  const controls = config?.controls;
+  if (!controls) {
+    return undefined;
+  }
   const picker = createOptionPicker({
-    options: translationProviders,
-    currentId: currentProviderId,
+    options: controls.translationProviders,
+    currentId: controls.currentTranslationProviderId,
     overlay: true,
     title: (current) => t("panelTranslationProvider", current.label),
-    onSelect: (providerId) => {
-      currentProviderId = providerId;
-      onProviderChange?.(providerId);
-    },
+    onSelect: controls.selectTranslationProvider,
   });
   if (!picker) {
     return undefined;
@@ -2195,15 +2116,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 export function dispose(): void {
-  // Disposal tears the view down without reporting a user-initiated close.
-  onClose = undefined;
+  config = undefined;
   closeOverlay();
   uiRoot = undefined;
   currentSnapshot = undefined;
-  onShowPanel = undefined;
-  onNewSelection = undefined;
-  onTargetLangChange = undefined;
-  onSourceLanguageChange = undefined;
-  onProviderChange = undefined;
-  onRetranslate = undefined;
 }

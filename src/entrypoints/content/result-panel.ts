@@ -26,9 +26,18 @@ import {
 import { sendRequest } from "@/shared/runtime-messaging";
 import { t } from "@/shared/i18n";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
+import type { ContentControls } from "./content-controls";
 
 export interface ClosePopupOptions {
   notify?: boolean;
+}
+
+export interface ResultPanelConfig {
+  controls: ContentControls;
+  onClose(): void;
+  onNewSelection(): void;
+  onShowOverlay(): void;
+  onTranslateRequest(text: string, targetLang: LangCode | undefined): void;
 }
 const ORIGINAL_SPEECH_OWNER = "panel-original";
 const TRANSLATION_SPEECH_OWNER = "panel-translation";
@@ -73,37 +82,12 @@ let popup: HTMLElement | undefined;
 // Remember the recognized text so progress/translation re-renders keep showing
 // it without re-running OCR.
 let currentOcrText = "";
-// Notifies the caller when the user closes the popup
-let onClose: (() => void) | undefined;
-// Invoked when the user picks "Select new region" from the menu
-let onNewSelection: (() => void) | undefined;
-let onShowOverlay: (() => void) | undefined;
+let config: ResultPanelConfig | undefined;
 let overlayAvailable = false;
 let overlayMenuItemRef: HTMLButtonElement | undefined;
-// Invoked when the user picks a new target language from the language pill.
-let onTargetLangChange: ((targetLang: LangCode) => void) | undefined;
 // Source/target languages of the current result, shown in the language pill.
 let currentSourceLang: LangCode | undefined;
 let currentTargetLang: LangCode | undefined;
-// Languages the active translation provider can translate into (codes).
-let targetLanguages: LangCode[] = [];
-// Source languages supported by the packaged recognizers, and the current
-// selection (updated optimistically when the user picks one from the picker).
-let ocrSourceLanguages: Array<{ id: string; label: string }> = [];
-let currentSourceLanguageId: string | undefined;
-let onSourceLanguageChange:
-  | ((sourceLang: LangCode | "auto") => void)
-  | undefined;
-// Translation providers the user can switch between in the panel, and the current
-// selection (updated optimistically when the user picks one from the picker).
-let translationProviders: Array<{ id: string; label: string }> = [];
-let currentProviderId: string | undefined;
-// Invoked when the user picks a different translation provider from the picker.
-let onProviderChange: ((providerId: string) => void) | undefined;
-// Invoked when the user clicks Translate for the editable recognized text.
-let onTranslateRequest:
-  | ((text: string, targetLang: LangCode | undefined) => void)
-  | undefined;
 // Live reference to the editable recognized-text box, so the Translate button
 // always sends the current text.
 let recognizedBoxRef: HTMLTextAreaElement | undefined;
@@ -229,18 +213,8 @@ export function setUiRoot(root: HTMLElement): void {
   uiRoot = root;
 }
 
-/** Register a callback invoked when the user closes the popup. */
-export function setOnClose(handler: () => void): void {
-  onClose = handler;
-}
-
-/** Register a callback invoked when the user picks "Select new region". */
-export function setOnNewSelection(handler: () => void): void {
-  onNewSelection = handler;
-}
-
-export function setOnShowOverlay(handler: () => void): void {
-  onShowOverlay = handler;
+export function configureResultPanel(nextConfig: ResultPanelConfig): void {
+  config = nextConfig;
 }
 
 export function setOverlayAvailable(value: boolean): void {
@@ -248,58 +222,6 @@ export function setOverlayAvailable(value: boolean): void {
   if (overlayMenuItemRef) {
     overlayMenuItemRef.hidden = !value;
   }
-}
-
-/** Register a callback invoked when the user picks a new target language. */
-export function setOnTargetLangChange(
-  handler: (targetLang: LangCode) => void,
-): void {
-  onTargetLangChange = handler;
-}
-
-/** Provide the languages the active translation provider supports (codes). */
-export function setTargetLanguages(languages: LangCode[]): void {
-  targetLanguages = languages;
-}
-
-/** Provide the OCR source languages and the currently selected one. */
-export function setOcrSourceLanguages(
-  languages: Array<{ id: string; label: string }>,
-  currentId: string,
-): void {
-  ocrSourceLanguages = languages;
-  currentSourceLanguageId = currentId;
-}
-
-/** Register a callback invoked when the user picks a source language. */
-export function setOnSourceLanguageChange(
-  handler: (sourceLang: LangCode | "auto") => void,
-): void {
-  onSourceLanguageChange = handler;
-}
-
-/** Provide the translation providers and the currently active one for the picker. */
-export function setTranslationProviders(
-  providers: Array<{ id: string; label: string }>,
-  currentId: string,
-): void {
-  translationProviders = providers;
-  currentProviderId = currentId;
-}
-
-/** Register a callback invoked when the user picks a different provider. */
-export function setOnProviderChange(
-  handler: (providerId: string) => void,
-): void {
-  onProviderChange = handler;
-}
-
-/** Register a callback invoked when the user clicks Translate for the editable
- * recognized text. Receives the edited text and the panel's current target. */
-export function setOnTranslateRequest(
-  handler: (text: string, targetLang: LangCode | undefined) => void,
-): void {
-  onTranslateRequest = handler;
 }
 
 // Lock or unlock the recognized box for editing. Applies to the live box (for the
@@ -316,7 +238,6 @@ function setRecognizedReadOnly(readOnly: boolean): void {
  * stale language pill (or re-translate the old text) before its result lands. */
 export function resetForNewCapture(): void {
   currentSourceLang = undefined;
-  currentSourceLanguageId = "auto";
   currentTargetLang = undefined;
   currentOcrText = "";
   recognizedReadOnly = false;
@@ -347,7 +268,7 @@ export function closePopup(options: ClosePopupOptions = {}): void {
   recognizedBoxRef = undefined;
   overlayMenuItemRef = undefined;
   if (options.notify !== false) {
-    onClose?.();
+    config?.onClose();
   }
 }
 
@@ -381,9 +302,10 @@ export function showRecognizedTextWhileTranslating(
   ocr: PipelineOcrResult,
 ): void {
   currentOcrText = ocr.text;
+  const sourceLanguageId = config?.controls.currentOcrSourceLanguageId;
   currentSourceLang =
     ocr.lang ??
-    (currentSourceLanguageId !== "auto" ? currentSourceLanguageId : undefined);
+    (sourceLanguageId !== "auto" ? sourceLanguageId : undefined);
   setRecognizedReadOnly(true);
   renderPopup(() => [createRecognizedSection(), createTranslatingSection()]);
 }
@@ -507,7 +429,7 @@ function ensurePopup(): HTMLElement {
   selectButton.innerHTML = SELECT_REGION_ICON;
   selectButton.addEventListener("click", () => {
     closePopup();
-    onNewSelection?.();
+    config?.onNewSelection();
   });
 
   const menu = createMenu();
@@ -676,7 +598,7 @@ function createMenu(): {
   overlayMenuItemRef = addItem({
     messageKey: "panelShowInOverlay",
     icon: OVERLAY_ICON,
-    onSelect: () => onShowOverlay?.(),
+    onSelect: () => config?.onShowOverlay(),
   });
   overlayMenuItemRef.hidden = !overlayAvailable;
 
@@ -710,8 +632,9 @@ function createMenu(): {
 // Sits next to the "Source text" heading. Shows "Unknown" when detection
 // could not resolve the language.
 function createSourceBadge(source: LangCode | undefined): HTMLElement {
-  const selected = ocrSourceLanguages.find(
-    (language) => language.id === currentSourceLanguageId,
+  const controls = config?.controls;
+  const selected = controls?.ocrSourceLanguages.find(
+    (language) => language.id === controls.currentOcrSourceLanguageId,
   );
   const label = source
     ? source === selected?.id
@@ -744,43 +667,42 @@ function createRecognizedExtras(): HTMLElement {
 // The source-language picker shown next to "Source text". Picking one re-runs
 // OCR on the same region with the matching recognizer.
 function createSourceLanguagePill(): HTMLElement | undefined {
-  if (ocrSourceLanguages.length < 2) {
+  const controls = config?.controls;
+  if (!controls || controls.ocrSourceLanguages.length < 2) {
     return undefined;
   }
   const pill = createLanguagePill({
-    target: currentSourceLanguageId ?? "auto",
-    languages: ocrSourceLanguages
+    target: controls.currentOcrSourceLanguageId,
+    languages: controls.ocrSourceLanguages
       .map(({ id }) => id)
       .filter((id) => id !== "auto"),
     specialEntries: [
       {
         code: "auto",
         name:
-          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
+          controls.ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
           t("commonAuto"),
       },
     ],
     title: (name) => t("panelSourceLanguage", name),
-    onChange: (sourceLang) => {
-      currentSourceLanguageId = sourceLang;
-      onSourceLanguageChange?.(sourceLang);
-    },
+    onChange: controls.selectOcrSourceLanguage,
   });
   mountedControlDisposers.push(pill.dispose);
   return pill.element;
 }
 
 // The translation-provider picker shown next to "Translation". Picking one
-// re-translates the current text via onProviderChange.
+// re-translates the current text.
 function createProviderPill(): HTMLElement | undefined {
+  const controls = config?.controls;
+  if (!controls) {
+    return undefined;
+  }
   const picker = createOptionPicker({
-    options: translationProviders,
-    currentId: currentProviderId,
+    options: controls.translationProviders,
+    currentId: controls.currentTranslationProviderId,
     title: (current) => t("panelTranslationProvider", current.label),
-    onSelect: (id) => {
-      currentProviderId = id;
-      onProviderChange?.(id);
-    },
+    onSelect: controls.selectTranslationProvider,
   });
   if (!picker) {
     return undefined;
@@ -792,16 +714,17 @@ function createProviderPill(): HTMLElement | undefined {
 // The interactive target-language pill shown next to the "Translation" heading.
 // Returns undefined until a result sets the target language.
 function createTargetPill(): HTMLElement | undefined {
-  if (!currentTargetLang) {
+  const controls = config?.controls;
+  if (!controls || !currentTargetLang) {
     return undefined;
   }
   const pill = createLanguagePill({
     target: currentTargetLang,
-    languages: targetLanguages,
+    languages: controls.targetLanguages,
     onChange: (targetLang) => {
       if (targetLang !== currentTargetLang) {
         currentTargetLang = targetLang;
-        onTargetLangChange?.(targetLang);
+        controls.selectTargetLanguage(targetLang);
       }
     },
   });
@@ -950,7 +873,7 @@ function createTranslateButton(): HTMLButtonElement {
   button.addEventListener("click", () => {
     const text = recognizedBoxRef?.value ?? currentOcrText;
     currentOcrText = text;
-    onTranslateRequest?.(text, currentTargetLang);
+    config?.onTranslateRequest(text, currentTargetLang);
   });
   return button;
 }
@@ -1027,7 +950,8 @@ function createTranslationError(
 
   const target = currentTargetLang;
   const retryAction =
-    onRetry ?? (target ? () => onTargetLangChange?.(target) : undefined);
+    onRetry ??
+    (target ? () => config?.controls.selectTargetLanguage(target) : undefined);
   const retry = createRetryButton(retryAction);
 
   section.append(createTranslationHeader(), createErrorMessage(message), retry);
@@ -1136,11 +1060,5 @@ function disposeAll(disposers: Array<() => void>): void {
 export function dispose(): void {
   closePopup({ notify: false });
   uiRoot = undefined;
-  onClose = undefined;
-  onNewSelection = undefined;
-  onShowOverlay = undefined;
-  onTargetLangChange = undefined;
-  onSourceLanguageChange = undefined;
-  onProviderChange = undefined;
-  onTranslateRequest = undefined;
+  config = undefined;
 }

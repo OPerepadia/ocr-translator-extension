@@ -32,6 +32,7 @@ import {
 import { createRequestId } from "@/shared/request-id";
 import { sendRequest } from "@/shared/runtime-messaging";
 import { LatestRequestRunner } from "./latest-request";
+import type { ContentControls } from "./content-controls";
 import {
   t,
   translationProviderLabel,
@@ -40,19 +41,10 @@ import {
 } from "@/shared/i18n";
 import {
   closePopup,
+  configureResultPanel,
   dispose as disposeResultPanel,
   resetForNewCapture,
-  setOcrSourceLanguages,
-  setOnClose,
-  setOnSourceLanguageChange,
-  setOnNewSelection,
-  setOnProviderChange,
-  setOnShowOverlay,
-  setOnTargetLangChange,
-  setOnTranslateRequest,
   setOverlayAvailable,
-  setTargetLanguages,
-  setTranslationProviders,
   setUiRoot,
   showError,
   showLoading,
@@ -61,20 +53,11 @@ import {
 } from "./result-panel";
 import {
   closeOverlay,
+  configureOverlay,
   dispose as disposeOverlay,
   isOverlayable,
-  setOnOverlayClose,
-  setOnOverlayNewSelection,
-  setOnOverlayProviderChange,
-  setOnOverlayRetranslate,
-  setOnOverlaySourceLanguageChange,
-  setOnOverlayTargetLangChange,
-  setOnShowPanel,
   setOverlayDefaultMode,
-  setOverlayOcrSourceLanguages,
   setOverlaySnapshot,
-  setOverlayTargetLanguages,
-  setOverlayTranslationProviders,
   setOverlayUiRoot,
   showOverlay,
   showOverlayError,
@@ -121,6 +104,24 @@ let activeImagePickerSessionId: string | undefined;
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
 let displayMode: DisplayMode = "panel";
+
+const contentControls: ContentControls = {
+  targetLanguages: [],
+  ocrSourceLanguages: [],
+  currentOcrSourceLanguageId: "auto",
+  translationProviders: [],
+  selectTargetLanguage: (targetLang) => {
+    void runRetranslate(targetLang);
+  },
+  selectOcrSourceLanguage: (sourceLang) => {
+    contentControls.currentOcrSourceLanguageId = sourceLang;
+    void runRerecognize(sourceLang);
+  },
+  selectTranslationProvider: (providerId) => {
+    contentControls.currentTranslationProviderId = providerId;
+    void runSwitchProvider(providerId);
+  },
+};
 
 const requestRunner = new LatestRequestRunner(createRequestId, (requestId) => {
   void browserApi.runtime
@@ -197,63 +198,31 @@ export default defineContentScript({
       true,
     );
 
-    setOnClose(() => {
-      cancelActiveRequest();
-      clearCaptureSnapshot();
-    });
-
-    setOnNewSelection(() => {
-      startNewSelection();
-    });
-
-    setOnShowOverlay(() => switchToOverlay());
-    setOnShowPanel(() => switchToPanel());
-
-    setOnOverlayNewSelection(() => {
-      startNewSelection();
-    });
-    setOnOverlayClose(() => {
-      cancelActiveRequest();
-      if (activeView === "overlay") {
+    configureResultPanel({
+      controls: contentControls,
+      onClose: () => {
+        cancelActiveRequest();
         clearCaptureSnapshot();
-      }
+      },
+      onNewSelection: startNewSelection,
+      onShowOverlay: switchToOverlay,
+      onTranslateRequest: (text, targetLang) => {
+        pendingText = text;
+        if (targetLang) {
+          contentControls.selectTargetLanguage(targetLang);
+        }
+      },
     });
-
-    setOnTargetLangChange((targetLang) => {
-      void runRetranslate(targetLang);
-    });
-    setOnOverlayTargetLangChange((targetLang) => {
-      void runRetranslate(targetLang);
-    });
-
-    // Picking a source language re-runs OCR with the matching recognizer. The
-    // pick is mirrored to the other view's pill so switching views agrees.
-    setOnSourceLanguageChange((sourceLang) => {
-      setOverlayOcrSourceLanguages(ocrSourceLanguageList, sourceLang);
-      void runRerecognize(sourceLang);
-    });
-    setOnOverlaySourceLanguageChange((sourceLang) => {
-      setOcrSourceLanguages(ocrSourceLanguageList, sourceLang);
-      void runRerecognize(sourceLang);
-    });
-
-    setOnProviderChange((providerId) => {
-      setOverlayTranslationProviders(translationProviderList, providerId);
-      void runSwitchProvider(providerId);
-    });
-    setOnOverlayProviderChange((providerId) => {
-      setTranslationProviders(translationProviderList, providerId);
-      void runSwitchProvider(providerId);
-    });
-    setOnOverlayRetranslate((targetLang) => {
-      void runRetranslate(targetLang);
-    });
-
-    setOnTranslateRequest((text, targetLang) => {
-      pendingText = text;
-      if (targetLang) {
-        void runRetranslate(targetLang);
-      }
+    configureOverlay({
+      controls: contentControls,
+      onClose: () => {
+        cancelActiveRequest();
+        if (activeView === "overlay") {
+          clearCaptureSnapshot();
+        }
+      },
+      onShowPanel: switchToPanel,
+      onNewSelection: startNewSelection,
     });
 
     const handleRuntimeMessage = (message: unknown): undefined => {
@@ -516,9 +485,10 @@ async function runCapture(
   activeView = displayMode;
 
   // Clear result-specific state before refreshing the defaults. The refresh
-  // finishes before the pipeline starts, so its setters establish the current
-  // source and provider before any loading UI appears.
+  // finishes before the pipeline starts, so both views read the current source
+  // and provider before any loading UI appears.
   resetForNewCapture();
+  contentControls.currentOcrSourceLanguageId = "auto";
   pendingText = "";
 
   const [, sourceLanguageId] = await Promise.all([
@@ -815,9 +785,7 @@ async function runSwitchProvider(providerId: string): Promise<void> {
   });
 }
 
-// Fetch the supported OCR source languages and the saved default. The list is
-// kept so a pick in one view can be mirrored to the other's pill.
-let ocrSourceLanguageList: Array<{ id: string; label: string }> = [];
+// Fetch the supported OCR source languages and the saved default.
 async function loadOcrSourceLanguages(): Promise<string | undefined> {
   try {
     const response =
@@ -829,9 +797,8 @@ async function loadOcrSourceLanguages(): Promise<string | undefined> {
         id,
         label: id === "auto" ? t("commonAuto") : languageName(id),
       }));
-      ocrSourceLanguageList = languages;
-      setOcrSourceLanguages(languages, response.currentId);
-      setOverlayOcrSourceLanguages(languages, response.currentId);
+      contentControls.ocrSourceLanguages = languages;
+      contentControls.currentOcrSourceLanguageId = response.currentId;
       return response.currentId;
     }
   } catch {
@@ -841,7 +808,6 @@ async function loadOcrSourceLanguages(): Promise<string | undefined> {
 }
 
 // Fetch the recognizer-independent translation providers and the saved default.
-let translationProviderList: Array<{ id: string; label: string }> = [];
 async function loadTranslationProviders(): Promise<void> {
   try {
     const response =
@@ -853,9 +819,8 @@ async function loadTranslationProviders(): Promise<void> {
         id,
         label: translationProviderLabel(id),
       }));
-      translationProviderList = providers;
-      setTranslationProviders(providers, response.currentId);
-      setOverlayTranslationProviders(providers, response.currentId);
+      contentControls.translationProviders = providers;
+      contentControls.currentTranslationProviderId = response.currentId;
     }
   } catch {
     // Leave the list empty; the picker won't show.
@@ -876,8 +841,7 @@ async function loadTargetLanguages(force = false): Promise<void> {
     });
     if (Array.isArray(languages)) {
       targetLanguagesLoaded = true;
-      setTargetLanguages(languages);
-      setOverlayTargetLanguages(languages);
+      contentControls.targetLanguages = languages;
     }
   } catch {
     // Leave the list empty; the pill falls back to the current target only.
