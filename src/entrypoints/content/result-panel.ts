@@ -11,7 +11,6 @@ import {
   CLOSE_ICON,
   COPY_ICON,
   LOGO_ICON,
-  MENU_ICON,
   OVERLAY_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
@@ -19,6 +18,7 @@ import {
   STOP_SPEAK_ICON,
   WARNING_ICON,
 } from "./icons";
+import { createActionMenu, type ActionMenu } from "./action-menu";
 import { languageName } from "./language-picker";
 import {
   createOcrSourceLanguagePicker,
@@ -48,20 +48,6 @@ export interface ResultPanelConfig {
 }
 const ORIGINAL_SPEECH_OWNER = "panel-original";
 const TRANSLATION_SPEECH_OWNER = "panel-translation";
-
-const MENU_ITEMS: ReadonlyArray<{
-  messageKey: string;
-  icon: string;
-  onSelect: () => void;
-}> = [
-  {
-    messageKey: "commonSettings",
-    icon: SETTINGS_ICON,
-    onSelect: () => {
-      void sendRequest({ type: "OPEN_OPTIONS" });
-    },
-  },
-];
 
 let popup: HTMLElement | undefined;
 // Remember the recognized text so progress/translation re-renders keep showing
@@ -532,85 +518,26 @@ function createResizeHandle(container: HTMLElement): HTMLElement {
   return handle;
 }
 
-function createMenu(): {
-  element: HTMLElement;
-  dispose: () => void;
-} {
-  const wrapper = document.createElement("div");
-  wrapper.className = "ocr-translate-popup-menu";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "ocr-translate-popup-icon-button";
-  button.setAttribute("aria-label", t("commonMenu"));
-  button.setAttribute("aria-haspopup", "true");
-  button.setAttribute("aria-expanded", "false");
-  button.title = t("commonMenu");
-  button.innerHTML = MENU_ICON;
-
-  const list = document.createElement("div");
-  list.className = "ocr-translate-popup-menu-list";
-  list.setAttribute("role", "menu");
-  list.hidden = true;
-
-  function closeMenu(): void {
-    list.hidden = true;
-    button.setAttribute("aria-expanded", "false");
-  }
-
-  function addItem(item: (typeof MENU_ITEMS)[number]): HTMLButtonElement {
-    const entry = document.createElement("button");
-    entry.type = "button";
-    entry.className = "ocr-translate-popup-menu-item";
-    entry.setAttribute("role", "menuitem");
-
-    const icon = document.createElement("span");
-    icon.className = "ocr-translate-popup-menu-icon";
-    icon.innerHTML = item.icon;
-
-    const label = document.createElement("span");
-    label.textContent = t(item.messageKey);
-
-    entry.append(icon, label);
-    entry.addEventListener("click", () => {
-      closeMenu();
-      item.onSelect();
-    });
-    list.append(entry);
-    return entry;
-  }
-
-  overlayMenuItemRef = addItem({
-    messageKey: "panelShowInOverlay",
-    icon: OVERLAY_ICON,
-    onSelect: () => config?.onShowOverlay(),
+function createMenu(): ActionMenu {
+  const menu = createActionMenu({
+    items: [
+      {
+        icon: OVERLAY_ICON,
+        label: t("panelShowInOverlay"),
+        onSelect: () => config?.onShowOverlay(),
+      },
+      {
+        icon: SETTINGS_ICON,
+        label: t("commonSettings"),
+        onSelect: () => {
+          void sendRequest({ type: "OPEN_OPTIONS" });
+        },
+      },
+    ],
   });
+  overlayMenuItemRef = menu.itemElements[0];
   overlayMenuItemRef.hidden = !overlayAvailable;
-
-  for (const item of MENU_ITEMS) {
-    addItem(item);
-  }
-
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-  });
-
-  // Dismiss the menu on any click outside the wrapper. composedPath() reaches
-  // through the shadow boundary, so clicks inside our UI report real targets.
-  function handleOutsideClick(event: MouseEvent): void {
-    if (!list.hidden && !event.composedPath().includes(wrapper)) {
-      closeMenu();
-    }
-  }
-  document.addEventListener("click", handleOutsideClick);
-
-  wrapper.append(button, list);
-  return {
-    element: wrapper,
-    dispose: () => document.removeEventListener("click", handleOutsideClick),
-  };
+  return menu;
 }
 
 // A static badge showing the recognized text's source language, e.g. "Japanese".

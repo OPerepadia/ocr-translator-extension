@@ -4,7 +4,6 @@ import { t } from "@/shared/i18n";
 import {
   CLOSE_ICON,
   COPY_ICON,
-  MENU_ICON,
   PANEL_ICON,
   RETRANSLATE_ICON,
   SELECT_REGION_ICON,
@@ -13,6 +12,11 @@ import {
   TRANSLATE_ICON,
   WARNING_ICON,
 } from "./icons";
+import {
+  createActionMenu,
+  type ActionMenu,
+  type ActionMenuItem,
+} from "./action-menu";
 import { setOverlayMode, type OverlayMode } from "../../shared/storage";
 import {
   createOcrSourceLanguagePicker,
@@ -586,57 +590,19 @@ function updateModeButton(): void {
   }
 }
 
-function createMenu(): {
-  element: HTMLElement;
-  dispose: () => void;
-} {
-  const wrapper = document.createElement("div");
-  wrapper.className = "ocr-translate-popup-menu ocr-translate-overlay-menu";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "ocr-translate-overlay-icon-button";
-  button.setAttribute("aria-label", t("commonMenu"));
-  button.setAttribute("aria-haspopup", "true");
-  button.setAttribute("aria-expanded", "false");
-  button.title = t("commonMenu");
-  button.innerHTML = MENU_ICON;
-
-  const list = document.createElement("div");
-  list.className = "ocr-translate-popup-menu-list";
-  list.setAttribute("role", "menu");
-  list.hidden = true;
-
-  function closeMenu(): void {
-    list.hidden = true;
-    wrapper.classList.remove("is-open-above");
-    button.setAttribute("aria-expanded", "false");
-  }
-
-  function addItem(
+function createMenu(): ActionMenu {
+  const items: ActionMenuItem[] = [];
+  const addItem = (
     iconMarkup: string,
     labelText: string,
     onSelect: () => void,
-  ): void {
-    const entry = document.createElement("button");
-    entry.type = "button";
-    entry.className = "ocr-translate-popup-menu-item";
-    entry.setAttribute("role", "menuitem");
-
-    const icon = document.createElement("span");
-    icon.className = "ocr-translate-popup-menu-icon";
-    icon.innerHTML = iconMarkup;
-
-    const label = document.createElement("span");
-    label.textContent = labelText;
-
-    entry.append(icon, label);
-    entry.addEventListener("click", () => {
-      closeMenu();
-      void onSelect();
+  ): void => {
+    items.push({
+      icon: iconMarkup,
+      label: labelText,
+      onSelect,
     });
-    list.append(entry);
-  }
+  };
 
   if (hasTranslationText) {
     addItem(COPY_ICON, t("overlayCopyAllOriginal"), () => {
@@ -661,29 +627,7 @@ function createMenu(): {
   }
   addItem(PANEL_ICON, t("overlayShowInPanel"), () => config?.onShowPanel());
   addItem(SETTINGS_ICON, t("commonSettings"), openSettings);
-
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-    wrapper.classList.remove("is-open-above");
-    if (open && list.getBoundingClientRect().bottom > window.innerHeight - 8) {
-      wrapper.classList.add("is-open-above");
-    }
-  });
-
-  function handleOutsideClick(event: MouseEvent): void {
-    if (!list.hidden && !event.composedPath().includes(wrapper)) {
-      closeMenu();
-    }
-  }
-  document.addEventListener("click", handleOutsideClick);
-
-  wrapper.append(button, list);
-  return {
-    element: wrapper,
-    dispose: () => document.removeEventListener("click", handleOutsideClick),
-  };
+  return createActionMenu({ items, overlay: true });
 }
 
 function openSettings(): void {
