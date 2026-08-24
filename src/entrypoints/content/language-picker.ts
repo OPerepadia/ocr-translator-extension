@@ -8,7 +8,8 @@ export const CHEVRON_ICON =
 
 export interface LanguagePill {
   element: HTMLElement;
-  handleOutsideClick(event: MouseEvent): void;
+  /** Detach document-level listeners owned by this picker. */
+  dispose(): void;
 }
 
 export function createLanguagePill(args: {
@@ -159,7 +160,10 @@ export function createLanguagePill(args: {
   document.addEventListener("click", handleOutsideClick);
 
   wrapper.append(button, list);
-  return { element: wrapper, handleOutsideClick };
+  return {
+    element: wrapper,
+    dispose: () => document.removeEventListener("click", handleOutsideClick),
+  };
 }
 
 export function languageName(code: string): string {

@@ -17,15 +17,19 @@ import {
   STOP_SPEAK_ICON,
   WARNING_ICON,
 } from "./icons";
+import { createLanguagePill, languageName } from "./language-picker";
+import { createOptionPicker } from "./option-picker";
 import {
-  CHEVRON_ICON,
-  createLanguagePill,
-  languageName,
-} from "./language-picker";
+  pipelineStatusMessage,
+  pipelineStatusProgress,
+} from "./pipeline-status";
 import { sendRequest } from "@/shared/runtime-messaging";
 import { t } from "@/shared/i18n";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 
+export interface ClosePopupOptions {
+  notify?: boolean;
+}
 const ORIGINAL_SPEECH_OWNER = "panel-original";
 const TRANSLATION_SPEECH_OWNER = "panel-translation";
 
@@ -108,8 +112,10 @@ let recognizedBoxRef: HTMLTextAreaElement | undefined;
 // re-renders the box from that text — so an edit made mid-translation would be
 // silently discarded. Locking the box prevents that lost edit.
 let recognizedReadOnly = false;
-// Document-level outside-click handlers for open dropdowns, detached on close.
-let outsideClickHandlers: Array<(event: MouseEvent) => void> = [];
+// Document-level listener cleanup, separated by lifetime: the menu belongs to
+// the persistent popup shell, while body controls are replaced on each render.
+let popupDisposers: Array<() => void> = [];
+let mountedControlDisposers: Array<() => void> = [];
 // Shadow-root container the popup is mounted into, set once the content script
 // creates the UI. Keeps page CSS from leaking into the popup.
 let uiRoot: HTMLElement | undefined;
@@ -316,10 +322,6 @@ export function resetForNewCapture(): void {
   recognizedReadOnly = false;
 }
 
-export interface ClosePopupOptions {
-  notify?: boolean;
-}
-
 /** Remove the popup and detach its listeners. No-op if it isn't open. */
 export function closePopup(options: ClosePopupOptions = {}): void {
   if (
@@ -331,10 +333,10 @@ export function closePopup(options: ClosePopupOptions = {}): void {
   if (!popup) {
     return;
   }
-  for (const handler of outsideClickHandlers) {
-    document.removeEventListener("click", handler);
-  }
-  outsideClickHandlers = [];
+  disposeAll(popupDisposers);
+  disposeAll(mountedControlDisposers);
+  popupDisposers = [];
+  mountedControlDisposers = [];
   if (windowResizeHandler) {
     window.removeEventListener("resize", windowResizeHandler);
     windowResizeHandler = undefined;
@@ -360,7 +362,7 @@ export function showLoading(
     // when the result re-renders it. Set before building/swapping so both the
     // in-place box and any rebuilt one come up locked.
     setRecognizedReadOnly(true);
-    renderPopup([createRecognizedSection(), createTranslatingSection()]);
+    renderPopup(() => [createRecognizedSection(), createTranslatingSection()]);
     return;
   }
   // The spinner is a CSS animation on a DOM node; rebuilding that node on every
@@ -371,7 +373,7 @@ export function showLoading(
     return;
   }
   const loading = createLoading(status);
-  renderPopup([loading.element]);
+  renderPopup(() => [loading.element]);
   updateLoadingRef = loading.update;
 }
 
@@ -383,35 +385,7 @@ export function showRecognizedTextWhileTranslating(
     ocr.lang ??
     (currentSourceLanguageId !== "auto" ? currentSourceLanguageId : undefined);
   setRecognizedReadOnly(true);
-  renderPopup([createRecognizedSection(), createTranslatingSection()]);
-}
-
-function statusMessage(status: PipelineStatus): string {
-  switch (status.stage) {
-    case "loading":
-      return t("statusLoadingImage");
-    case "initializing":
-      return t("statusInitializingOcr");
-    case "recognizing":
-      return status.lineCount && status.lineCount > 0
-        ? t("statusRecognizingText")
-        : t("statusAnalyzingImage");
-    case "translating":
-      return t("statusTranslating");
-  }
-}
-
-// Fraction of recognized lines, or undefined while the stage has no line counts
-// to report and the progress bar should stay hidden.
-function statusProgress(status: PipelineStatus): number | undefined {
-  if (status.stage !== "recognizing") {
-    return undefined;
-  }
-  const { line, lineCount } = status;
-  if (line === undefined || !lineCount || lineCount <= 0) {
-    return undefined;
-  }
-  return Math.min(Math.max(line / lineCount, 0), 1);
+  renderPopup(() => [createRecognizedSection(), createTranslatingSection()]);
 }
 
 // A centered loading state: a spinner with the current stage below it, plus a
@@ -437,8 +411,8 @@ function createLoading(status: PipelineStatus): {
   progress.append(fill);
 
   const update = (next: PipelineStatus): void => {
-    label.textContent = statusMessage(next);
-    const fraction = statusProgress(next);
+    label.textContent = pipelineStatusMessage(next);
+    const fraction = pipelineStatusProgress(next);
     progress.hidden = fraction === undefined;
     fill.style.transform = `scaleX(${fraction ?? 0})`;
   };
@@ -457,26 +431,28 @@ export function showResult(result: PipelineResult): void {
     result.translation?.sourceLang ?? result.ocr.lang ?? status.sourceLang;
   currentTargetLang = result.translation?.targetLang ?? status.targetLang;
 
-  const content: Node[] = [createRecognizedSection()];
+  renderPopup(() => {
+    const content: Node[] = [createRecognizedSection()];
 
-  if (result.translation) {
-    content.push(createTranslationTextSection(result.translation.text));
-  } else if (status.state === "same_language") {
-    const language = status.sourceLang ? languageName(status.sourceLang) : "";
-    content.push(
-      createTranslationNotice(
-        language
-          ? t("panelAlreadyInLanguage", language)
-          : t("panelAlreadyInTargetLanguage"),
-      ),
-    );
-  } else if (status.state === "failed") {
-    content.push(
-      createTranslationError(status.reason ?? t("commonTranslationFailed")),
-    );
-  }
+    if (result.translation) {
+      content.push(createTranslationTextSection(result.translation.text));
+    } else if (status.state === "same_language") {
+      const language = status.sourceLang ? languageName(status.sourceLang) : "";
+      content.push(
+        createTranslationNotice(
+          language
+            ? t("panelAlreadyInLanguage", language)
+            : t("panelAlreadyInTargetLanguage"),
+        ),
+      );
+    } else if (status.state === "failed") {
+      content.push(
+        createTranslationError(status.reason ?? t("commonTranslationFailed")),
+      );
+    }
 
-  renderPopup(content);
+    return content;
+  });
 }
 
 export function showError(
@@ -484,7 +460,7 @@ export function showError(
   onRetry?: () => void,
 ): void {
   setRecognizedReadOnly(false);
-  renderPopup(
+  renderPopup(() =>
     currentOcrText
       ? [
           createRecognizedSection(),
@@ -498,12 +474,14 @@ export function showError(
 }
 
 // Reuse the popup shell across updates and only swap the body content.
-function renderPopup(content: Node[]): void {
+function renderPopup(createContent: () => Node[]): void {
   // Any full re-render replaces the loading element, so its in-place patcher
   // is no longer valid.
   updateLoadingRef = undefined;
   const body = ensurePopup();
-  body.replaceChildren(...content);
+  disposeAll(mountedControlDisposers);
+  mountedControlDisposers = [];
+  body.replaceChildren(...createContent());
 }
 
 function ensurePopup(): HTMLElement {
@@ -533,7 +511,7 @@ function ensurePopup(): HTMLElement {
   });
 
   const menu = createMenu();
-  outsideClickHandlers.push(menu.handleOutsideClick);
+  popupDisposers.push(menu.dispose);
 
   const closeButton = document.createElement("button");
   closeButton.type = "button";
@@ -649,7 +627,7 @@ function createResizeHandle(container: HTMLElement): HTMLElement {
 
 function createMenu(): {
   element: HTMLElement;
-  handleOutsideClick: (event: MouseEvent) => void;
+  dispose: () => void;
 } {
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-menu";
@@ -722,7 +700,10 @@ function createMenu(): {
   document.addEventListener("click", handleOutsideClick);
 
   wrapper.append(button, list);
-  return { element: wrapper, handleOutsideClick };
+  return {
+    element: wrapper,
+    dispose: () => document.removeEventListener("click", handleOutsideClick),
+  };
 }
 
 // A static badge showing the recognized text's source language, e.g. "Japanese".
@@ -760,90 +741,6 @@ function createRecognizedExtras(): HTMLElement {
   return wrapper;
 }
 
-// A no-search dropdown pill for switching between a small set of options.
-// Picking one fires onSelect with its id. Reuses the language-pill styling.
-function createOptionPill(config: {
-  options: ReadonlyArray<{ id: string; label: string }>;
-  currentId: string | undefined;
-  buttonLabel?: (current: { id: string; label: string }) => string;
-  title: (current: { id: string; label: string }) => string;
-  onSelect: (id: string) => void;
-}): HTMLElement | undefined {
-  if (config.options.length < 2) {
-    return undefined;
-  }
-  const current =
-    config.options.find((option) => option.id === config.currentId) ??
-    config.options[0];
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "ocr-translate-popup-langpill";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "ocr-translate-popup-langpill-button";
-  button.setAttribute("aria-haspopup", "listbox");
-  button.setAttribute("aria-expanded", "false");
-  button.title = config.title(current);
-
-  const label = document.createElement("span");
-  label.textContent = config.buttonLabel?.(current) ?? current.label;
-  const chevron = document.createElement("span");
-  chevron.className = "ocr-translate-popup-langpill-chevron";
-  chevron.innerHTML = CHEVRON_ICON;
-  button.append(label, chevron);
-
-  const list = document.createElement("div");
-  list.className = "ocr-translate-popup-langpill-list";
-  list.setAttribute("role", "listbox");
-  list.hidden = true;
-
-  function closeList(): void {
-    list.hidden = true;
-    button.setAttribute("aria-expanded", "false");
-  }
-
-  const itemsBox = document.createElement("div");
-  itemsBox.className = "ocr-translate-popup-langpill-items";
-  list.append(itemsBox);
-
-  for (const option of config.options) {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "ocr-translate-popup-langpill-item";
-    item.setAttribute("role", "option");
-    item.textContent = option.label;
-    if (option.id === current.id) {
-      item.setAttribute("aria-selected", "true");
-      item.classList.add("is-selected");
-    }
-    item.addEventListener("click", () => {
-      closeList();
-      if (option.id !== current.id) {
-        config.onSelect(option.id);
-      }
-    });
-    itemsBox.append(item);
-  }
-
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-  });
-
-  function handleOutsideClick(event: MouseEvent): void {
-    if (!list.hidden && !event.composedPath().includes(wrapper)) {
-      closeList();
-    }
-  }
-  document.addEventListener("click", handleOutsideClick);
-  outsideClickHandlers.push(handleOutsideClick);
-
-  wrapper.append(button, list);
-  return wrapper;
-}
-
 // The source-language picker shown next to "Source text". Picking one re-runs
 // OCR on the same region with the matching recognizer.
 function createSourceLanguagePill(): HTMLElement | undefined {
@@ -869,14 +766,14 @@ function createSourceLanguagePill(): HTMLElement | undefined {
       onSourceLanguageChange?.(sourceLang);
     },
   });
-  outsideClickHandlers.push(pill.handleOutsideClick);
+  mountedControlDisposers.push(pill.dispose);
   return pill.element;
 }
 
 // The translation-provider picker shown next to "Translation". Picking one
 // re-translates the current text via onProviderChange.
 function createProviderPill(): HTMLElement | undefined {
-  return createOptionPill({
+  const picker = createOptionPicker({
     options: translationProviders,
     currentId: currentProviderId,
     title: (current) => t("panelTranslationProvider", current.label),
@@ -885,6 +782,11 @@ function createProviderPill(): HTMLElement | undefined {
       onProviderChange?.(id);
     },
   });
+  if (!picker) {
+    return undefined;
+  }
+  mountedControlDisposers.push(picker.dispose);
+  return picker.element;
 }
 
 // The interactive target-language pill shown next to the "Translation" heading.
@@ -903,7 +805,7 @@ function createTargetPill(): HTMLElement | undefined {
       }
     },
   });
-  outsideClickHandlers.push(pill.handleOutsideClick);
+  mountedControlDisposers.push(pill.dispose);
   return pill.element;
 }
 
@@ -1223,4 +1125,22 @@ function setSpeakButtonState(
   button.classList.toggle("is-speaking", active);
   button.setAttribute("aria-label", accessibleLabel);
   button.title = accessibleLabel;
+}
+
+function disposeAll(disposers: Array<() => void>): void {
+  for (const disposeControl of disposers) {
+    disposeControl();
+  }
+}
+
+export function dispose(): void {
+  closePopup({ notify: false });
+  uiRoot = undefined;
+  onClose = undefined;
+  onNewSelection = undefined;
+  onShowOverlay = undefined;
+  onTargetLangChange = undefined;
+  onSourceLanguageChange = undefined;
+  onProviderChange = undefined;
+  onTranslateRequest = undefined;
 }

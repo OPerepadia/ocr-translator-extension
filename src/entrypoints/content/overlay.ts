@@ -15,7 +15,12 @@ import {
   WARNING_ICON,
 } from "./icons";
 import { setOverlayMode } from "../../shared/storage";
-import { CHEVRON_ICON, createLanguagePill } from "./language-picker";
+import { createLanguagePill } from "./language-picker";
+import { createOptionPicker } from "./option-picker";
+import {
+  pipelineStatusMessage,
+  pipelineStatusProgress,
+} from "./pipeline-status";
 import {
   buildOverlayLayout,
   moveOverlayLayout,
@@ -25,6 +30,7 @@ import {
 } from "./overlay-layout";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 
+type OverlayMode = "translation" | "original";
 const OVERLAY_SPEECH_OWNER = "overlay";
 
 const PANEL_ICON =
@@ -34,8 +40,6 @@ const PANEL_ICON =
   '<path d="M13.5 10.3V13.5H10.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
   '<rect x="14.5" y="14.5" width="5" height="5" rx="1.2" fill="currentColor"/>' +
   "</svg>";
-
-type OverlayMode = "translation" | "original";
 
 let uiRoot: HTMLElement | undefined;
 let container: HTMLElement | undefined;
@@ -107,7 +111,7 @@ let onRetranslate: ((targetLang: LangCode) => void) | undefined;
 let keydownHandler: ((event: KeyboardEvent) => void) | undefined;
 let resizeHandler: (() => void) | undefined;
 let scrollHandler: (() => void) | undefined;
-let outsideClickHandlers: Array<(event: MouseEvent) => void> = [];
+let controlDisposers: Array<() => void> = [];
 let anchor:
   | {
       element: Element;
@@ -504,10 +508,10 @@ function reposition(): void {
 }
 
 function clearOutsideClickHandlers(): void {
-  for (const handler of outsideClickHandlers) {
-    document.removeEventListener("click", handler);
+  for (const disposeControl of controlDisposers) {
+    disposeControl();
   }
-  outsideClickHandlers = [];
+  controlDisposers = [];
 }
 
 function rerenderToolbar(): void {
@@ -539,7 +543,7 @@ function createToolbar(): HTMLElement {
   const providerPicker = createProviderPicker();
   const retranslateButton = createRetranslateButton();
   const menu = createMenu();
-  outsideClickHandlers.push(menu.handleOutsideClick);
+  controlDisposers.push(menu.dispose);
   const selectButton = iconButton(
     SELECT_REGION_ICON,
     t("panelSelectNewRegion"),
@@ -631,7 +635,7 @@ function updateModeButton(): void {
 
 function createMenu(): {
   element: HTMLElement;
-  handleOutsideClick: (event: MouseEvent) => void;
+  dispose: () => void;
 } {
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-menu ocr-translate-overlay-menu";
@@ -723,7 +727,10 @@ function createMenu(): {
   document.addEventListener("click", handleOutsideClick);
 
   wrapper.append(button, list);
-  return { element: wrapper, handleOutsideClick };
+  return {
+    element: wrapper,
+    dispose: () => document.removeEventListener("click", handleOutsideClick),
+  };
 }
 
 function openSettings(): void {
@@ -795,7 +802,7 @@ function createSourceLanguagePicker(): HTMLElement | undefined {
       }
     },
   });
-  outsideClickHandlers.push(pill.handleOutsideClick);
+  controlDisposers.push(pill.dispose);
   return pill.element;
 }
 
@@ -815,92 +822,26 @@ function createLanguagePicker(): HTMLElement | undefined {
       }
     },
   });
-  outsideClickHandlers.push(pill.handleOutsideClick);
+  controlDisposers.push(pill.dispose);
   return pill.element;
 }
 
 function createProviderPicker(): HTMLElement | undefined {
-  if (translationProviders.length < 2) {
+  const picker = createOptionPicker({
+    options: translationProviders,
+    currentId: currentProviderId,
+    overlay: true,
+    title: (current) => t("panelTranslationProvider", current.label),
+    onSelect: (providerId) => {
+      currentProviderId = providerId;
+      onProviderChange?.(providerId);
+    },
+  });
+  if (!picker) {
     return undefined;
   }
-  const current =
-    translationProviders.find(({ id }) => id === currentProviderId) ??
-    translationProviders[0];
-
-  const wrapper = document.createElement("div");
-  wrapper.className =
-    "ocr-translate-popup-langpill ocr-translate-overlay-provider";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className =
-    "ocr-translate-popup-langpill-button ocr-translate-overlay-provider-button";
-  button.setAttribute("aria-haspopup", "listbox");
-  button.setAttribute("aria-expanded", "false");
-  button.title = t("panelTranslationProvider", current.label);
-
-  const label = document.createElement("span");
-  label.className = "ocr-translate-overlay-provider-label";
-  label.textContent = current.label;
-  const chevron = document.createElement("span");
-  chevron.className = "ocr-translate-popup-langpill-chevron";
-  chevron.innerHTML = CHEVRON_ICON;
-  button.append(label, chevron);
-
-  const list = document.createElement("div");
-  list.className = "ocr-translate-popup-langpill-list";
-  list.setAttribute("role", "listbox");
-  list.hidden = true;
-
-  function closeList(): void {
-    list.hidden = true;
-    wrapper.classList.remove("is-open-above");
-    button.setAttribute("aria-expanded", "false");
-  }
-
-  const itemsBox = document.createElement("div");
-  itemsBox.className = "ocr-translate-popup-langpill-items";
-  for (const provider of translationProviders) {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "ocr-translate-popup-langpill-item";
-    item.setAttribute("role", "option");
-    item.textContent = provider.label;
-    if (provider.id === current.id) {
-      item.setAttribute("aria-selected", "true");
-      item.classList.add("is-selected");
-    }
-    item.addEventListener("click", () => {
-      closeList();
-      if (provider.id !== current.id) {
-        currentProviderId = provider.id;
-        onProviderChange?.(provider.id);
-      }
-    });
-    itemsBox.append(item);
-  }
-  list.append(itemsBox);
-
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-    wrapper.classList.remove("is-open-above");
-    if (open && list.getBoundingClientRect().bottom > window.innerHeight - 8) {
-      wrapper.classList.add("is-open-above");
-    }
-  });
-
-  function handleOutsideClick(event: MouseEvent): void {
-    if (!list.hidden && !event.composedPath().includes(wrapper)) {
-      closeList();
-    }
-  }
-  document.addEventListener("click", handleOutsideClick);
-  outsideClickHandlers.push(handleOutsideClick);
-
-  wrapper.append(button, list);
-  return wrapper;
+  controlDisposers.push(picker.dispose);
+  return picker.element;
 }
 
 function renderBoxes(): void {
@@ -2004,8 +1945,8 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
   progress.append(fill);
 
   updateLoadingChip = (next: PipelineStatus): void => {
-    label.textContent = statusMessage(next);
-    const fraction = statusProgress(next);
+    label.textContent = pipelineStatusMessage(next);
+    const fraction = pipelineStatusProgress(next);
     progress.hidden = fraction === undefined;
     fill.style.transform = `scaleX(${fraction ?? 0})`;
   };
@@ -2234,32 +2175,6 @@ function pageToViewportRect(rect: Rect): Rect {
   };
 }
 
-function statusMessage(status: PipelineStatus): string {
-  switch (status.stage) {
-    case "loading":
-      return t("statusLoadingImage");
-    case "initializing":
-      return t("statusInitializingOcr");
-    case "recognizing":
-      return status.lineCount && status.lineCount > 0
-        ? t("statusRecognizingText")
-        : t("statusAnalyzingImage");
-    case "translating":
-      return t("statusTranslating");
-  }
-}
-
-function statusProgress(status: PipelineStatus): number | undefined {
-  if (status.stage !== "recognizing") {
-    return undefined;
-  }
-  const { line, lineCount } = status;
-  if (line === undefined || !lineCount || lineCount <= 0) {
-    return undefined;
-  }
-  return clamp(line / lineCount, 0, 1);
-}
-
 function iconButton(
   icon: string,
   label: string,
@@ -2277,4 +2192,18 @@ function iconButton(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(min, value), Math.max(min, max));
+}
+
+export function dispose(): void {
+  // Disposal tears the view down without reporting a user-initiated close.
+  onClose = undefined;
+  closeOverlay();
+  uiRoot = undefined;
+  currentSnapshot = undefined;
+  onShowPanel = undefined;
+  onNewSelection = undefined;
+  onTargetLangChange = undefined;
+  onSourceLanguageChange = undefined;
+  onProviderChange = undefined;
+  onRetranslate = undefined;
 }

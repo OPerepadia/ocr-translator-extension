@@ -48,9 +48,7 @@ export interface BrowserPort {
 export interface BrowserApi {
   runtime: {
     sendMessage<TResponse = unknown>(message: RuntimeMessage): Promise<TResponse>;
-    onMessage: {
-      addListener(listener: RuntimeListener): void;
-    };
+    onMessage: BrowserEvent<RuntimeListener>;
     onInstalled: BrowserEvent<() => void>;
     // Called periodically while a download runs to reset the event page idle
     // timer (keepalive). Any awaited extension API would do; this one is cheap.

@@ -188,9 +188,7 @@ async function initOptions(): Promise<void> {
   let languagePill: LanguagePill | undefined;
   const mountLanguagePill = (): void => {
     const previous = languagePill;
-    if (previous) {
-      document.removeEventListener("click", previous.handleOutsideClick);
-    }
+    previous?.dispose();
     const pill = createLanguagePill({
       target: elements.targetLangSelect.value,
       languages: targetLangCodes,
