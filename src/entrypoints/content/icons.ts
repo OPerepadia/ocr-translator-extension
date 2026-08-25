@@ -86,17 +86,3 @@ export const OVERLAY_ICON =
   '<path d="M7 11.8L10.4 7.7L13 11.8L15 9.2L17.4 11.8Z" fill="currentColor"/>' +
   '<path d="M7.5 14H16.5M7.5 16.5H16.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
   "</svg>";
-
-// Multi-color extension mark cannot inherit the surrounding text color.
-export const LOGO_ICON =
-  '<svg viewBox="0 0 128 128" width="20" height="20" aria-hidden="true" focusable="false">' +
-  '<rect x="0" y="0" width="128" height="128" rx="18" fill="#f5f7fa"/>' +
-  '<path d="M10,38 L10,20 Q10,10 20,10 L38,10" fill="none" stroke="#3e7bd6" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M90,10 L108,10 Q118,10 118,20 L118,38" fill="none" stroke="#3e7bd6" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M38,118 L20,118 Q10,118 10,108 L10,90" fill="none" stroke="#3e7bd6" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<line x1="30" y1="50" x2="100" y2="50" stroke="#3e7bd6" stroke-width="12" stroke-linecap="round"/>' +
-  '<line x1="30" y1="66" x2="70" y2="66" stroke="#3e7bd6" stroke-width="12" stroke-linecap="round"/>' +
-  '<line x1="30" y1="82" x2="54" y2="82" stroke="#3e7bd6" stroke-width="12" stroke-linecap="round"/>' +
-  '<circle cx="86" cy="92" r="22" fill="#f5f7fa" stroke="#E8590C" stroke-width="12"/>' +
-  '<line x1="103" y1="109" x2="118" y2="124" stroke="#E8590C" stroke-width="14" stroke-linecap="round"/>' +
-  "</svg>";

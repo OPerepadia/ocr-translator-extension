@@ -77,6 +77,12 @@ export default defineConfig({
     action: {
       default_title: "__MSG_extensionName__",
     },
+    web_accessible_resources: [
+      {
+        resources: ["icon/ocr_icon_big.svg"],
+        matches: ["<all_urls>"],
+      },
+    ],
     commands: {
       [START_SELECTION_COMMAND]: {
         suggested_key: {

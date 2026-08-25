@@ -14,7 +14,7 @@
   --ocr-size-body: 15px;
   /* Reading size for text pulled off the page; the denser panel stays at `body`. */
   --ocr-size-read: 16px;
-  --ocr-size-title: 17px;
+  --ocr-size-title: 16px;
   /* Never 1: the em box is shorter than ascent+descent, so a line box that tight
      clips descenders out of any label with `overflow: hidden`. */
   --ocr-leading-ui: 1.45;
@@ -525,10 +525,10 @@
   flex: none;
 }
 
-.ocr-translate-popup-title-icon svg {
+.ocr-translate-popup-title-icon img {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border-radius: 5px;
 }
 

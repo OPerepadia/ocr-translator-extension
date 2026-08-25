@@ -10,7 +10,6 @@ import {
   CHECK_ICON,
   CLOSE_ICON,
   COPY_ICON,
-  LOGO_ICON,
   OVERLAY_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
@@ -429,7 +428,12 @@ function ensurePopup(): HTMLElement {
   title.className = "ocr-translate-popup-title";
   const titleIcon = document.createElement("span");
   titleIcon.className = "ocr-translate-popup-title-icon";
-  titleIcon.innerHTML = LOGO_ICON;
+  const logo = document.createElement("img");
+  const getExtensionUrl = browser.runtime.getURL as (path: string) => string;
+  logo.src = getExtensionUrl("icon/ocr_icon_big.svg");
+  logo.alt = "";
+  logo.setAttribute("aria-hidden", "true");
+  titleIcon.append(logo);
   const titleText = document.createElement("span");
   titleText.textContent = t("extensionName");
   title.append(titleIcon, titleText);
