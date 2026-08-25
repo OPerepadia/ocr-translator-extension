@@ -125,5 +125,5 @@ npm run typecheck
 
 ## License
 
-Screen OCR Translator is licensed under the [MIT License](LICENSE).
+Screen OCR Translator is licensed under the [Mozilla Public License 2.0](LICENSE).
 Bundled libraries, runtime files, and OCR models retain their original licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
