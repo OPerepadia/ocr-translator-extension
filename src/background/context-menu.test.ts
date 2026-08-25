@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BrowserApi } from "../shared/browser";
 import type { RuntimeMessage } from "../shared/messages";
 import {
   START_SELECTION_MENU_ID,
   TRANSLATE_IMAGE_MENU_ID,
   startContextMenu,
+  type ContextMenuApi,
 } from "./context-menu";
 
 type MenuClickListener = (
@@ -16,7 +16,7 @@ describe("OCR context menu", () => {
   it("creates a menu item when the extension is installed", () => {
     let onInstalled: (() => void) | undefined;
     const create = vi.fn(() => START_SELECTION_MENU_ID);
-    const api = createBrowserApi({
+    const api = createContextMenuApi({
       onInstalled: (listener) => {
         onInstalled = listener;
       },
@@ -44,7 +44,7 @@ describe("OCR context menu", () => {
   it("starts region selection in the clicked tab", async () => {
     let onClicked: MenuClickListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
-    const api = createBrowserApi({
+    const api = createContextMenuApi({
       onClicked: (listener) => {
         onClicked = listener;
       },
@@ -65,7 +65,7 @@ describe("OCR context menu", () => {
   it("translates an image clicked inside a frame", async () => {
     let onClicked: MenuClickListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
-    const api = createBrowserApi({
+    const api = createContextMenuApi({
       onClicked: (listener) => {
         onClicked = listener;
       },
@@ -96,7 +96,7 @@ describe("OCR context menu", () => {
   it("ignores other menu items and clicks without a tab", () => {
     let onClicked: MenuClickListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
-    const api = createBrowserApi({
+    const api = createContextMenuApi({
       onClicked: (listener) => {
         onClicked = listener;
       },
@@ -112,7 +112,7 @@ describe("OCR context menu", () => {
   });
 });
 
-function createBrowserApi(overrides: {
+function createContextMenuApi(overrides: {
   onInstalled?: (listener: () => void) => void;
   onClicked?: (listener: MenuClickListener) => void;
   create?: (properties: {
@@ -126,7 +126,7 @@ function createBrowserApi(overrides: {
     message: RuntimeMessage,
     options?: { frameId?: number },
   ) => Promise<unknown>;
-}): BrowserApi {
+}): ContextMenuApi {
   return {
     runtime: {
       onInstalled: { addListener: overrides.onInstalled ?? vi.fn() },
@@ -144,5 +144,5 @@ function createBrowserApi(overrides: {
           ? "Translate this image"
           : "Translate a screen region…",
     },
-  } as unknown as BrowserApi;
+  } as ContextMenuApi;
 }

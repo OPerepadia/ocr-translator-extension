@@ -7,14 +7,14 @@ import type {
   WorkerResponse,
 } from "@/providers/ocr/paddle/protocol";
 import { createInferenceWorker } from "@/providers/ocr/paddle/worker-factory";
-import { browserApi, type BrowserPort } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import {
   decodeRequest,
   OCR_RELAY_PORT,
   type RelayedRequest,
 } from "@/shared/offscreen-relay";
 
-browserApi.runtime.onConnect.addListener((port: BrowserPort) => {
+browser.runtime.onConnect.addListener((port) => {
   if (port.name !== OCR_RELAY_PORT) {
     return;
   }

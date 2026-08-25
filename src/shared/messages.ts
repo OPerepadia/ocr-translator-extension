@@ -144,139 +144,16 @@ export interface SpeakResponse {
   audioChunks: string[];
 }
 
-export function isRuntimeMessage(value: unknown): value is RuntimeMessage {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const maybeMessage = value as { type?: unknown };
-  return typeof maybeMessage.type === "string";
-}
-
-export function isStartSelectionMessage(
+export function isRuntimeMessage<T extends RuntimeMessage["type"]>(
   value: unknown,
-): value is Extract<RuntimeMessage, { type: "START_SELECTION" }> {
-  return isRuntimeMessage(value) && value.type === "START_SELECTION";
-}
-
-export function isStartImagePickerMessage(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "START_IMAGE_PICKER" }> {
+  type: T,
+): value is Extract<RuntimeMessage, { type: T }> {
   return (
-    isRuntimeMessage(value) &&
-    value.type === "START_IMAGE_PICKER" &&
-    typeof (value as { sessionId?: unknown }).sessionId === "string"
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    value.type === type
   );
-}
-
-export function isEndImagePickerMessage(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "END_IMAGE_PICKER" }> {
-  return (
-    isRuntimeMessage(value) &&
-    value.type === "END_IMAGE_PICKER" &&
-    typeof (value as { sessionId?: unknown }).sessionId === "string"
-  );
-}
-
-export function isCancelImagePickerMessage(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "CANCEL_IMAGE_PICKER" }> {
-  return (
-    isRuntimeMessage(value) &&
-    value.type === "CANCEL_IMAGE_PICKER" &&
-    typeof (value as { sessionId?: unknown }).sessionId === "string"
-  );
-}
-
-export function isStartImageTranslationMessage(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "START_IMAGE_TRANSLATION" }> {
-  return isRuntimeMessage(value) && value.type === "START_IMAGE_TRANSLATION";
-}
-
-export function isOcrTranslateRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "OCR_TRANSLATE_REQUEST" }> {
-  return isRuntimeMessage(value) && value.type === "OCR_TRANSLATE_REQUEST";
-}
-
-export function isOcrTranslateStatus(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "OCR_TRANSLATE_STATUS" }> {
-  return isRuntimeMessage(value) && value.type === "OCR_TRANSLATE_STATUS";
-}
-
-export function isOcrTranslateOcrResult(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "OCR_TRANSLATE_OCR_RESULT" }> {
-  return isRuntimeMessage(value) && value.type === "OCR_TRANSLATE_OCR_RESULT";
-}
-
-export function isPreloadOcrRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "PRELOAD_OCR" }> {
-  return isRuntimeMessage(value) && value.type === "PRELOAD_OCR";
-}
-
-export function isOpenOptionsRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "OPEN_OPTIONS" }> {
-  return isRuntimeMessage(value) && value.type === "OPEN_OPTIONS";
-}
-
-export function isGetTargetLanguagesRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "GET_TARGET_LANGUAGES" }> {
-  return isRuntimeMessage(value) && value.type === "GET_TARGET_LANGUAGES";
-}
-
-export function isGetOcrSourceLanguagesRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "GET_OCR_SOURCE_LANGUAGES" }> {
-  return isRuntimeMessage(value) && value.type === "GET_OCR_SOURCE_LANGUAGES";
-}
-
-export function isGetCaptureSnapshotRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "GET_CAPTURE_SNAPSHOT" }> {
-  return isRuntimeMessage(value) && value.type === "GET_CAPTURE_SNAPSHOT";
-}
-
-export function isGetTranslationProvidersRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "GET_TRANSLATION_PROVIDERS" }> {
-  return isRuntimeMessage(value) && value.type === "GET_TRANSLATION_PROVIDERS";
-}
-
-export function isSwitchProviderRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "SWITCH_PROVIDER_REQUEST" }> {
-  return isRuntimeMessage(value) && value.type === "SWITCH_PROVIDER_REQUEST";
-}
-
-export function isSpeakRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "SPEAK_REQUEST" }> {
-  return isRuntimeMessage(value) && value.type === "SPEAK_REQUEST";
-}
-
-export function isRetranslateRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "RETRANSLATE_REQUEST" }> {
-  return isRuntimeMessage(value) && value.type === "RETRANSLATE_REQUEST";
-}
-
-export function isRerecognizeRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "RERECOGNIZE_REQUEST" }> {
-  return isRuntimeMessage(value) && value.type === "RERECOGNIZE_REQUEST";
-}
-
-export function isCancelRequest(
-  value: unknown,
-): value is Extract<RuntimeMessage, { type: "CANCEL_REQUEST" }> {
-  return isRuntimeMessage(value) && value.type === "CANCEL_REQUEST";
 }
 
 export function serializeError(error: unknown): SerializedError {

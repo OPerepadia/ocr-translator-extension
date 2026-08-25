@@ -1,21 +1,8 @@
 import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
-import { browserApi } from "../shared/browser";
+import { browser } from "wxt/browser";
 import {
-  isCancelRequest,
-  isEndImagePickerMessage,
-  isGetCaptureSnapshotRequest,
-  isGetOcrSourceLanguagesRequest,
-  isGetTargetLanguagesRequest,
-  isGetTranslationProvidersRequest,
-  isOcrTranslateRequest,
-  isOpenOptionsRequest,
-  isPreloadOcrRequest,
-  isRerecognizeRequest,
-  isRetranslateRequest,
-  isSpeakRequest,
-  isStartSelectionMessage,
-  isSwitchProviderRequest,
+  isRuntimeMessage,
   type CaptureSnapshotResponse,
   type OcrSourceLanguagesResponse,
   type RuntimeMessage,
@@ -76,26 +63,29 @@ export function startRouter(dependencies: RouterDependencies): void {
         ? `${tabId}:${messageSender?.frameId ?? 0}`
         : undefined;
 
-    if (isStartSelectionMessage(message)) {
+    if (isRuntimeMessage(message, "START_SELECTION")) {
       if (typeof tabId === "number") {
-        return browserApi.tabs.sendMessage(tabId, message, { frameId: 0 });
+        return browser.tabs.sendMessage(tabId, message, { frameId: 0 });
       }
       return undefined;
     }
-    if (isEndImagePickerMessage(message)) {
+    if (
+      isRuntimeMessage(message, "END_IMAGE_PICKER") &&
+      typeof message.sessionId === "string"
+    ) {
       if (typeof tabId === "number") {
-        return browserApi.tabs.sendMessage(tabId, {
+        return browser.tabs.sendMessage(tabId, {
           type: "CANCEL_IMAGE_PICKER",
           sessionId: message.sessionId,
         });
       }
       return undefined;
     }
-    if (isCancelRequest(message)) {
+    if (isRuntimeMessage(message, "CANCEL_REQUEST")) {
       inFlight.get(message.requestId)?.abort();
       return undefined;
     }
-    if (isOcrTranslateRequest(message)) {
+    if (isRuntimeMessage(message, "OCR_TRANSLATE_REQUEST")) {
       return withKeepAlive(() =>
         withAbort(message.requestId, (signal) =>
           handleOcrTranslateRequest(
@@ -109,31 +99,31 @@ export function startRouter(dependencies: RouterDependencies): void {
         ),
       );
     }
-    if (isPreloadOcrRequest(message)) {
+    if (isRuntimeMessage(message, "PRELOAD_OCR")) {
       return withKeepAlive(() => handlePreloadOcrRequest(dependencies));
     }
-    if (isOpenOptionsRequest(message)) {
-      void browserApi.runtime.openOptionsPage();
+    if (isRuntimeMessage(message, "OPEN_OPTIONS")) {
+      void browser.runtime.openOptionsPage();
       return undefined;
     }
-    if (isGetTargetLanguagesRequest(message)) {
+    if (isRuntimeMessage(message, "GET_TARGET_LANGUAGES")) {
       return handleGetTargetLanguages(dependencies);
     }
-    if (isGetOcrSourceLanguagesRequest(message)) {
+    if (isRuntimeMessage(message, "GET_OCR_SOURCE_LANGUAGES")) {
       return handleGetOcrSourceLanguages(dependencies);
     }
-    if (isGetTranslationProvidersRequest(message)) {
+    if (isRuntimeMessage(message, "GET_TRANSLATION_PROVIDERS")) {
       return handleGetTranslationProviders(dependencies);
     }
-    if (isGetCaptureSnapshotRequest(message)) {
+    if (isRuntimeMessage(message, "GET_CAPTURE_SNAPSHOT")) {
       return withKeepAlive(() =>
         handleGetCaptureSnapshot(dependencies, frameKey),
       );
     }
-    if (isSpeakRequest(message)) {
+    if (isRuntimeMessage(message, "SPEAK_REQUEST")) {
       return withKeepAlive(() => handleSpeakRequest(dependencies, message));
     }
-    if (isRetranslateRequest(message)) {
+    if (isRuntimeMessage(message, "RETRANSLATE_REQUEST")) {
       return withKeepAlive(() =>
         withAbort(message.requestId, (signal) =>
           handleRetranslateRequest(
@@ -146,7 +136,7 @@ export function startRouter(dependencies: RouterDependencies): void {
         ),
       );
     }
-    if (isSwitchProviderRequest(message)) {
+    if (isRuntimeMessage(message, "SWITCH_PROVIDER_REQUEST")) {
       return withKeepAlive(() =>
         withAbort(message.requestId, (signal) =>
           handleSwitchProviderRequest(
@@ -159,7 +149,7 @@ export function startRouter(dependencies: RouterDependencies): void {
         ),
       );
     }
-    if (isRerecognizeRequest(message)) {
+    if (isRuntimeMessage(message, "RERECOGNIZE_REQUEST")) {
       return withKeepAlive(() =>
         withAbort(message.requestId, (signal) =>
           handleRerecognizeRequest(
@@ -191,7 +181,7 @@ async function handleSpeakRequest(
 // while any long-running background request is active.
 const KEEPALIVE_INTERVAL_MS = 20_000;
 const withKeepAlive = createKeepAlive(
-  () => browserApi.runtime.getPlatformInfo(),
+  () => browser.runtime.getPlatformInfo(),
   KEEPALIVE_INTERVAL_MS,
 );
 
@@ -413,7 +403,7 @@ function sendPipelineStatus(
     return;
   }
   // Fire-and-forget status to the originating tab; ignore if it closed.
-  void browserApi.tabs
+  void browser.tabs
     .sendMessage(tabId, {
       type: "OCR_TRANSLATE_STATUS",
       requestId,
@@ -430,7 +420,7 @@ async function sendPipelineOcrResult(
   if (tabId === undefined) {
     return;
   }
-  await browserApi.tabs
+  await browser.tabs
     .sendMessage(tabId, {
       type: "OCR_TRANSLATE_OCR_RESULT",
       requestId,

@@ -7,7 +7,7 @@ import {
   isActivationPageSupported,
   isContentScriptUnavailableError,
 } from "@/shared/activation";
-import { browserApi } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import {
   localizeMarkedElements,
   t,
@@ -53,7 +53,7 @@ async function initPopup(): Promise<void> {
     const [settings, displayMode, [activeTab]] = await Promise.all([
       settingsRepository.get(),
       getDisplayMode(),
-      browserApi.tabs.query({ active: true, currentWindow: true }),
+      browser.tabs.query({ active: true, currentWindow: true }),
     ]);
     currentSettings = settings;
 
@@ -105,7 +105,7 @@ async function initPopup(): Promise<void> {
     ) {
       disableSelection(elements, t("popupRestrictedPage"));
     } else if (
-      await isFirefoxLocalFileAccessDenied(browserApi, activeTab.url)
+      await isFirefoxLocalFileAccessDenied(browser, activeTab.url)
     ) {
       disableSelection(elements, t("popupLocalFilePermission"));
     }
@@ -117,7 +117,7 @@ async function initPopup(): Promise<void> {
 
 async function showShortcutHint(elements: PopupElements): Promise<void> {
   try {
-    const commands = await browserApi.commands.getAll();
+    const commands = await browser.commands.getAll();
     const shortcut = commands.find(
       ({ name }) => name === START_SELECTION_COMMAND,
     )?.shortcut;
@@ -142,10 +142,13 @@ async function showShortcutHint(elements: PopupElements): Promise<void> {
 
 async function openShortcutSettings(elements: PopupElements): Promise<void> {
   try {
-    if (browserApi.commands.openShortcutSettings) {
-      await browserApi.commands.openShortcutSettings();
+    const commands = browser.commands as typeof browser.commands & {
+      openShortcutSettings?: () => Promise<void>;
+    };
+    if (commands.openShortcutSettings) {
+      await commands.openShortcutSettings();
     } else {
-      const openedTab = browserApi.tabs.create?.({
+      const openedTab = browser.tabs.create?.({
         url: "chrome://extensions/shortcuts",
       });
       if (!openedTab) {
@@ -258,7 +261,7 @@ async function startPageAction(
   }
 
   try {
-    const [tab] = await browserApi.tabs.query({
+    const [tab] = await browser.tabs.query({
       active: true,
       currentWindow: true,
     });
@@ -270,22 +273,22 @@ async function startPageAction(
       return;
     }
     if (type === "START_IMAGE_PICKER") {
-      await browserApi.tabs.sendMessage(tab.id, {
+      await browser.tabs.sendMessage(tab.id, {
         type,
         sessionId: createRequestId(),
       });
     } else {
-      await browserApi.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
+      await browser.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
     }
     window.close();
   } catch (error) {
-    const [tab] = await browserApi.tabs.query({
+    const [tab] = await browser.tabs.query({
       active: true,
       currentWindow: true,
     });
     if (isContentScriptUnavailableError(error)) {
       let message: string;
-      if (await isFirefoxLocalFileAccessDenied(browserApi, tab?.url)) {
+      if (await isFirefoxLocalFileAccessDenied(browser, tab?.url)) {
         message = t("popupLocalFilePermission");
       } else if (!tab || !isActivationPageSupported(tab.url)) {
         // A known restricted page (chrome://, devtools://, …) where a content
@@ -327,7 +330,7 @@ async function openSettings(elements: PopupElements): Promise<void> {
     return;
   }
 
-  await browserApi.runtime.openOptionsPage();
+  await browser.runtime.openOptionsPage();
   window.close();
 }
 

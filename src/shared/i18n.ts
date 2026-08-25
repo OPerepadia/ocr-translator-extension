@@ -1,7 +1,11 @@
-import { browserApi } from "./browser";
+import { browser } from "wxt/browser";
 
 export function t(key: string, substitutions?: string | string[]): string {
-  return browserApi.i18n.getMessage(key, substitutions) || key;
+  const getMessage = browser.i18n.getMessage as (
+    messageName: string,
+    substitutions?: string | string[],
+  ) => string;
+  return getMessage(key, substitutions) || key;
 }
 
 export function localizeMarkedElements(root: ParentNode = document): void {
@@ -30,11 +34,11 @@ export function localizeMarkedElements(root: ParentNode = document): void {
 }
 
 export function uiLanguage(): string {
-  return browserApi.i18n.getUILanguage() || "en";
+  return browser.i18n.getUILanguage() || "en";
 }
 
 export function uiDirection(): "ltr" | "rtl" {
-  return browserApi.i18n.getMessage("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
+  return browser.i18n.getMessage("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
 }
 
 export function translationProviderLabel(id: string): string {

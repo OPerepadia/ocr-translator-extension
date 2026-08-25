@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { OcrProvider } from "../providers/ocr/types";
-import { RemoteTranslationError } from "../providers/translation/errors";
-import type { TranslationProvider } from "../providers/translation/types";
+import {
+  RemoteTranslationError,
+  type TranslationProvider,
+} from "../providers/translation/types";
 import { runPipeline } from "./pipeline";
 
 describe("runPipeline", () => {

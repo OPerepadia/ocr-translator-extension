@@ -1,4 +1,16 @@
-import { browserApi, type BrowserApi } from "../shared/browser";
+import { browser } from "wxt/browser";
+
+export type ContextMenuApi = {
+  runtime: {
+    onInstalled: Pick<typeof browser.runtime.onInstalled, "addListener">;
+  };
+  contextMenus: {
+    create: typeof browser.contextMenus.create;
+    onClicked: Pick<typeof browser.contextMenus.onClicked, "addListener">;
+  };
+  tabs: Pick<typeof browser.tabs, "sendMessage">;
+  i18n: Pick<typeof browser.i18n, "getMessage">;
+};
 
 export const START_SELECTION_MENU_ID = "select-region-for-ocr";
 export const TRANSLATE_IMAGE_MENU_ID = "translate-image";
@@ -7,7 +19,7 @@ export const TRANSLATE_IMAGE_MENU_ID = "translate-image";
 // privileged internal pages (about:, chrome://) where sendMessage would fail.
 const CONTENT_SCRIPT_PATTERNS = ["http://*/*", "https://*/*", "file:///*"];
 
-export function startContextMenu(api: BrowserApi = browserApi): void {
+export function startContextMenu(api: ContextMenuApi = browser): void {
   api.runtime.onInstalled.addListener(() => {
     api.contextMenus.create({
       id: START_SELECTION_MENU_ID,

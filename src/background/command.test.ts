@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BrowserApi } from "../shared/browser";
 import { START_SELECTION_COMMAND } from "../shared/commands";
-import { startKeyboardCommand } from "./command";
+import { startKeyboardCommand, type CommandApi } from "./command";
 
 describe("keyboard command", () => {
   it("starts selection immediately in the active tab", async () => {
@@ -19,7 +18,7 @@ describe("keyboard command", () => {
         query: vi.fn(async () => [{ id: 7 }]),
         sendMessage,
       },
-    } as unknown as BrowserApi;
+    } as unknown as CommandApi;
 
     startKeyboardCommand(api);
     onCommand?.(START_SELECTION_COMMAND);
@@ -46,7 +45,7 @@ describe("keyboard command", () => {
         },
       },
       tabs: { query, sendMessage },
-    } as unknown as BrowserApi;
+    } as unknown as CommandApi;
 
     startKeyboardCommand(api);
     onCommand?.("another-command");

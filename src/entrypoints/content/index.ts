@@ -1,11 +1,6 @@
-import { browserApi } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import {
-  isCancelImagePickerMessage,
-  isOcrTranslateOcrResult,
-  isOcrTranslateStatus,
-  isStartImagePickerMessage,
-  isStartImageTranslationMessage,
-  isStartSelectionMessage,
+  isRuntimeMessage,
   serializeError,
 } from "@/shared/messages";
 import type {
@@ -31,6 +26,8 @@ import {
 } from "@/shared/storage";
 import { createRequestId } from "@/shared/request-id";
 import { sendRequest } from "@/shared/runtime-messaging";
+import { LatestRequestRunner } from "./latest-request";
+import type { ContentControls } from "./content-controls";
 import {
   t,
   translationProviderLabel,
@@ -39,18 +36,10 @@ import {
 } from "@/shared/i18n";
 import {
   closePopup,
+  configureResultPanel,
+  dispose as disposeResultPanel,
   resetForNewCapture,
-  setOcrSourceLanguages,
-  setOnClose,
-  setOnSourceLanguageChange,
-  setOnNewSelection,
-  setOnProviderChange,
-  setOnShowOverlay,
-  setOnTargetLangChange,
-  setOnTranslateRequest,
   setOverlayAvailable,
-  setTargetLanguages,
-  setTranslationProviders,
   setUiRoot,
   showError,
   showLoading,
@@ -59,19 +48,11 @@ import {
 } from "./result-panel";
 import {
   closeOverlay,
+  configureOverlay,
+  dispose as disposeOverlay,
   isOverlayable,
-  setOnOverlayClose,
-  setOnOverlayNewSelection,
-  setOnOverlayProviderChange,
-  setOnOverlayRetranslate,
-  setOnOverlaySourceLanguageChange,
-  setOnOverlayTargetLangChange,
-  setOnShowPanel,
   setOverlayDefaultMode,
-  setOverlayOcrSourceLanguages,
   setOverlaySnapshot,
-  setOverlayTargetLanguages,
-  setOverlayTranslationProviders,
   setOverlayUiRoot,
   showOverlay,
   showOverlayError,
@@ -95,9 +76,6 @@ import {
 } from "./image-picker";
 import "./style.css";
 
-// Request id of the OCR/translate pipeline in flight, so status messages pushed
-// from the background update this popup.
-let activeRequestId: string | null = null;
 // The recognized text used by re-translate and provider-switch requests.
 let pendingText = "";
 // Container inside the shadow root that all extension UI renders into, so the
@@ -121,6 +99,30 @@ let activeImagePickerSessionId: string | undefined;
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
 let displayMode: DisplayMode = "panel";
+
+const contentControls: ContentControls = {
+  targetLanguages: [],
+  ocrSourceLanguages: [],
+  currentOcrSourceLanguageId: "auto",
+  translationProviders: [],
+  selectTargetLanguage: (targetLang) => {
+    void runRetranslate(targetLang);
+  },
+  selectOcrSourceLanguage: (sourceLang) => {
+    contentControls.currentOcrSourceLanguageId = sourceLang;
+    void runRerecognize(sourceLang);
+  },
+  selectTranslationProvider: (providerId) => {
+    contentControls.currentTranslationProviderId = providerId;
+    void runSwitchProvider(providerId);
+  },
+};
+
+const requestRunner = new LatestRequestRunner(createRequestId, (requestId) => {
+  void browser.runtime
+    .sendMessage({ type: "CANCEL_REQUEST", requestId })
+    .catch(() => {});
+});
 
 export default defineContentScript({
   matches: ["<all_urls>"],
@@ -151,6 +153,9 @@ export default defineContentScript({
             setOverlayUiRoot(container);
           },
         }));
+        if (ctx.isInvalid) {
+          return;
+        }
         if (!ui.uiContainer.isConnected) {
           ui.mount();
         }
@@ -160,15 +165,22 @@ export default defineContentScript({
       }
     };
     const withUi = (action: () => void): void => {
-      void ensureUi().then(action).catch((error: unknown) => {
-        console.error(
-          "[Screen OCR Translator] Failed to initialize page UI",
-          error,
-        );
-      });
+      void ensureUi()
+        .then(() => {
+          if (ctx.isValid) {
+            action();
+          }
+        })
+        .catch((error: unknown) => {
+          console.error(
+            "[Screen OCR Translator] Failed to initialize page UI",
+            error,
+          );
+        });
     };
 
-    document.addEventListener(
+    ctx.addEventListener(
+      document,
       "contextmenu",
       (event) => {
         lastContextImage = event
@@ -181,74 +193,45 @@ export default defineContentScript({
       true,
     );
 
-    setOnClose(() => {
-      cancelActiveRequest();
-      clearCaptureSnapshot();
-    });
-
-    setOnNewSelection(() => {
-      startNewSelection();
-    });
-
-    setOnShowOverlay(() => switchToOverlay());
-    setOnShowPanel(() => switchToPanel());
-
-    setOnOverlayNewSelection(() => {
-      startNewSelection();
-    });
-    setOnOverlayClose(() => {
-      cancelActiveRequest();
-      if (activeView === "overlay") {
+    configureResultPanel({
+      controls: contentControls,
+      onClose: () => {
+        cancelActiveRequest();
         clearCaptureSnapshot();
-      }
+      },
+      onNewSelection: startNewSelection,
+      onShowOverlay: switchToOverlay,
+      onTranslateRequest: (text, targetLang) => {
+        pendingText = text;
+        if (targetLang) {
+          contentControls.selectTargetLanguage(targetLang);
+        }
+      },
+    });
+    configureOverlay({
+      controls: contentControls,
+      onClose: () => {
+        cancelActiveRequest();
+        if (activeView === "overlay") {
+          clearCaptureSnapshot();
+        }
+      },
+      onShowPanel: switchToPanel,
+      onNewSelection: startNewSelection,
     });
 
-    setOnTargetLangChange((targetLang) => {
-      void runRetranslate(targetLang);
-    });
-    setOnOverlayTargetLangChange((targetLang) => {
-      void runRetranslate(targetLang);
-    });
-
-    // Picking a source language re-runs OCR with the matching recognizer. The
-    // pick is mirrored to the other view's pill so switching views agrees.
-    setOnSourceLanguageChange((sourceLang) => {
-      setOverlayOcrSourceLanguages(ocrSourceLanguageList, sourceLang);
-      void runRerecognize(sourceLang);
-    });
-    setOnOverlaySourceLanguageChange((sourceLang) => {
-      setOcrSourceLanguages(ocrSourceLanguageList, sourceLang);
-      void runRerecognize(sourceLang);
-    });
-
-    setOnProviderChange((providerId) => {
-      setOverlayTranslationProviders(translationProviderList, providerId);
-      void runSwitchProvider(providerId);
-    });
-    setOnOverlayProviderChange((providerId) => {
-      setTranslationProviders(translationProviderList, providerId);
-      void runSwitchProvider(providerId);
-    });
-    setOnOverlayRetranslate((targetLang) => {
-      void runRetranslate(targetLang);
-    });
-
-    setOnTranslateRequest((text, targetLang) => {
-      pendingText = text;
-      if (targetLang) {
-        void runRetranslate(targetLang);
-      }
-    });
-
-    browserApi.runtime.onMessage.addListener((message) => {
-      if (isStartSelectionMessage(message)) {
+    const handleRuntimeMessage = (message: unknown): undefined => {
+      if (isRuntimeMessage(message, "START_SELECTION")) {
         endActiveImagePickerSession();
         closePopup();
         closeOverlay();
         withUi(() => void runSelectionFlow());
         return undefined;
       }
-      if (isStartImagePickerMessage(message)) {
+      if (
+        isRuntimeMessage(message, "START_IMAGE_PICKER") &&
+        typeof message.sessionId === "string"
+      ) {
         activeImagePickerSessionId = message.sessionId;
         cancelSelectionOverlay();
         closePopup();
@@ -260,11 +243,14 @@ export default defineContentScript({
         });
         return undefined;
       }
-      if (isCancelImagePickerMessage(message)) {
+      if (
+        isRuntimeMessage(message, "CANCEL_IMAGE_PICKER") &&
+        typeof message.sessionId === "string"
+      ) {
         cancelImagePickerSession(message.sessionId);
         return undefined;
       }
-      if (isStartImageTranslationMessage(message)) {
+      if (isRuntimeMessage(message, "START_IMAGE_TRANSLATION")) {
         cancelSelectionOverlay();
         endActiveImagePickerSession();
         closePopup();
@@ -273,8 +259,8 @@ export default defineContentScript({
         return undefined;
       }
       if (
-        isOcrTranslateStatus(message) &&
-        message.requestId === activeRequestId
+        isRuntimeMessage(message, "OCR_TRANSLATE_STATUS") &&
+        message.requestId === requestRunner.activeRequestId
       ) {
         showActiveLoading(message.status);
         // Image URL requests report loading before their pixels are stored.
@@ -285,8 +271,8 @@ export default defineContentScript({
         return undefined;
       }
       if (
-        isOcrTranslateOcrResult(message) &&
-        message.requestId === activeRequestId
+        isRuntimeMessage(message, "OCR_TRANSLATE_OCR_RESULT") &&
+        message.requestId === requestRunner.activeRequestId
       ) {
         pendingText = message.ocr.text;
         showActiveOcrResult(message.ocr);
@@ -296,6 +282,19 @@ export default defineContentScript({
         return undefined;
       }
       return undefined;
+    };
+    browser.runtime.onMessage.addListener(handleRuntimeMessage);
+    ctx.onInvalidated(() => {
+      selectionGeneration += 1;
+      requestRunner.dispose();
+      cancelSelectionOverlay();
+      clearActiveImagePickerSession();
+      releaseSelectionDim();
+      clearCaptureSnapshot();
+      disposeResultPanel();
+      disposeOverlay();
+      uiRoot = undefined;
+      browser.runtime.onMessage.removeListener(handleRuntimeMessage);
     });
   },
 });
@@ -324,14 +323,7 @@ function closeOnNavigation(): void {
 
 // Drops the in-flight request and tells the background to abort it.
 function cancelActiveRequest(): void {
-  const requestId = activeRequestId;
-  activeRequestId = null;
-  if (!requestId) {
-    return;
-  }
-  void browserApi.runtime
-    .sendMessage({ type: "CANCEL_REQUEST", requestId })
-    .catch(() => {});
+  requestRunner.cancel();
 }
 
 async function runSelectionFlow(): Promise<void> {
@@ -494,9 +486,10 @@ async function runCapture(
   activeView = displayMode;
 
   // Clear result-specific state before refreshing the defaults. The refresh
-  // finishes before the pipeline starts, so its setters establish the current
-  // source and provider before any loading UI appears.
+  // finishes before the pipeline starts, so both views read the current source
+  // and provider before any loading UI appears.
   resetForNewCapture();
+  contentControls.currentOcrSourceLanguageId = "auto";
   pendingText = "";
 
   const [, sourceLanguageId] = await Promise.all([
@@ -505,42 +498,29 @@ async function runCapture(
     loadTranslationProviders(),
   ]);
 
-  cancelActiveRequest();
-  const requestId = createRequestId();
-  activeRequestId = requestId;
   // For region captures, keep the loading panel hidden until the background has
   // taken its screenshot so the panel cannot appear in the captured image.
-
-  try {
-    const result = await sendRequest<PipelineResult>({
-      type: "OCR_TRANSLATE_REQUEST",
-      requestId,
-      ...source,
-    });
-
-    // Skip if the user closed the popup (or a newer request took over) while
-    // OCR was running.
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    pendingText = result.ocr.text;
-    presentResult(result, true);
-  } catch (error) {
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    presentError(
-      serializeError(error),
-      "imageUrl" in source
-        ? () => void runImageFlow(source.imageUrl)
-        : () => void runRerecognize(sourceLanguageId ?? "auto"),
-    );
-  } finally {
-    if (activeRequestId === requestId) {
-      activeRequestId = null;
-      releaseSelectionDim();
-    }
-  }
+  await requestRunner.run({
+    request: (requestId) =>
+      sendRequest<PipelineResult>({
+        type: "OCR_TRANSLATE_REQUEST",
+        requestId,
+        ...source,
+      }),
+    onSuccess: (result) => {
+      pendingText = result.ocr.text;
+      presentResult(result, true);
+    },
+    onError: (error) => {
+      presentError(
+        serializeError(error),
+        "imageUrl" in source
+          ? () => void runImageFlow(source.imageUrl)
+          : () => void runRerecognize(sourceLanguageId ?? "auto"),
+      );
+    },
+    onSettled: releaseSelectionDim,
+  });
 }
 
 // Render a settled result in the right view: the overlay when overlay mode is
@@ -738,68 +718,42 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
     return;
   }
 
-  cancelActiveRequest();
-  const requestId = createRequestId();
-  activeRequestId = requestId;
-  showActiveLoading({ stage: "translating" });
-
-  try {
-    const result = await sendRequest<PipelineResult>({
-      type: "RETRANSLATE_REQUEST",
-      requestId,
-      text: pendingText,
-      targetLang,
-    });
-
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    presentResult(result, false);
-  } catch (error) {
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    presentError(serializeError(error), () => void runRetranslate(targetLang));
-  } finally {
-    if (activeRequestId === requestId) {
-      activeRequestId = null;
-    }
-  }
+  const text = pendingText;
+  await requestRunner.run({
+    onStart: () => showActiveLoading({ stage: "translating" }),
+    request: (requestId) =>
+      sendRequest<PipelineResult>({
+        type: "RETRANSLATE_REQUEST",
+        requestId,
+        text,
+        targetLang,
+      }),
+    onSuccess: (result) => presentResult(result, false),
+    onError: (error) => {
+      presentError(serializeError(error), () => void runRetranslate(targetLang));
+    },
+  });
 }
 
 // Re-run OCR on the last captured image for a different source language. The
 // background also saves it as the default for future captures.
 async function runRerecognize(sourceLang: LangCode | "auto"): Promise<void> {
-  cancelActiveRequest();
-  const requestId = createRequestId();
-  activeRequestId = requestId;
-  showActiveLoading();
-
-  try {
-    const result = await sendRequest<PipelineResult>({
-      type: "RERECOGNIZE_REQUEST",
-      requestId,
-      sourceLang,
-    });
-
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    pendingText = result.ocr.text;
-    presentResult(result, false);
-  } catch (error) {
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    presentError(
-      serializeError(error),
-      () => void runRerecognize(sourceLang),
-    );
-  } finally {
-    if (activeRequestId === requestId) {
-      activeRequestId = null;
-    }
-  }
+  await requestRunner.run({
+    onStart: () => showActiveLoading(),
+    request: (requestId) =>
+      sendRequest<PipelineResult>({
+        type: "RERECOGNIZE_REQUEST",
+        requestId,
+        sourceLang,
+      }),
+    onSuccess: (result) => {
+      pendingText = result.ocr.text;
+      presentResult(result, false);
+    },
+    onError: (error) => {
+      presentError(serializeError(error), () => void runRerecognize(sourceLang));
+    },
+  });
 }
 
 // Switch the translation provider (picked in the panel) and re-translate the
@@ -811,45 +765,28 @@ async function runSwitchProvider(providerId: string): Promise<void> {
     return;
   }
 
-  cancelActiveRequest();
-  const requestId = createRequestId();
-  activeRequestId = requestId;
-  showActiveLoading({ stage: "translating" });
-
-  try {
-    const result = await sendRequest<PipelineResult>({
-      type: "SWITCH_PROVIDER_REQUEST",
-      requestId,
-      providerId,
-      text: pendingText,
-    });
-
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    // The new provider may translate into a different set of languages, so
-    // refresh the list the target-language pill offers before rendering. Re-check
-    // afterward in case a new capture superseded this switch during the fetch.
-    await loadTargetLanguages(true);
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    presentResult(result, false);
-  } catch (error) {
-    if (activeRequestId !== requestId) {
-      return;
-    }
-    presentError(serializeError(error));
-  } finally {
-    if (activeRequestId === requestId) {
-      activeRequestId = null;
-    }
-  }
+  const text = pendingText;
+  await requestRunner.run({
+    onStart: () => showActiveLoading({ stage: "translating" }),
+    request: async (requestId) => {
+      const result = await sendRequest<PipelineResult>({
+        type: "SWITCH_PROVIDER_REQUEST",
+        requestId,
+        providerId,
+        text,
+      });
+      if (requestRunner.activeRequestId === requestId) {
+        // The new provider may translate into a different set of languages.
+        await loadTargetLanguages(true);
+      }
+      return result;
+    },
+    onSuccess: (result) => presentResult(result, false),
+    onError: (error) => presentError(serializeError(error)),
+  });
 }
 
-// Fetch the supported OCR source languages and the saved default. The list is
-// kept so a pick in one view can be mirrored to the other's pill.
-let ocrSourceLanguageList: Array<{ id: string; label: string }> = [];
+// Fetch the supported OCR source languages and the saved default.
 async function loadOcrSourceLanguages(): Promise<string | undefined> {
   try {
     const response =
@@ -861,9 +798,8 @@ async function loadOcrSourceLanguages(): Promise<string | undefined> {
         id,
         label: id === "auto" ? t("commonAuto") : languageName(id),
       }));
-      ocrSourceLanguageList = languages;
-      setOcrSourceLanguages(languages, response.currentId);
-      setOverlayOcrSourceLanguages(languages, response.currentId);
+      contentControls.ocrSourceLanguages = languages;
+      contentControls.currentOcrSourceLanguageId = response.currentId;
       return response.currentId;
     }
   } catch {
@@ -873,7 +809,6 @@ async function loadOcrSourceLanguages(): Promise<string | undefined> {
 }
 
 // Fetch the recognizer-independent translation providers and the saved default.
-let translationProviderList: Array<{ id: string; label: string }> = [];
 async function loadTranslationProviders(): Promise<void> {
   try {
     const response =
@@ -885,9 +820,8 @@ async function loadTranslationProviders(): Promise<void> {
         id,
         label: translationProviderLabel(id),
       }));
-      translationProviderList = providers;
-      setTranslationProviders(providers, response.currentId);
-      setOverlayTranslationProviders(providers, response.currentId);
+      contentControls.translationProviders = providers;
+      contentControls.currentTranslationProviderId = response.currentId;
     }
   } catch {
     // Leave the list empty; the picker won't show.
@@ -908,8 +842,7 @@ async function loadTargetLanguages(force = false): Promise<void> {
     });
     if (Array.isArray(languages)) {
       targetLanguagesLoaded = true;
-      setTargetLanguages(languages);
-      setOverlayTargetLanguages(languages);
+      contentControls.targetLanguages = languages;
     }
   } catch {
     // Leave the list empty; the pill falls back to the current target only.

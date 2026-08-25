@@ -1,4 +1,4 @@
-import { browserApi } from "@/shared/browser";
+import { browser } from "wxt/browser";
 import type {
   LangCode,
   PipelineOcrResult,
@@ -10,96 +10,54 @@ import {
   CHECK_ICON,
   CLOSE_ICON,
   COPY_ICON,
-  MENU_ICON,
+  OVERLAY_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
   SPEAK_ICON,
   STOP_SPEAK_ICON,
   WARNING_ICON,
 } from "./icons";
+import { createActionMenu, type ActionMenu } from "./action-menu";
+import { languageName } from "./language-picker";
 import {
-  CHEVRON_ICON,
-  createLanguagePill,
-  languageName,
-} from "./language-picker";
+  createOcrSourceLanguagePicker,
+  createTargetLanguagePicker,
+  createTranslationProviderPicker,
+  type ContentControlPicker,
+} from "./content-control-pickers";
+import {
+  pipelineStatusMessage,
+  pipelineStatusProgress,
+} from "./pipeline-status";
 import { sendRequest } from "@/shared/runtime-messaging";
 import { t } from "@/shared/i18n";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
+import type { ContentControls } from "./content-controls";
 
+export interface ClosePopupOptions {
+  notify?: boolean;
+}
+
+export interface ResultPanelConfig {
+  controls: ContentControls;
+  onClose(): void;
+  onNewSelection(): void;
+  onShowOverlay(): void;
+  onTranslateRequest(text: string, targetLang: LangCode | undefined): void;
+}
 const ORIGINAL_SPEECH_OWNER = "panel-original";
 const TRANSLATION_SPEECH_OWNER = "panel-translation";
-
-const OVERLAY_ICON =
-  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
-  '<rect x="4" y="4" width="16" height="16" rx="2.2" stroke="currentColor" stroke-width="1.9"/>' +
-  '<path d="M7 11.8L10.4 7.7L13 11.8L15 9.2L17.4 11.8Z" fill="currentColor"/>' +
-  '<path d="M7.5 14H16.5M7.5 16.5H16.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
-  "</svg>";
-
-// Extension logo shown in the panel title. Multi-color mark (not a
-// currentColor UI glyph), inlined so it needs no web-accessible resource.
-const LOGO_ICON =
-  '<svg viewBox="0 0 128 128" width="20" height="20" aria-hidden="true" focusable="false">' +
-  '<rect x="0" y="0" width="128" height="128" rx="18" fill="#f5f7fa"/>' +
-  '<path d="M10,38 L10,20 Q10,10 20,10 L38,10" fill="none" stroke="#3e7bd6" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M90,10 L108,10 Q118,10 118,20 L118,38" fill="none" stroke="#3e7bd6" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M38,118 L20,118 Q10,118 10,108 L10,90" fill="none" stroke="#3e7bd6" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<line x1="30" y1="50" x2="100" y2="50" stroke="#3e7bd6" stroke-width="12" stroke-linecap="round"/>' +
-  '<line x1="30" y1="66" x2="70" y2="66" stroke="#3e7bd6" stroke-width="12" stroke-linecap="round"/>' +
-  '<line x1="30" y1="82" x2="54" y2="82" stroke="#3e7bd6" stroke-width="12" stroke-linecap="round"/>' +
-  '<circle cx="86" cy="92" r="22" fill="#f5f7fa" stroke="#E8590C" stroke-width="12"/>' +
-  '<line x1="103" y1="109" x2="118" y2="124" stroke="#E8590C" stroke-width="14" stroke-linecap="round"/>' +
-  "</svg>";
-
-const MENU_ITEMS: ReadonlyArray<{
-  messageKey: string;
-  icon: string;
-  onSelect: () => void;
-}> = [
-  {
-    messageKey: "commonSettings",
-    icon: SETTINGS_ICON,
-    onSelect: () => {
-      void sendRequest({ type: "OPEN_OPTIONS" });
-    },
-  },
-];
 
 let popup: HTMLElement | undefined;
 // Remember the recognized text so progress/translation re-renders keep showing
 // it without re-running OCR.
 let currentOcrText = "";
-// Notifies the caller when the user closes the popup
-let onClose: (() => void) | undefined;
-// Invoked when the user picks "Select new region" from the menu
-let onNewSelection: (() => void) | undefined;
-let onShowOverlay: (() => void) | undefined;
+let config: ResultPanelConfig | undefined;
 let overlayAvailable = false;
 let overlayMenuItemRef: HTMLButtonElement | undefined;
-// Invoked when the user picks a new target language from the language pill.
-let onTargetLangChange: ((targetLang: LangCode) => void) | undefined;
 // Source/target languages of the current result, shown in the language pill.
 let currentSourceLang: LangCode | undefined;
 let currentTargetLang: LangCode | undefined;
-// Languages the active translation provider can translate into (codes).
-let targetLanguages: LangCode[] = [];
-// Source languages supported by the packaged recognizers, and the current
-// selection (updated optimistically when the user picks one from the picker).
-let ocrSourceLanguages: Array<{ id: string; label: string }> = [];
-let currentSourceLanguageId: string | undefined;
-let onSourceLanguageChange:
-  | ((sourceLang: LangCode | "auto") => void)
-  | undefined;
-// Translation providers the user can switch between in the panel, and the current
-// selection (updated optimistically when the user picks one from the picker).
-let translationProviders: Array<{ id: string; label: string }> = [];
-let currentProviderId: string | undefined;
-// Invoked when the user picks a different translation provider from the picker.
-let onProviderChange: ((providerId: string) => void) | undefined;
-// Invoked when the user clicks Translate for the editable recognized text.
-let onTranslateRequest:
-  | ((text: string, targetLang: LangCode | undefined) => void)
-  | undefined;
 // Live reference to the editable recognized-text box, so the Translate button
 // always sends the current text.
 let recognizedBoxRef: HTMLTextAreaElement | undefined;
@@ -108,8 +66,10 @@ let recognizedBoxRef: HTMLTextAreaElement | undefined;
 // re-renders the box from that text — so an edit made mid-translation would be
 // silently discarded. Locking the box prevents that lost edit.
 let recognizedReadOnly = false;
-// Document-level outside-click handlers for open dropdowns, detached on close.
-let outsideClickHandlers: Array<(event: MouseEvent) => void> = [];
+// Document-level listener cleanup, separated by lifetime: the menu belongs to
+// the persistent popup shell, while body controls are replaced on each render.
+let popupDisposers: Array<() => void> = [];
+let mountedControlDisposers: Array<() => void> = [];
 // Shadow-root container the popup is mounted into, set once the content script
 // creates the UI. Keeps page CSS from leaking into the popup.
 let uiRoot: HTMLElement | undefined;
@@ -160,7 +120,7 @@ function clampPanelHeight(height: number): number {
 async function loadPanelSize(): Promise<void> {
   let stored: unknown;
   try {
-    const values = await browserApi.storage.local.get(PANEL_SIZE_KEY);
+    const values = await browser.storage.local.get(PANEL_SIZE_KEY);
     stored = values[PANEL_SIZE_KEY];
   } catch {
     return;
@@ -193,7 +153,7 @@ function savePanelSize(): void {
   if (panelWidth === undefined || panelHeight === undefined) {
     return;
   }
-  void browserApi.storage.local.set({
+  void browser.storage.local.set({
     [PANEL_SIZE_KEY]: { width: panelWidth, height: panelHeight },
   });
 }
@@ -223,18 +183,8 @@ export function setUiRoot(root: HTMLElement): void {
   uiRoot = root;
 }
 
-/** Register a callback invoked when the user closes the popup. */
-export function setOnClose(handler: () => void): void {
-  onClose = handler;
-}
-
-/** Register a callback invoked when the user picks "Select new region". */
-export function setOnNewSelection(handler: () => void): void {
-  onNewSelection = handler;
-}
-
-export function setOnShowOverlay(handler: () => void): void {
-  onShowOverlay = handler;
+export function configureResultPanel(nextConfig: ResultPanelConfig): void {
+  config = nextConfig;
 }
 
 export function setOverlayAvailable(value: boolean): void {
@@ -242,58 +192,6 @@ export function setOverlayAvailable(value: boolean): void {
   if (overlayMenuItemRef) {
     overlayMenuItemRef.hidden = !value;
   }
-}
-
-/** Register a callback invoked when the user picks a new target language. */
-export function setOnTargetLangChange(
-  handler: (targetLang: LangCode) => void,
-): void {
-  onTargetLangChange = handler;
-}
-
-/** Provide the languages the active translation provider supports (codes). */
-export function setTargetLanguages(languages: LangCode[]): void {
-  targetLanguages = languages;
-}
-
-/** Provide the OCR source languages and the currently selected one. */
-export function setOcrSourceLanguages(
-  languages: Array<{ id: string; label: string }>,
-  currentId: string,
-): void {
-  ocrSourceLanguages = languages;
-  currentSourceLanguageId = currentId;
-}
-
-/** Register a callback invoked when the user picks a source language. */
-export function setOnSourceLanguageChange(
-  handler: (sourceLang: LangCode | "auto") => void,
-): void {
-  onSourceLanguageChange = handler;
-}
-
-/** Provide the translation providers and the currently active one for the picker. */
-export function setTranslationProviders(
-  providers: Array<{ id: string; label: string }>,
-  currentId: string,
-): void {
-  translationProviders = providers;
-  currentProviderId = currentId;
-}
-
-/** Register a callback invoked when the user picks a different provider. */
-export function setOnProviderChange(
-  handler: (providerId: string) => void,
-): void {
-  onProviderChange = handler;
-}
-
-/** Register a callback invoked when the user clicks Translate for the editable
- * recognized text. Receives the edited text and the panel's current target. */
-export function setOnTranslateRequest(
-  handler: (text: string, targetLang: LangCode | undefined) => void,
-): void {
-  onTranslateRequest = handler;
 }
 
 // Lock or unlock the recognized box for editing. Applies to the live box (for the
@@ -310,14 +208,9 @@ function setRecognizedReadOnly(readOnly: boolean): void {
  * stale language pill (or re-translate the old text) before its result lands. */
 export function resetForNewCapture(): void {
   currentSourceLang = undefined;
-  currentSourceLanguageId = "auto";
   currentTargetLang = undefined;
   currentOcrText = "";
   recognizedReadOnly = false;
-}
-
-export interface ClosePopupOptions {
-  notify?: boolean;
 }
 
 /** Remove the popup and detach its listeners. No-op if it isn't open. */
@@ -331,10 +224,10 @@ export function closePopup(options: ClosePopupOptions = {}): void {
   if (!popup) {
     return;
   }
-  for (const handler of outsideClickHandlers) {
-    document.removeEventListener("click", handler);
-  }
-  outsideClickHandlers = [];
+  disposeAll(popupDisposers);
+  disposeAll(mountedControlDisposers);
+  popupDisposers = [];
+  mountedControlDisposers = [];
   if (windowResizeHandler) {
     window.removeEventListener("resize", windowResizeHandler);
     windowResizeHandler = undefined;
@@ -345,7 +238,7 @@ export function closePopup(options: ClosePopupOptions = {}): void {
   recognizedBoxRef = undefined;
   overlayMenuItemRef = undefined;
   if (options.notify !== false) {
-    onClose?.();
+    config?.onClose();
   }
 }
 
@@ -360,7 +253,7 @@ export function showLoading(
     // when the result re-renders it. Set before building/swapping so both the
     // in-place box and any rebuilt one come up locked.
     setRecognizedReadOnly(true);
-    renderPopup([createRecognizedSection(), createTranslatingSection()]);
+    renderPopup(() => [createRecognizedSection(), createTranslatingSection()]);
     return;
   }
   // The spinner is a CSS animation on a DOM node; rebuilding that node on every
@@ -371,7 +264,7 @@ export function showLoading(
     return;
   }
   const loading = createLoading(status);
-  renderPopup([loading.element]);
+  renderPopup(() => [loading.element]);
   updateLoadingRef = loading.update;
 }
 
@@ -379,39 +272,12 @@ export function showRecognizedTextWhileTranslating(
   ocr: PipelineOcrResult,
 ): void {
   currentOcrText = ocr.text;
+  const sourceLanguageId = config?.controls.currentOcrSourceLanguageId;
   currentSourceLang =
     ocr.lang ??
-    (currentSourceLanguageId !== "auto" ? currentSourceLanguageId : undefined);
+    (sourceLanguageId !== "auto" ? sourceLanguageId : undefined);
   setRecognizedReadOnly(true);
-  renderPopup([createRecognizedSection(), createTranslatingSection()]);
-}
-
-function statusMessage(status: PipelineStatus): string {
-  switch (status.stage) {
-    case "loading":
-      return t("statusLoadingImage");
-    case "initializing":
-      return t("statusInitializingOcr");
-    case "recognizing":
-      return status.lineCount && status.lineCount > 0
-        ? t("statusRecognizingText")
-        : t("statusAnalyzingImage");
-    case "translating":
-      return t("statusTranslating");
-  }
-}
-
-// Fraction of recognized lines, or undefined while the stage has no line counts
-// to report and the progress bar should stay hidden.
-function statusProgress(status: PipelineStatus): number | undefined {
-  if (status.stage !== "recognizing") {
-    return undefined;
-  }
-  const { line, lineCount } = status;
-  if (line === undefined || !lineCount || lineCount <= 0) {
-    return undefined;
-  }
-  return Math.min(Math.max(line / lineCount, 0), 1);
+  renderPopup(() => [createRecognizedSection(), createTranslatingSection()]);
 }
 
 // A centered loading state: a spinner with the current stage below it, plus a
@@ -437,8 +303,8 @@ function createLoading(status: PipelineStatus): {
   progress.append(fill);
 
   const update = (next: PipelineStatus): void => {
-    label.textContent = statusMessage(next);
-    const fraction = statusProgress(next);
+    label.textContent = pipelineStatusMessage(next);
+    const fraction = pipelineStatusProgress(next);
     progress.hidden = fraction === undefined;
     fill.style.transform = `scaleX(${fraction ?? 0})`;
   };
@@ -457,26 +323,28 @@ export function showResult(result: PipelineResult): void {
     result.translation?.sourceLang ?? result.ocr.lang ?? status.sourceLang;
   currentTargetLang = result.translation?.targetLang ?? status.targetLang;
 
-  const content: Node[] = [createRecognizedSection()];
+  renderPopup(() => {
+    const content: Node[] = [createRecognizedSection()];
 
-  if (result.translation) {
-    content.push(createTranslationTextSection(result.translation.text));
-  } else if (status.state === "same_language") {
-    const language = status.sourceLang ? languageName(status.sourceLang) : "";
-    content.push(
-      createTranslationNotice(
-        language
-          ? t("panelAlreadyInLanguage", language)
-          : t("panelAlreadyInTargetLanguage"),
-      ),
-    );
-  } else if (status.state === "failed") {
-    content.push(
-      createTranslationError(status.reason ?? t("commonTranslationFailed")),
-    );
-  }
+    if (result.translation) {
+      content.push(createTranslationTextSection(result.translation.text));
+    } else if (status.state === "same_language") {
+      const language = status.sourceLang ? languageName(status.sourceLang) : "";
+      content.push(
+        createTranslationNotice(
+          language
+            ? t("panelAlreadyInLanguage", language)
+            : t("panelAlreadyInTargetLanguage"),
+        ),
+      );
+    } else if (status.state === "failed") {
+      content.push(
+        createTranslationError(status.reason ?? t("commonTranslationFailed")),
+      );
+    }
 
-  renderPopup(content);
+    return content;
+  });
 }
 
 export function showError(
@@ -484,7 +352,7 @@ export function showError(
   onRetry?: () => void,
 ): void {
   setRecognizedReadOnly(false);
-  renderPopup(
+  renderPopup(() =>
     currentOcrText
       ? [
           createRecognizedSection(),
@@ -498,12 +366,14 @@ export function showError(
 }
 
 // Reuse the popup shell across updates and only swap the body content.
-function renderPopup(content: Node[]): void {
+function renderPopup(createContent: () => Node[]): void {
   // Any full re-render replaces the loading element, so its in-place patcher
   // is no longer valid.
   updateLoadingRef = undefined;
   const body = ensurePopup();
-  body.replaceChildren(...content);
+  disposeAll(mountedControlDisposers);
+  mountedControlDisposers = [];
+  body.replaceChildren(...createContent());
 }
 
 function ensurePopup(): HTMLElement {
@@ -529,11 +399,11 @@ function ensurePopup(): HTMLElement {
   selectButton.innerHTML = SELECT_REGION_ICON;
   selectButton.addEventListener("click", () => {
     closePopup();
-    onNewSelection?.();
+    config?.onNewSelection();
   });
 
   const menu = createMenu();
-  outsideClickHandlers.push(menu.handleOutsideClick);
+  popupDisposers.push(menu.dispose);
 
   const closeButton = document.createElement("button");
   closeButton.type = "button";
@@ -558,7 +428,12 @@ function ensurePopup(): HTMLElement {
   title.className = "ocr-translate-popup-title";
   const titleIcon = document.createElement("span");
   titleIcon.className = "ocr-translate-popup-title-icon";
-  titleIcon.innerHTML = LOGO_ICON;
+  const logo = document.createElement("img");
+  const getExtensionUrl = browser.runtime.getURL as (path: string) => string;
+  logo.src = getExtensionUrl("icon/ocr_icon_big.svg");
+  logo.alt = "";
+  logo.setAttribute("aria-hidden", "true");
+  titleIcon.append(logo);
   const titleText = document.createElement("span");
   titleText.textContent = t("extensionName");
   title.append(titleIcon, titleText);
@@ -647,90 +522,35 @@ function createResizeHandle(container: HTMLElement): HTMLElement {
   return handle;
 }
 
-function createMenu(): {
-  element: HTMLElement;
-  handleOutsideClick: (event: MouseEvent) => void;
-} {
-  const wrapper = document.createElement("div");
-  wrapper.className = "ocr-translate-popup-menu";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "ocr-translate-popup-icon-button";
-  button.setAttribute("aria-label", t("commonMenu"));
-  button.setAttribute("aria-haspopup", "true");
-  button.setAttribute("aria-expanded", "false");
-  button.title = t("commonMenu");
-  button.innerHTML = MENU_ICON;
-
-  const list = document.createElement("div");
-  list.className = "ocr-translate-popup-menu-list";
-  list.setAttribute("role", "menu");
-  list.hidden = true;
-
-  function closeMenu(): void {
-    list.hidden = true;
-    button.setAttribute("aria-expanded", "false");
-  }
-
-  function addItem(item: (typeof MENU_ITEMS)[number]): HTMLButtonElement {
-    const entry = document.createElement("button");
-    entry.type = "button";
-    entry.className = "ocr-translate-popup-menu-item";
-    entry.setAttribute("role", "menuitem");
-
-    const icon = document.createElement("span");
-    icon.className = "ocr-translate-popup-menu-icon";
-    icon.innerHTML = item.icon;
-
-    const label = document.createElement("span");
-    label.textContent = t(item.messageKey);
-
-    entry.append(icon, label);
-    entry.addEventListener("click", () => {
-      closeMenu();
-      item.onSelect();
-    });
-    list.append(entry);
-    return entry;
-  }
-
-  overlayMenuItemRef = addItem({
-    messageKey: "panelShowInOverlay",
-    icon: OVERLAY_ICON,
-    onSelect: () => onShowOverlay?.(),
+function createMenu(): ActionMenu {
+  const menu = createActionMenu({
+    items: [
+      {
+        icon: OVERLAY_ICON,
+        label: t("panelShowInOverlay"),
+        onSelect: () => config?.onShowOverlay(),
+      },
+      {
+        icon: SETTINGS_ICON,
+        label: t("commonSettings"),
+        onSelect: () => {
+          void sendRequest({ type: "OPEN_OPTIONS" });
+        },
+      },
+    ],
   });
+  overlayMenuItemRef = menu.itemElements[0];
   overlayMenuItemRef.hidden = !overlayAvailable;
-
-  for (const item of MENU_ITEMS) {
-    addItem(item);
-  }
-
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-  });
-
-  // Dismiss the menu on any click outside the wrapper. composedPath() reaches
-  // through the shadow boundary, so clicks inside our UI report real targets.
-  function handleOutsideClick(event: MouseEvent): void {
-    if (!list.hidden && !event.composedPath().includes(wrapper)) {
-      closeMenu();
-    }
-  }
-  document.addEventListener("click", handleOutsideClick);
-
-  wrapper.append(button, list);
-  return { element: wrapper, handleOutsideClick };
+  return menu;
 }
 
 // A static badge showing the recognized text's source language, e.g. "Japanese".
 // Sits next to the "Source text" heading. Shows "Unknown" when detection
 // could not resolve the language.
 function createSourceBadge(source: LangCode | undefined): HTMLElement {
-  const selected = ocrSourceLanguages.find(
-    (language) => language.id === currentSourceLanguageId,
+  const controls = config?.controls;
+  const selected = controls?.ocrSourceLanguages.find(
+    (language) => language.id === controls.currentOcrSourceLanguageId,
   );
   const label = source
     ? source === selected?.id
@@ -750,7 +570,11 @@ function createSourceBadge(source: LangCode | undefined): HTMLElement {
 // picker plus the detected-language badge.
 function createRecognizedExtras(): HTMLElement {
   const badge = createSourceBadge(currentSourceLang);
-  const picker = createSourceLanguagePill();
+  const picker = mountControlPicker(
+    config
+      ? createOcrSourceLanguagePicker(config.controls)
+      : undefined,
+  );
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-recognized-extras";
   if (picker) {
@@ -760,164 +584,30 @@ function createRecognizedExtras(): HTMLElement {
   return wrapper;
 }
 
-// A no-search dropdown pill for switching between a small set of options.
-// Picking one fires onSelect with its id. Reuses the language-pill styling.
-function createOptionPill(config: {
-  options: ReadonlyArray<{ id: string; label: string }>;
-  currentId: string | undefined;
-  buttonLabel?: (current: { id: string; label: string }) => string;
-  title: (current: { id: string; label: string }) => string;
-  onSelect: (id: string) => void;
-}): HTMLElement | undefined {
-  if (config.options.length < 2) {
-    return undefined;
-  }
-  const current =
-    config.options.find((option) => option.id === config.currentId) ??
-    config.options[0];
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "ocr-translate-popup-langpill";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "ocr-translate-popup-langpill-button";
-  button.setAttribute("aria-haspopup", "listbox");
-  button.setAttribute("aria-expanded", "false");
-  button.title = config.title(current);
-
-  const label = document.createElement("span");
-  label.textContent = config.buttonLabel?.(current) ?? current.label;
-  const chevron = document.createElement("span");
-  chevron.className = "ocr-translate-popup-langpill-chevron";
-  chevron.innerHTML = CHEVRON_ICON;
-  button.append(label, chevron);
-
-  const list = document.createElement("div");
-  list.className = "ocr-translate-popup-langpill-list";
-  list.setAttribute("role", "listbox");
-  list.hidden = true;
-
-  function closeList(): void {
-    list.hidden = true;
-    button.setAttribute("aria-expanded", "false");
-  }
-
-  const itemsBox = document.createElement("div");
-  itemsBox.className = "ocr-translate-popup-langpill-items";
-  list.append(itemsBox);
-
-  for (const option of config.options) {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "ocr-translate-popup-langpill-item";
-    item.setAttribute("role", "option");
-    item.textContent = option.label;
-    if (option.id === current.id) {
-      item.setAttribute("aria-selected", "true");
-      item.classList.add("is-selected");
-    }
-    item.addEventListener("click", () => {
-      closeList();
-      if (option.id !== current.id) {
-        config.onSelect(option.id);
-      }
-    });
-    itemsBox.append(item);
-  }
-
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-  });
-
-  function handleOutsideClick(event: MouseEvent): void {
-    if (!list.hidden && !event.composedPath().includes(wrapper)) {
-      closeList();
-    }
-  }
-  document.addEventListener("click", handleOutsideClick);
-  outsideClickHandlers.push(handleOutsideClick);
-
-  wrapper.append(button, list);
-  return wrapper;
-}
-
-// The source-language picker shown next to "Source text". Picking one re-runs
-// OCR on the same region with the matching recognizer.
-function createSourceLanguagePill(): HTMLElement | undefined {
-  if (ocrSourceLanguages.length < 2) {
-    return undefined;
-  }
-  const pill = createLanguagePill({
-    target: currentSourceLanguageId ?? "auto",
-    languages: ocrSourceLanguages
-      .map(({ id }) => id)
-      .filter((id) => id !== "auto"),
-    specialEntries: [
-      {
-        code: "auto",
-        name:
-          ocrSourceLanguages.find(({ id }) => id === "auto")?.label ??
-          t("commonAuto"),
-      },
-    ],
-    title: (name) => t("panelSourceLanguage", name),
-    onChange: (sourceLang) => {
-      currentSourceLanguageId = sourceLang;
-      onSourceLanguageChange?.(sourceLang);
-    },
-  });
-  outsideClickHandlers.push(pill.handleOutsideClick);
-  return pill.element;
-}
-
-// The translation-provider picker shown next to "Translation". Picking one
-// re-translates the current text via onProviderChange.
-function createProviderPill(): HTMLElement | undefined {
-  return createOptionPill({
-    options: translationProviders,
-    currentId: currentProviderId,
-    title: (current) => t("panelTranslationProvider", current.label),
-    onSelect: (id) => {
-      currentProviderId = id;
-      onProviderChange?.(id);
-    },
-  });
-}
-
-// The interactive target-language pill shown next to the "Translation" heading.
-// Returns undefined until a result sets the target language.
-function createTargetPill(): HTMLElement | undefined {
-  if (!currentTargetLang) {
-    return undefined;
-  }
-  const pill = createLanguagePill({
-    target: currentTargetLang,
-    languages: targetLanguages,
-    onChange: (targetLang) => {
-      if (targetLang !== currentTargetLang) {
-        currentTargetLang = targetLang;
-        onTargetLangChange?.(targetLang);
-      }
-    },
-  });
-  outsideClickHandlers.push(pill.handleOutsideClick);
-  return pill.element;
-}
-
 // The extras shown next to the "Translation" heading: the provider picker plus
 // the target-language pill, with the Translate button grouped right after them.
 // Mirrors createRecognizedExtras on the source side.
 function createTranslationExtras(): HTMLElement {
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-translation-extras";
-  const provider = createProviderPill();
+  const controls = config?.controls;
+  const provider = mountControlPicker(
+    controls ? createTranslationProviderPicker(controls) : undefined,
+  );
   if (provider) {
     wrapper.append(provider);
   }
-  const target = createTargetPill();
+  const target = mountControlPicker(
+    controls
+      ? createTargetLanguagePicker({
+          controls,
+          target: currentTargetLang,
+          onSelect: (targetLang) => {
+            currentTargetLang = targetLang;
+          },
+        })
+      : undefined,
+  );
   if (target) {
     wrapper.append(target);
   }
@@ -1048,7 +738,7 @@ function createTranslateButton(): HTMLButtonElement {
   button.addEventListener("click", () => {
     const text = recognizedBoxRef?.value ?? currentOcrText;
     currentOcrText = text;
-    onTranslateRequest?.(text, currentTargetLang);
+    config?.onTranslateRequest(text, currentTargetLang);
   });
   return button;
 }
@@ -1125,7 +815,8 @@ function createTranslationError(
 
   const target = currentTargetLang;
   const retryAction =
-    onRetry ?? (target ? () => onTargetLangChange?.(target) : undefined);
+    onRetry ??
+    (target ? () => config?.controls.selectTargetLanguage(target) : undefined);
   const retry = createRetryButton(retryAction);
 
   section.append(createTranslationHeader(), createErrorMessage(message), retry);
@@ -1223,4 +914,26 @@ function setSpeakButtonState(
   button.classList.toggle("is-speaking", active);
   button.setAttribute("aria-label", accessibleLabel);
   button.title = accessibleLabel;
+}
+
+function disposeAll(disposers: Array<() => void>): void {
+  for (const disposeControl of disposers) {
+    disposeControl();
+  }
+}
+
+function mountControlPicker(
+  picker: ContentControlPicker | undefined,
+): HTMLElement | undefined {
+  if (!picker) {
+    return undefined;
+  }
+  mountedControlDisposers.push(picker.dispose);
+  return picker.element;
+}
+
+export function dispose(): void {
+  closePopup({ notify: false });
+  uiRoot = undefined;
+  config = undefined;
 }

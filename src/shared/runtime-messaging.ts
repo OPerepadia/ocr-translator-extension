@@ -1,4 +1,4 @@
-import { browserApi } from "./browser";
+import { browser } from "wxt/browser";
 import {
   deserializeError,
   serializeError,
@@ -22,7 +22,7 @@ export type RequestHandler = (
 /** Always answers, even with nothing to return, so no sender is left waiting
  * on a channel that closes empty. */
 export function onRequest(handler: RequestHandler): void {
-  browserApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     void Promise.resolve()
       .then(() => handler(message, sender))
       .then(
@@ -37,7 +37,8 @@ export function onRequest(handler: RequestHandler): void {
 export async function sendRequest<TResponse = unknown>(
   message: RuntimeMessage,
 ): Promise<TResponse> {
-  const envelope = await browserApi.runtime.sendMessage<
+  const envelope = await browser.runtime.sendMessage<
+    RuntimeMessage,
     ResponseEnvelope | undefined
   >(message);
 
