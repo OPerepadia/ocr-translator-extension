@@ -4,7 +4,7 @@ export type ContextMenuApi = {
   runtime: {
     onInstalled: Pick<typeof browser.runtime.onInstalled, "addListener">;
   };
-  contextMenus: {
+  contextMenus?: {
     create: typeof browser.contextMenus.create;
     onClicked: Pick<typeof browser.contextMenus.onClicked, "addListener">;
   };
@@ -20,14 +20,19 @@ export const TRANSLATE_IMAGE_MENU_ID = "translate-image";
 const CONTENT_SCRIPT_PATTERNS = ["http://*/*", "https://*/*", "file:///*"];
 
 export function startContextMenu(api: ContextMenuApi = browser): void {
+  const contextMenus = api.contextMenus;
+  if (!contextMenus) {
+    return;
+  }
+
   api.runtime.onInstalled.addListener(() => {
-    api.contextMenus.create({
+    contextMenus.create({
       id: START_SELECTION_MENU_ID,
       title: api.i18n.getMessage("contextTranslateScreenRegion"),
       contexts: ["page"],
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
-    api.contextMenus.create({
+    contextMenus.create({
       id: TRANSLATE_IMAGE_MENU_ID,
       title: api.i18n.getMessage("contextTranslateImage"),
       contexts: ["image"],
@@ -35,7 +40,7 @@ export function startContextMenu(api: ContextMenuApi = browser): void {
     });
   });
 
-  api.contextMenus.onClicked.addListener((info, tab) => {
+  contextMenus.onClicked.addListener((info, tab) => {
     if (typeof tab?.id !== "number") {
       return;
     }

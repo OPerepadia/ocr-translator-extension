@@ -3,6 +3,17 @@ import { START_SELECTION_COMMAND } from "../shared/commands";
 import { startKeyboardCommand, type CommandApi } from "./command";
 
 describe("keyboard command", () => {
+  it("skips registration when commands are unavailable on Firefox Android", () => {
+    const api: CommandApi = {
+      tabs: {
+        query: vi.fn(),
+        sendMessage: vi.fn(),
+      },
+    };
+
+    expect(() => startKeyboardCommand(api)).not.toThrow();
+  });
+
   it("starts selection immediately in the active tab", async () => {
     let onCommand: ((command: string) => void) | undefined;
     const sendMessage = vi.fn(async () => undefined);

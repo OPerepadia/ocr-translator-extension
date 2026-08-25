@@ -2,14 +2,14 @@ import { browser } from "wxt/browser";
 import { START_SELECTION_COMMAND } from "../shared/commands";
 
 export type CommandApi = {
-  commands: {
-    onCommand: Pick<typeof browser.commands.onCommand, "addListener">;
+  commands?: {
+    onCommand?: Pick<typeof browser.commands.onCommand, "addListener">;
   };
   tabs: Pick<typeof browser.tabs, "query" | "sendMessage">;
 };
 
 export function startKeyboardCommand(api: CommandApi = browser): void {
-  api.commands.onCommand.addListener((command) => {
+  api.commands?.onCommand?.addListener((command) => {
     if (command !== START_SELECTION_COMMAND) {
       return;
     }

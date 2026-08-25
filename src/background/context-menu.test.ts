@@ -13,6 +13,13 @@ type MenuClickListener = (
 ) => void;
 
 describe("OCR context menu", () => {
+  it("skips registration when context menus are unavailable on Firefox Android", () => {
+    const api = createContextMenuApi({});
+    delete api.contextMenus;
+
+    expect(() => startContextMenu(api)).not.toThrow();
+  });
+
   it("creates a menu item when the extension is installed", () => {
     let onInstalled: (() => void) | undefined;
     const create = vi.fn(() => START_SELECTION_MENU_ID);
