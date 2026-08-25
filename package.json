@@ -2,7 +2,7 @@
   "name": "screen-ocr-translator",
   "version": "0.11.0",
   "private": true,
-  "license": "MIT",
+  "license": "MPL-2.0",
   "type": "module",
   "scripts": {
     "postinstall": "wxt prepare",
