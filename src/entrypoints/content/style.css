@@ -343,6 +343,13 @@
 .ocr-translate-selection-handle.is-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
 .ocr-translate-selection-handle.is-w { top: calc(50% - 6px); left: -7px; cursor: ew-resize; }
 
+.ocr-translate-region-outline {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+}
+
 .ocr-translate-selection-controls {
   position: fixed;
   z-index: 3;

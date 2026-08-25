@@ -63,6 +63,7 @@ import {
   releaseSelectionDim,
   startSelectionOverlay,
 } from "./selection-overlay";
+import { closeRegionOutline, showRegionOutline } from "./region-outline";
 import {
   setNavigationContext,
   startNavigationWatch,
@@ -197,6 +198,8 @@ export default defineContentScript({
       controls: contentControls,
       onClose: () => {
         cancelActiveRequest();
+        releaseSelectionDim();
+        closeRegionOutline();
         clearCaptureSnapshot();
       },
       onNewSelection: startNewSelection,
@@ -266,6 +269,7 @@ export default defineContentScript({
         // Image URL requests report loading before their pixels are stored.
         if (message.status.stage !== "loading") {
           releaseSelectionDim();
+          syncPanelRegionOutline();
           requestCaptureSnapshot();
         }
         return undefined;
@@ -290,6 +294,7 @@ export default defineContentScript({
       cancelSelectionOverlay();
       clearActiveImagePickerSession();
       releaseSelectionDim();
+      closeRegionOutline();
       clearCaptureSnapshot();
       disposeResultPanel();
       disposeOverlay();
@@ -313,6 +318,7 @@ function closeOnNavigation(): void {
     endActiveImagePickerSession,
   );
   releaseSelectionDim();
+  closeRegionOutline();
   closePopup({ notify: false });
   closeOverlay();
   clearCaptureSnapshot();
@@ -332,6 +338,7 @@ async function runSelectionFlow(): Promise<void> {
   }
   const generation = ++selectionGeneration;
   cancelSelectionOverlay();
+  closeRegionOutline();
   startNavigationWatch(closeOnNavigation);
   // Preload the OCR worker and model while the user is selecting a region,
   // so recognition can start as soon as the screenshot is ready.
@@ -391,6 +398,7 @@ async function runImagePickerFlow(sessionId: string): Promise<void> {
     return;
   }
   releaseSelectionDim();
+  closeRegionOutline();
   startNavigationWatch(closeOnNavigation);
   if (window === window.top) {
     void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
@@ -473,6 +481,7 @@ async function runCapture(
   source: OcrImageSource,
   imageRect?: Rect,
 ): Promise<void> {
+  closeRegionOutline();
   const viewportRect = imageRect ?? ("rect" in source ? source.rect : undefined);
   lastRect = viewportRect ? toPageRect(viewportRect) : undefined;
   lastResult = undefined;
@@ -519,7 +528,10 @@ async function runCapture(
           : () => void runRerecognize(sourceLanguageId ?? "auto"),
       );
     },
-    onSettled: releaseSelectionDim,
+    onSettled: () => {
+      releaseSelectionDim();
+      syncPanelRegionOutline();
+    },
   });
 }
 
@@ -576,6 +588,7 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
   activeView = "panel";
   closeOverlay();
   showResult(enriched);
+  syncPanelRegionOutline();
 }
 
 function presentError(
@@ -596,6 +609,7 @@ function presentError(
   activeView = "panel";
   closeOverlay();
   showError(error, retry);
+  syncPanelRegionOutline();
 }
 
 function showActiveLoading(status?: PipelineStatus): void {
@@ -682,6 +696,8 @@ function switchToOverlay(): void {
     return;
   }
   activeView = "overlay";
+  releaseSelectionDim();
+  closeRegionOutline();
   void setDisplayMode(activeView).catch(() => {});
   closePopup({ notify: false });
   showResultOverlay(lastResult, lastRect);
@@ -711,6 +727,15 @@ function switchToPanel(): void {
   closeOverlay();
   setOverlayAvailable(isOverlayable(lastResult) && Boolean(lastRect));
   showResult(lastResult);
+  syncPanelRegionOutline();
+}
+
+function syncPanelRegionOutline(): void {
+  if (activeView === "panel" && uiRoot && lastRect) {
+    showRegionOutline(uiRoot, lastRect);
+  } else {
+    closeRegionOutline();
+  }
 }
 
 async function runRetranslate(targetLang: LangCode): Promise<void> {
