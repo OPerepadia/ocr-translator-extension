@@ -60,6 +60,7 @@ export type RuntimeMessage =
   // can't call runtime.openOptionsPage themselves, so the background does it.
   | {
       type: "OPEN_OPTIONS";
+      section?: "translation";
     }
   // Content -> background: the pixels of this frame's last capture, so the
   // overlay can paint the region it was recognized from instead of leaving its

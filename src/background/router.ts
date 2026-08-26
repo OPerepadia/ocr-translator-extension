@@ -103,7 +103,11 @@ export function startRouter(dependencies: RouterDependencies): void {
       return withKeepAlive(() => handlePreloadOcrRequest(dependencies));
     }
     if (isRuntimeMessage(message, "OPEN_OPTIONS")) {
-      void browser.runtime.openOptionsPage();
+      if (message.section) {
+        return openOptionsSection(message.section);
+      } else {
+        void browser.runtime.openOptionsPage();
+      }
       return undefined;
     }
     if (isRuntimeMessage(message, "GET_TARGET_LANGUAGES")) {
@@ -164,6 +168,26 @@ export function startRouter(dependencies: RouterDependencies): void {
     }
     return undefined;
   });
+}
+
+async function openOptionsSection(section: "translation"): Promise<void> {
+  const optionsUrl = browser.runtime.getURL("/options.html");
+  const targetUrl = `${optionsUrl}#${section}`;
+  const contexts = await browser.runtime.getContexts({ contextTypes: ["TAB"] });
+  const existing = contexts.find(
+    (context) => context.documentUrl?.split("#", 1)[0] === optionsUrl,
+  );
+
+  if (existing) {
+    await browser.tabs.update(existing.tabId, {
+      active: true,
+      url: targetUrl,
+    });
+    await browser.windows.update(existing.windowId, { focused: true });
+    return;
+  }
+
+  await browser.tabs.create({ url: targetUrl });
 }
 
 async function handleSpeakRequest(

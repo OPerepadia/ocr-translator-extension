@@ -579,7 +579,7 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
           ? () => void runRetranslate(targetLang)
           : undefined,
       onOpenSettings: () => {
-        void sendRequest({ type: "OPEN_OPTIONS" });
+        void sendRequest({ type: "OPEN_OPTIONS", section: "translation" });
       },
     });
     return;

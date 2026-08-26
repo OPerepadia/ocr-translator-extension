@@ -333,7 +333,7 @@ function render(): void {
   if (currentTranslationError) {
     statusChip = createErrorChip({
       ...currentTranslationError,
-      onOpenSettings: openSettings,
+      onOpenSettings: openTranslationSettings,
       onDismiss: dismissTranslationError,
     });
     statusChip.classList.add("is-result-error");
@@ -632,6 +632,10 @@ function createMenu(): ActionMenu {
 
 function openSettings(): void {
   void sendRequest({ type: "OPEN_OPTIONS" });
+}
+
+function openTranslationSettings(): void {
+  void sendRequest({ type: "OPEN_OPTIONS", section: "translation" });
 }
 
 function dismissTranslationError(): void {

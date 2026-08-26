@@ -53,6 +53,54 @@ describe("background router", () => {
     captureStore = createCaptureStore({ factory: new IDBFactory() });
   });
 
+  it("navigates an open options tab to the requested section", async () => {
+    let listener: MessageListener | undefined;
+    const updateTab = vi.fn(async () => ({}));
+    const updateWindow = vi.fn(async () => ({}));
+    const createTab = vi.fn(async () => ({}));
+    const openOptionsPage = vi.fn(async () => {});
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getURL: vi.fn(
+          (path: string) =>
+            `moz-extension://example/${path.replace(/^\//, "")}`,
+        ),
+        getContexts: vi.fn(async () => [
+          {
+            contextType: "TAB",
+            documentUrl: "moz-extension://example/options.html#ocr",
+            tabId: 7,
+            windowId: 3,
+          },
+        ]),
+        openOptionsPage,
+      },
+      tabs: { create: createTab, update: updateTab },
+      windows: { update: updateWindow },
+    });
+
+    startRouter({} as RouterDependencies);
+
+    await invoke(
+      listener,
+      { type: "OPEN_OPTIONS", section: "translation" },
+      {},
+    );
+
+    expect(openOptionsPage).not.toHaveBeenCalled();
+    expect(createTab).not.toHaveBeenCalled();
+    expect(updateTab).toHaveBeenCalledWith(7, {
+      active: true,
+      url: "moz-extension://example/options.html#translation",
+    });
+    expect(updateWindow).toHaveBeenCalledWith(3, { focused: true });
+  });
+
   it("routes speech requests to the TTS service", async () => {
     let listener: MessageListener | undefined;
     const getPlatformInfo = vi.fn(async () => ({}));
