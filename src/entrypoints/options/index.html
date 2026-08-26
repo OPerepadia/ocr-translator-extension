@@ -3,237 +3,314 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="manifest.open_in_tab" content="true" />
     <title data-i18n="optionsPageTitle"></title>
   </head>
   <body>
     <main id="app">
-      <form class="options-form">
-        <section class="settings-section">
-          <h2
-            class="section-title"
-            data-i18n="optionsTranslationSectionTitle"
-          ></h2>
-          <div class="field-row">
-            <label class="field">
-              <span data-i18n="optionsTargetLanguage"></span>
-              <select name="targetLang"></select>
-            </label>
-            <label class="field">
-              <span data-i18n="optionsTranslationProvider"></span>
-              <select name="translationProvider"></select>
-              <span
-                class="field-hint google-provider-note"
-                data-i18n="optionsGoogleProviderHint"
-                hidden
-              ></span>
-            </label>
-          </div>
+      <header class="page-header">
+        <img
+          class="page-icon"
+          src="/icon/ocr_icon_big.svg"
+          alt=""
+          aria-hidden="true"
+        />
+        <h1 class="page-title" data-i18n="optionsPageTitle"></h1>
+      </header>
 
-          <fieldset class="llm-settings" hidden>
-            <legend class="llm-card-title">
-              <svg
-                class="icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
-                <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
-                <line x1="6" x2="6.01" y1="6" y2="6" />
-                <line x1="6" x2="6.01" y1="18" y2="18" />
-              </svg>
-              <span data-i18n="optionsLlmEndpoint"></span>
-            </legend>
-            <p
-              class="llm-card-subtitle"
-              data-i18n="optionsLlmEndpointHint"
-            ></p>
-            <label class="field">
-              <span data-i18n="optionsEndpointUrl"></span>
-              <input
-                name="llmBaseUrl"
-                type="text"
-                class="llm-url-input"
-                placeholder="http://localhost:8080/v1"
-                spellcheck="false"
-              />
-              <span class="llm-url-error" aria-live="polite" hidden></span>
-            </label>
-            <div class="field llm-api-key-field">
-              <label for="llm-api-key" data-i18n="optionsApiKey"></label>
-              <span class="llm-api-key-row">
-                <input
-                  id="llm-api-key"
-                  name="llmApiKey"
-                  type="password"
-                  autocomplete="new-password"
-                  data-i18n-placeholder="optionsOptional"
-                />
-                <button
-                  type="button"
-                  class="llm-api-key-toggle"
-                  data-i18n-aria-label="optionsShowApiKey"
-                  aria-pressed="false"
-                >
-                  <svg
-                    class="icon icon-eye"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
-                    />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <svg
-                    class="icon icon-eye-off"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-                    <path
-                      d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"
-                    />
-                    <path
-                      d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"
-                    />
-                    <line x1="2" x2="22" y1="2" y2="22" />
-                  </svg>
-                </button>
-              </span>
-            </div>
-            <div class="llm-model-row">
-              <label class="field">
-                <span data-i18n="optionsModel"></span>
-                <select name="llmModel"></select>
+      <div class="options-layout">
+        <nav class="options-nav">
+          <ul>
+            <li>
+              <a href="#ocr" data-i18n="optionsOcrSectionTitle"></a>
+            </li>
+            <li>
+              <a
+                href="#translation"
+                data-i18n="optionsTranslationSectionTitle"
+              ></a>
+            </li>
+            <li>
+              <a
+                href="#display-options"
+                data-i18n="optionsDisplaySectionTitle"
+              ></a>
+            </li>
+            <li>
+              <a href="#about" data-i18n="optionsAboutSectionTitle"></a>
+            </li>
+          </ul>
+        </nav>
+
+        <div class="options-card">
+          <form class="options-form">
+            <section id="ocr" class="settings-section">
+              <h2 class="section-title" data-i18n="optionsOcrSectionTitle"></h2>
+              <label class="field settings-select-field">
+                <span data-i18n="optionsDefaultSourceLanguage"></span>
+                <select name="sourceLang"></select>
+                <span
+                  class="field-hint"
+                  data-i18n="optionsDefaultSourceLanguageHint"
+                ></span>
               </label>
-              <button type="button" class="btn llm-fetch-models">
-                <svg
-                  class="icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
-                  <path d="M21 3v5h-5" />
-                </svg>
-                <span data-i18n="optionsFetchModels"></span>
-              </button>
-            </div>
-            <div class="llm-timeout-row">
-              <label class="field llm-timeout">
-                <span data-i18n="optionsRequestTimeout"></span>
-                <span class="llm-timeout-input">
-                  <input
-                    name="llmTimeout"
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="60"
-                  />
-                  <span
-                    class="llm-timeout-unit"
-                    data-i18n="optionsSeconds"
-                  ></span>
-                </span>
-              </label>
-              <label class="llm-checkbox">
-                <input type="checkbox" name="llmDisableThinking" />
+              <label class="settings-toggle">
                 <span class="settings-control-text">
-                  <span data-i18n="optionsDisableModelThinking"></span>
+                  <span data-i18n="optionsStartOcrImmediately"></span>
                   <span
                     class="field-hint"
-                    data-i18n="optionsDisableModelThinkingHint"
+                    data-i18n="optionsStartOcrImmediatelyHint"
                   ></span>
                 </span>
+                <input type="checkbox" name="startOcrImmediately" />
               </label>
-            </div>
-            <div class="llm-actions">
-              <button type="button" class="btn llm-test-connection">
-                <span data-i18n="optionsTestConnection"></span>
-              </button>
-              <span class="llm-models-status" aria-live="polite"></span>
-            </div>
-          </fieldset>
-        </section>
+              <label class="settings-toggle">
+                <span class="settings-control-text">
+                  <span class="settings-toggle-title">
+                    <span data-i18n="optionsGpuAcceleration"></span>
+                    <span class="ocr-webgpu-status" hidden></span>
+                  </span>
+                  <span class="field-hint" data-i18n="optionsGpuHint"></span>
+                  <span class="field-hint ocr-webgpu-note" hidden>
+                    <span data-i18n="optionsSee"></span>
+                    <a
+                      href="https://github.com/OPerepadia/ocr-translator-extension#webgpu-setup"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-i18n="optionsEnableWebGpuLink"
+                      ></a
+                    >.
+                  </span>
+                </span>
+                <input type="checkbox" name="ocrWebGpu" />
+              </label>
+            </section>
 
-        <section class="settings-section">
-          <h2 class="section-title" data-i18n="optionsOcrSectionTitle"></h2>
-          <label class="settings-toggle">
-            <span class="settings-control-text">
-              <span class="settings-toggle-title">
-                <span data-i18n="optionsGpuAcceleration"></span>
-                <span class="ocr-webgpu-status" hidden></span>
-              </span>
-              <span class="field-hint" data-i18n="optionsGpuHint"></span>
-              <span class="field-hint ocr-webgpu-note" hidden>
-                <span data-i18n="optionsSee"></span>
-                <a
-                  href="https://github.com/OPerepadia/ocr-translator-extension#webgpu-setup"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-i18n="optionsEnableWebGpuLink"
-                  ></a
-                >.
-              </span>
-            </span>
-            <input type="checkbox" name="ocrWebGpu" />
-          </label>
-          <label class="settings-toggle">
-            <span class="settings-control-text">
-              <span data-i18n="optionsStartOcrImmediately"></span>
-              <span
-                class="field-hint"
-                data-i18n="optionsStartOcrImmediatelyHint"
-              ></span>
-            </span>
-            <input type="checkbox" name="startOcrImmediately" />
-          </label>
-        </section>
+            <section id="translation" class="settings-section">
+              <h2
+                class="section-title"
+                data-i18n="optionsTranslationSectionTitle"
+              ></h2>
+              <div class="field-row">
+                <label class="field settings-select-field">
+                  <span data-i18n="optionsTargetLanguage"></span>
+                  <select name="targetLang"></select>
+                </label>
+                <label class="field settings-select-field">
+                  <span data-i18n="optionsTranslationProvider"></span>
+                  <select name="translationProvider"></select>
+                  <span
+                    class="field-hint google-provider-note"
+                    data-i18n="optionsGoogleProviderHint"
+                    hidden
+                  ></span>
+                </label>
+              </div>
 
-        <section class="settings-section">
-          <h2
-            class="section-title"
-            data-i18n="optionsDisplaySectionTitle"
-          ></h2>
-          <label class="field">
-            <span data-i18n="optionsDefaultDisplayMode"></span>
-            <select name="displayMode">
-              <option
-                value="overlay"
-                data-i18n="optionsDisplayModeOverlay"
-              ></option>
-              <option
-                value="panel"
-                data-i18n="optionsDisplayModePanel"
-              ></option>
-            </select>
-            <span class="field-hint" data-i18n="optionsDisplayHint"></span>
-          </label>
-        </section>
-      </form>
+              <fieldset class="llm-settings" hidden>
+                <legend class="llm-card-title">
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
+                    <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
+                    <line x1="6" x2="6.01" y1="6" y2="6" />
+                    <line x1="6" x2="6.01" y1="18" y2="18" />
+                  </svg>
+                  <span data-i18n="optionsLlmEndpoint"></span>
+                </legend>
+                <p
+                  class="llm-card-subtitle"
+                  data-i18n="optionsLlmEndpointHint"
+                ></p>
+                <label class="field">
+                  <span data-i18n="optionsEndpointUrl"></span>
+                  <input
+                    name="llmBaseUrl"
+                    type="text"
+                    class="llm-url-input"
+                    placeholder="http://localhost:8080/v1"
+                    spellcheck="false"
+                  />
+                  <span class="llm-url-error" aria-live="polite" hidden></span>
+                </label>
+                <div class="field llm-api-key-field">
+                  <label for="llm-api-key" data-i18n="optionsApiKey"></label>
+                  <span class="llm-api-key-row">
+                    <input
+                      id="llm-api-key"
+                      name="llmApiKey"
+                      type="password"
+                      autocomplete="new-password"
+                      data-i18n-placeholder="optionsOptional"
+                    />
+                    <button
+                      type="button"
+                      class="llm-api-key-toggle"
+                      data-i18n-aria-label="optionsShowApiKey"
+                      aria-pressed="false"
+                    >
+                      <svg
+                        class="icon icon-eye"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                        />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg
+                        class="icon icon-eye-off"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                        <path
+                          d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"
+                        />
+                        <path
+                          d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"
+                        />
+                        <line x1="2" x2="22" y1="2" y2="22" />
+                      </svg>
+                    </button>
+                  </span>
+                </div>
+                <div class="llm-model-row">
+                  <label class="field">
+                    <span data-i18n="optionsModel"></span>
+                    <select name="llmModel"></select>
+                  </label>
+                  <button type="button" class="btn llm-fetch-models">
+                    <svg
+                      class="icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
+                      <path d="M21 3v5h-5" />
+                    </svg>
+                    <span data-i18n="optionsFetchModels"></span>
+                  </button>
+                </div>
+                <div class="llm-timeout-row">
+                  <label class="field llm-timeout">
+                    <span data-i18n="optionsRequestTimeout"></span>
+                    <span class="llm-timeout-input">
+                      <input
+                        name="llmTimeout"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="60"
+                      />
+                      <span
+                        class="llm-timeout-unit"
+                        data-i18n="optionsSeconds"
+                      ></span>
+                    </span>
+                  </label>
+                  <label class="llm-checkbox">
+                    <input type="checkbox" name="llmDisableThinking" />
+                    <span class="settings-control-text">
+                      <span data-i18n="optionsDisableModelThinking"></span>
+                      <span
+                        class="field-hint"
+                        data-i18n="optionsDisableModelThinkingHint"
+                      ></span>
+                    </span>
+                  </label>
+                </div>
+                <div class="llm-actions">
+                  <button type="button" class="btn llm-test-connection">
+                    <span data-i18n="optionsTestConnection"></span>
+                  </button>
+                  <span class="llm-models-status" aria-live="polite"></span>
+                </div>
+              </fieldset>
+            </section>
 
-      <footer class="options-footer">
-        <p role="status"></p>
-      </footer>
+            <section id="display-options" class="settings-section">
+              <h2
+                class="section-title"
+                data-i18n="optionsDisplaySectionTitle"
+              ></h2>
+              <label class="field settings-select-field">
+                <span data-i18n="optionsDefaultDisplayMode"></span>
+                <select name="displayMode">
+                  <option
+                    value="overlay"
+                    data-i18n="optionsDisplayModeOverlay"
+                  ></option>
+                  <option
+                    value="panel"
+                    data-i18n="optionsDisplayModePanel"
+                  ></option>
+                </select>
+                <span class="field-hint" data-i18n="optionsDisplayHint"></span>
+              </label>
+            </section>
+
+            <section id="about" class="settings-section">
+              <h2
+                class="section-title"
+                data-i18n="optionsAboutSectionTitle"
+              ></h2>
+              <div class="about-content">
+                <p data-i18n="optionsOpenSourceNote"></p>
+                <p>
+                  <a
+                    class="about-version-link"
+                    href="https://github.com/OPerepadia/ocr-translator-extension/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  ></a>
+                </p>
+                <div class="about-links">
+                  <a
+                    class="about-store-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  ></a>
+                  <a
+                    href="https://github.com/OPerepadia/ocr-translator-extension"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >GitHub</a
+                  >
+                </div>
+              </div>
+            </section>
+          </form>
+
+          <footer class="options-footer">
+            <p role="status"></p>
+          </footer>
+        </div>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

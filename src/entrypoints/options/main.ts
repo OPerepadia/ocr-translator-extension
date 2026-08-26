@@ -1,4 +1,7 @@
-import { TRANSLATION_PROVIDERS } from "@/providers/catalog";
+import {
+  COMMON_OCR_SOURCE_LANGUAGES,
+  TRANSLATION_PROVIDERS,
+} from "@/providers/catalog";
 import {
   baseUrlProblem,
   fetchAvailableModels,
@@ -7,6 +10,7 @@ import {
 import { COMMON_TARGET_LANGUAGES } from "@/providers/translation/target-languages";
 import {
   createLanguagePill,
+  languageName,
   type LanguagePill,
 } from "@/entrypoints/content/language-picker";
 import {
@@ -24,6 +28,7 @@ import {
 } from "@/shared/i18n";
 import type { Settings } from "@/shared/types";
 import { getWebGpuAdapterStatus } from "@/shared/webgpu";
+import { browser } from "wxt/browser";
 import "./index.css";
 
 // The extra settings section each translation provider needs on this page.
@@ -44,6 +49,21 @@ async function initOptions(): Promise<void> {
   const settings = await settingsRepository.get();
   const elements = getOptionsElements();
 
+  elements.versionLink.textContent = t(
+    "optionsVersion",
+    browser.runtime.getManifest().version,
+  );
+  const isFirefox = import.meta.env.BROWSER === "firefox";
+  elements.storeLink.href = isFirefox
+    ? "https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"
+    : "https://chromewebstore.google.com/detail/screen-ocr-translator/legljemohhhablgapleoakcepoofloae";
+  elements.storeLink.textContent = isFirefox
+    ? "Mozilla Add-ons"
+    : "Chrome Web Store";
+  fillSourceLanguageSelect(
+    elements.sourceLangSelect,
+    settings.ocr.sourceLang ?? "auto",
+  );
   fillProviderSelect(
     elements.translationProviderSelect,
     TRANSLATION_PROVIDERS,
@@ -153,7 +173,7 @@ async function initOptions(): Promise<void> {
       const nextSettings: Settings = {
         ocr: {
           providerId: latestSettings.ocr.providerId,
-          sourceLang: latestSettings.ocr.sourceLang,
+          sourceLang: String(formData.get("sourceLang") ?? "auto"),
           backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
         },
         translation: {
@@ -172,40 +192,20 @@ async function initOptions(): Promise<void> {
   elements.translationProviderSelect.addEventListener("change", () => {
     void saveSettings();
   });
-  elements.targetLangSelect.addEventListener("change", () => {
-    void saveSettings();
-  });
 
-  // The panel's searchable language picker replaces the native select, which
-  // stays hidden as the form value holder. Recreated on each change so the
-  // button label and selected item stay in sync; the old outside-click
-  // listener is removed first because the component registers its own.
-  elements.targetLangSelect.hidden = true;
-  const targetLangCodes = Array.from(
-    elements.targetLangSelect.options,
-    (option) => option.value,
-  );
-  let languagePill: LanguagePill | undefined;
-  const mountLanguagePill = (): void => {
-    const previous = languagePill;
-    previous?.dispose();
-    const pill = createLanguagePill({
-      target: elements.targetLangSelect.value,
-      languages: targetLangCodes,
-      onChange: (code) => {
-        elements.targetLangSelect.value = code;
-        mountLanguagePill();
-        void saveSettings();
-      },
-    });
-    if (previous) {
-      previous.element.replaceWith(pill.element);
-    } else {
-      elements.targetLangSelect.after(pill.element);
-    }
-    languagePill = pill;
-  };
-  mountLanguagePill();
+  // Searchable language pickers replace the native selects, which stay hidden
+  // as form value holders. Recreate each picker on change so its button and
+  // selected item stay in sync.
+  mountSearchableLanguageSelect({
+    select: elements.sourceLangSelect,
+    specialEntries: [{ code: "auto", name: t("commonAuto") }],
+    title: (name) => t("languageSourceTitle", name),
+    onChange: () => void saveSettings(),
+  });
+  mountSearchableLanguageSelect({
+    select: elements.targetLangSelect,
+    onChange: () => void saveSettings(),
+  });
   for (const input of [
     elements.ocrWebGpuInput,
     elements.llmBaseUrlInput,
@@ -224,6 +224,42 @@ async function initOptions(): Promise<void> {
   elements.llmTestConnectionButton.addEventListener("click", () => {
     void testConnection(elements);
   });
+}
+
+function mountSearchableLanguageSelect(args: {
+  select: HTMLSelectElement;
+  specialEntries?: Array<{ code: string; name: string }>;
+  title?: (name: string) => string;
+  onChange(): void;
+}): void {
+  const { select } = args;
+  select.hidden = true;
+  const languages = Array.from(select.options, (option) => option.value);
+  let current: LanguagePill | undefined;
+
+  const mount = (): void => {
+    const previous = current;
+    previous?.dispose();
+    const pill = createLanguagePill({
+      target: select.value,
+      languages,
+      specialEntries: args.specialEntries,
+      title: args.title,
+      onChange: (code) => {
+        select.value = code;
+        mount();
+        args.onChange();
+      },
+    });
+    if (previous) {
+      previous.element.replaceWith(pill.element);
+    } else {
+      select.after(pill.element);
+    }
+    current = pill;
+  };
+
+  mount();
 }
 
 // Ask the endpoint for its model list and turn the model dropdown into real
@@ -371,6 +407,35 @@ function fillProviderSelect(
   }
 }
 
+function fillSourceLanguageSelect(
+  select: HTMLSelectElement,
+  selectedLang: string,
+): void {
+  const languages = COMMON_OCR_SOURCE_LANGUAGES.filter(
+    ({ id }) => id !== "auto",
+  )
+    .map(({ id }) => ({ code: id, name: languageName(id) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  languages.unshift({ code: "auto", name: t("commonAuto") });
+  if (!languages.some(({ code }) => code === selectedLang)) {
+    languages.unshift({
+      code: selectedLang,
+      name: t("commonCurrentValue", selectedLang),
+    });
+  }
+
+  select.replaceChildren(
+    ...languages.map(({ code, name }) => {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = name;
+      option.selected = code === selectedLang;
+      return option;
+    }),
+  );
+}
+
 function fillTargetLanguageSelect(
   select: HTMLSelectElement,
   selectedLang: string,
@@ -453,8 +518,11 @@ type OptionsElements = ReturnType<typeof getOptionsElements>;
 
 function getOptionsElements(): {
   form: HTMLFormElement;
+  versionLink: HTMLAnchorElement;
+  storeLink: HTMLAnchorElement;
   translationProviderSelect: HTMLSelectElement;
   googleProviderNote: HTMLElement;
+  sourceLangSelect: HTMLSelectElement;
   targetLangSelect: HTMLSelectElement;
   displayModeSelect: HTMLSelectElement;
   startOcrImmediatelyInput: HTMLInputElement;
@@ -474,11 +542,18 @@ function getOptionsElements(): {
   llmTimeoutInput: HTMLInputElement;
 } {
   const form = app.querySelector<HTMLFormElement>("form");
+  const versionLink = app.querySelector<HTMLAnchorElement>(
+    ".about-version-link",
+  );
+  const storeLink = app.querySelector<HTMLAnchorElement>(".about-store-link");
   const translationProviderSelect = app.querySelector<HTMLSelectElement>(
     "select[name='translationProvider']",
   );
   const googleProviderNote = app.querySelector<HTMLElement>(
     ".google-provider-note",
+  );
+  const sourceLangSelect = app.querySelector<HTMLSelectElement>(
+    "select[name='sourceLang']",
   );
   const targetLangSelect = app.querySelector<HTMLSelectElement>(
     "select[name='targetLang']",
@@ -524,8 +599,11 @@ function getOptionsElements(): {
 
   if (
     !form ||
+    !versionLink ||
+    !storeLink ||
     !translationProviderSelect ||
     !googleProviderNote ||
+    !sourceLangSelect ||
     !targetLangSelect ||
     !displayModeSelect ||
     !startOcrImmediatelyInput ||
@@ -549,8 +627,11 @@ function getOptionsElements(): {
 
   return {
     form,
+    versionLink,
+    storeLink,
     translationProviderSelect,
     googleProviderNote,
+    sourceLangSelect,
     targetLangSelect,
     displayModeSelect,
     startOcrImmediatelyInput,

@@ -104,7 +104,10 @@
     "message": "Перекладаємо…"
   },
   "optionsPageTitle": {
-    "message": "Налаштування Screen OCR Translator"
+    "message": "Налаштування"
+  },
+  "optionsAboutSectionTitle": {
+    "message": "Про розширення"
   },
   "optionsTranslationSectionTitle": {
     "message": "Налаштування перекладу",
@@ -167,7 +170,19 @@
     "message": "Перевірити з’єднання"
   },
   "optionsOcrSectionTitle": {
-    "message": "Налаштування OCR"
+    "message": "Розпізнавання тексту (OCR)"
+  },
+  "optionsOpenSourceNote": {
+    "message": "Screen OCR Translator — це додаток з відкритим кодом, що поширюється за ліцензією Mozilla Public License 2.0."
+  },
+  "optionsVersion": {
+    "message": "Версія $1"
+  },
+  "optionsDefaultSourceLanguage": {
+    "message": "Мова для OCR"
+  },
+  "optionsDefaultSourceLanguageHint": {
+    "message": "Виберіть мову оригінального тексту, або \"Авто\" для автоматичного визначення мови (розпізнавання може виконуватись довше)."
   },
   "optionsGpuAcceleration": {
     "message": "Прискорення за допомогою GPU"
@@ -188,7 +203,7 @@
     "message": "як увімкнути WebGPU у вашому браузері"
   },
   "optionsDisplaySectionTitle": {
-    "message": "Відображення"
+    "message": "Інше"
   },
   "optionsDefaultDisplayMode": {
     "message": "Режим відображення за замовчуванням"
@@ -303,6 +318,9 @@
   },
   "languageTargetTitle": {
     "message": "Мова перекладу: $1"
+  },
+  "languageSourceTitle": {
+    "message": "Мова оригіналу: $1"
   },
   "languageSearchPlaceholder": {
     "message": "Пошук..."

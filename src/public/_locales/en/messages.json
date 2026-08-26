@@ -104,7 +104,10 @@
     "message": "Translating…"
   },
   "optionsPageTitle": {
-    "message": "Screen OCR Translator Options"
+    "message": "Settings"
+  },
+  "optionsAboutSectionTitle": {
+    "message": "About"
   },
   "optionsTranslationSectionTitle": {
     "message": "Translation",
@@ -167,7 +170,19 @@
     "message": "Test connection"
   },
   "optionsOcrSectionTitle": {
-    "message": "OCR"
+    "message": "Text recognition (OCR)"
+  },
+  "optionsOpenSourceNote": {
+    "message": "Screen OCR Translator is open-source software licensed under the Mozilla Public License 2.0."
+  },
+  "optionsVersion": {
+    "message": "Version $1"
+  },
+  "optionsDefaultSourceLanguage": {
+    "message": "OCR language"
+  },
+  "optionsDefaultSourceLanguageHint": {
+    "message": "Select the language of the original text, or \"Auto\" to automatically detect the language (text recognition may take a little longer)."
   },
   "optionsGpuAcceleration": {
     "message": "GPU acceleration"
@@ -176,10 +191,10 @@
     "message": "Speeds up text recognition using WebGPU. Falls back to the CPU automatically."
   },
   "optionsStartOcrImmediately": {
-    "message": "Run OCR immediately after selecting an area"
+    "message": "Start OCR immediately"
   },
   "optionsStartOcrImmediatelyHint": {
-    "message": "Skips the adjustment step and runs OCR when you release the mouse button."
+    "message": "Skip the adjustment step and start recognition as soon as you release the mouse."
   },
   "optionsSee": {
     "message": "See"
@@ -188,7 +203,7 @@
     "message": "how to enable WebGPU in your browser"
   },
   "optionsDisplaySectionTitle": {
-    "message": "Display"
+    "message": "Other"
   },
   "optionsDefaultDisplayMode": {
     "message": "Default display mode"
@@ -303,6 +318,9 @@
   },
   "languageTargetTitle": {
     "message": "Target language: $1"
+  },
+  "languageSourceTitle": {
+    "message": "Source language: $1"
   },
   "languageSearchPlaceholder": {
     "message": "Search..."
