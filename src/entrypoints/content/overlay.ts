@@ -417,7 +417,9 @@ function ensureGlobalHandlers(): void {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        closeOverlay();
+        if (!popover?.dismiss()) {
+          closeOverlay();
+        }
       }
     };
     document.addEventListener("keydown", keydownHandler, true);
