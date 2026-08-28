@@ -240,13 +240,23 @@ export function showOverlayError(args: {
   message: string;
   onRetry?: () => void;
   onOpenSettings?: () => void;
+  showSourceLanguageToolbar?: boolean;
 }): void {
   currentRect = args.rect;
   captureAnchor();
   // Unlike the loading chip, there's nothing to patch in place; drop the stale
   // patcher so a later showOverlayLoading rebuilds instead of patching it.
   updateLoadingChip = undefined;
-  mountChip(createErrorChip(args));
+  mountChip(
+    createErrorChip({
+      ...args,
+      onOpenSettings: args.showSourceLanguageToolbar
+        ? undefined
+        : args.onOpenSettings,
+      showClose: !args.showSourceLanguageToolbar,
+    }),
+    args.showSourceLanguageToolbar,
+  );
 }
 
 export function closeOverlay(): void {
@@ -367,7 +377,7 @@ function renderLoading(status: PipelineStatus): void {
   mountChip(createLoadingChip(status));
 }
 
-function mountChip(chip: HTMLElement): void {
+function mountChip(chip: HTMLElement, showSourceLanguageToolbar = false): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
   }
@@ -386,10 +396,17 @@ function mountChip(chip: HTMLElement): void {
   container.className = "ocr-translate-overlay";
   renderRegionLayers();
 
+  if (showSourceLanguageToolbar) {
+    toolbar = createOcrRecoveryToolbar();
+    container.append(toolbar);
+  }
   statusChip = chip;
   container.append(statusChip);
 
   (uiRoot ?? document.documentElement).append(container);
+  if (toolbar) {
+    positionToolbar();
+  }
   positionChip(statusChip);
   ensureGlobalHandlers();
 }
@@ -537,6 +554,36 @@ function createToolbar(): HTMLElement {
   bar.append(retranslateButton);
   bar.append(modeButtonWrapper);
   bar.append(selectButton, menu.element, divider, closeButton);
+  return bar;
+}
+
+function createOcrRecoveryToolbar(): HTMLElement {
+  const bar = document.createElement("div");
+  bar.className = "ocr-translate-overlay-toolbar";
+
+  const sourcePicker = mountControlPicker(
+    config
+      ? createOcrSourceLanguagePicker(config.controls, { position: "auto" })
+      : undefined,
+  );
+  if (sourcePicker) {
+    bar.append(sourcePicker);
+  }
+
+  bar.append(
+    iconButton(SELECT_REGION_ICON, t("panelSelectNewRegion"), () => {
+      closeOverlay();
+      config?.onNewSelection();
+    }),
+    iconButton(SETTINGS_ICON, t("commonSettings"), openSettings),
+  );
+
+  const divider = document.createElement("span");
+  divider.className = "ocr-translate-overlay-divider";
+  divider.setAttribute("aria-hidden", "true");
+  const closeButton = iconButton(CLOSE_ICON, t("commonClose"), closeOverlay);
+  closeButton.classList.add("ocr-translate-overlay-close");
+  bar.append(divider, closeButton);
   return bar;
 }
 
@@ -1197,6 +1244,7 @@ function createErrorChip(args: {
   onRetry?: () => void;
   onOpenSettings?: () => void;
   onDismiss?: () => void;
+  showClose?: boolean;
 }): HTMLElement {
   const chip = document.createElement("div");
   chip.className = "ocr-translate-overlay-status is-error";
@@ -1223,13 +1271,15 @@ function createErrorChip(args: {
       iconButton(SETTINGS_ICON, t("commonSettings"), args.onOpenSettings),
     );
   }
-  chip.append(
-    iconButton(
-      CLOSE_ICON,
-      args.onDismiss ? t("commonDismiss") : t("commonClose"),
-      args.onDismiss ?? closeOverlay,
-    ),
-  );
+  if (args.showClose !== false) {
+    chip.append(
+      iconButton(
+        CLOSE_ICON,
+        args.onDismiss ? t("commonDismiss") : t("commonClose"),
+        args.onDismiss ?? closeOverlay,
+      ),
+    );
+  }
   return chip;
 }
 
@@ -1297,8 +1347,9 @@ function positionChip(chip: HTMLElement): void {
     8,
     Math.max(8, window.innerWidth - width - 8),
   );
-  const y = chip.classList.contains("is-result-error")
-    ? resultErrorChipY(rect, height)
+  const toolbarRect = toolbar?.getBoundingClientRect();
+  const y = toolbarRect && chip.classList.contains("is-error")
+    ? toolbarErrorChipY(rect, height, window.innerHeight, toolbarRect)
     : clamp(
         rect.y + rect.height / 2 - height / 2,
         8,
@@ -1308,15 +1359,18 @@ function positionChip(chip: HTMLElement): void {
   chip.style.top = `${y}px`;
 }
 
-function resultErrorChipY(rect: Rect, height: number): number {
+export function toolbarErrorChipY(
+  rect: Rect,
+  height: number,
+  viewportHeight: number,
+  toolbarRect: Pick<DOMRect, "top" | "bottom">,
+): number {
   const margin = 8;
-  const maxY = Math.max(margin, window.innerHeight - height - margin);
-  const toolbarRect = toolbar?.getBoundingClientRect();
-  const candidates = toolbarRect
-    ? toolbarRect.bottom <= rect.y
+  const maxY = Math.max(margin, viewportHeight - height - margin);
+  const candidates =
+    toolbarRect.bottom <= rect.y
       ? [rect.y + rect.height + margin, toolbarRect.top - height - margin]
-      : [rect.y - height - margin, toolbarRect.bottom + margin]
-    : [rect.y + rect.height + margin, rect.y - height - margin];
+      : [rect.y - height - margin, toolbarRect.bottom + margin];
   return (
     candidates.find((candidate) => candidate >= margin && candidate <= maxY) ??
     clamp(rect.y + rect.height / 2 - height / 2, margin, maxY)

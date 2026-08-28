@@ -100,6 +100,7 @@ let activeImagePickerSessionId: string | undefined;
 // from Options at the start of each capture).
 let activeView: "panel" | "overlay" = "panel";
 let displayMode: DisplayMode = "panel";
+let activePipelineStage: PipelineStatus["stage"] | undefined;
 
 const contentControls: ContentControls = {
   targetLanguages: [],
@@ -265,6 +266,7 @@ export default defineContentScript({
         isRuntimeMessage(message, "OCR_TRANSLATE_STATUS") &&
         message.requestId === requestRunner.activeRequestId
       ) {
+        activePipelineStage = message.status.stage;
         showActiveLoading(message.status);
         // Image URL requests report loading before their pixels are stored.
         if (message.status.stage !== "loading") {
@@ -506,6 +508,7 @@ async function runCapture(
     loadOcrSourceLanguages(),
     loadTranslationProviders(),
   ]);
+  activePipelineStage = undefined;
 
   // For region captures, keep the loading panel hidden until the background has
   // taken its screenshot so the panel cannot appear in the captured image.
@@ -521,14 +524,18 @@ async function runCapture(
       presentResult(result, true);
     },
     onError: (error) => {
-      presentError(
-        serializeError(error),
-        "imageUrl" in source
-          ? () => void runImageFlow(source.imageUrl)
-          : () => void runRerecognize(sourceLanguageId ?? "auto"),
-      );
+      presentError(serializeError(error), {
+        retry:
+          "imageUrl" in source
+            ? () => void runImageFlow(source.imageUrl)
+            : () => void runRerecognize(sourceLanguageId ?? "auto"),
+        showSourceLanguageToolbar:
+          activePipelineStage === "initializing" ||
+          activePipelineStage === "recognizing",
+      });
     },
     onSettled: () => {
+      activePipelineStage = undefined;
       releaseSelectionDim();
       syncPanelRegionOutline();
     },
@@ -560,7 +567,11 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
   if (wantOverlay && lastRect && !enriched.ocr.text.trim()) {
     activeView = "overlay";
     closePopup({ notify: false });
-    showOverlayError({ rect: lastRect, message: t("commonNoTextDetected") });
+    showOverlayError({
+      rect: lastRect,
+      message: t("commonNoTextDetected"),
+      showSourceLanguageToolbar: true,
+    });
     return;
   }
 
@@ -593,22 +604,26 @@ function presentResult(result: PipelineResult, fresh: boolean): void {
 
 function presentError(
   error: ReturnType<typeof serializeError>,
-  retry?: () => void,
+  options: {
+    retry?: () => void;
+    showSourceLanguageToolbar?: boolean;
+  } = {},
 ): void {
   if (activeView === "overlay" && lastRect) {
     showOverlayError({
       rect: lastRect,
       message: error.message,
-      onRetry: retry,
+      onRetry: options.retry,
       onOpenSettings: () => {
         void sendRequest({ type: "OPEN_OPTIONS" });
       },
+      showSourceLanguageToolbar: options.showSourceLanguageToolbar,
     });
     return;
   }
   activeView = "panel";
   closeOverlay();
-  showError(error, retry);
+  showError(error, options.retry);
   syncPanelRegionOutline();
 }
 
@@ -755,7 +770,9 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
       }),
     onSuccess: (result) => presentResult(result, false),
     onError: (error) => {
-      presentError(serializeError(error), () => void runRetranslate(targetLang));
+      presentError(serializeError(error), {
+        retry: () => void runRetranslate(targetLang),
+      });
     },
   });
 }
@@ -776,7 +793,10 @@ async function runRerecognize(sourceLang: LangCode | "auto"): Promise<void> {
       presentResult(result, false);
     },
     onError: (error) => {
-      presentError(serializeError(error), () => void runRerecognize(sourceLang));
+      presentError(serializeError(error), {
+        retry: () => void runRerecognize(sourceLang),
+        showSourceLanguageToolbar: true,
+      });
     },
   });
 }

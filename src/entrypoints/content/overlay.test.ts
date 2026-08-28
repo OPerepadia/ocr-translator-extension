@@ -4,6 +4,7 @@ import {
   isOverlayable,
   overlayDisplayText,
   overlayTargetLanguage,
+  toolbarErrorChipY,
 } from "./overlay";
 
 const overlayReadyOcr: PipelineResult["ocr"] = {
@@ -82,5 +83,32 @@ describe("overlayTargetLanguage", () => {
     };
 
     expect(overlayTargetLanguage(result)).toBe("en");
+  });
+});
+
+describe("toolbarErrorChipY", () => {
+  it("places a recovery error below a toolbar near the top edge", () => {
+    const toolbar = { top: 32, bottom: 72 };
+    const y = toolbarErrorChipY(
+      { x: 20, y: 4, width: 300, height: 20 },
+      64,
+      720,
+      toolbar,
+    );
+
+    expect(y).toBeGreaterThanOrEqual(toolbar.bottom + 8);
+  });
+
+  it("places a recovery error above a toolbar near the bottom edge", () => {
+    const toolbar = { top: 628, bottom: 668 };
+    const height = 64;
+    const y = toolbarErrorChipY(
+      { x: 20, y: 676, width: 300, height: 20 },
+      height,
+      720,
+      toolbar,
+    );
+
+    expect(y + height).toBeLessThanOrEqual(toolbar.top - 8);
   });
 });

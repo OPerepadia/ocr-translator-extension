@@ -86,7 +86,7 @@
     "message": "Translation failed."
   },
   "commonNoTextDetected": {
-    "message": "No text detected."
+    "message": "No text was detected. Please check if the source language is set correctly or select \"Auto\"."
   },
   "statusLoadingImage": {
     "message": "Loading…"
