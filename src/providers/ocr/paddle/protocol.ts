@@ -2,8 +2,14 @@
 // inference worker (paddle.worker.ts).
 
 import type { PipelineOcrResult, SerializedError } from "../../../shared/types";
-import type { RecognizerScript } from "./auto-select";
 import type { OrtBackend } from "./ort-env";
+
+export type RecognizerScript =
+  | "general"
+  | "cyrillic"
+  | "hangul"
+  | "arabic"
+  | "devanagari";
 
 export interface WorkerModelConfig {
   id: string;
@@ -15,7 +21,8 @@ export interface InitRequest {
   type: "init";
   id: number;
   model: WorkerModelConfig;
-  autoModels?: WorkerModelConfig[];
+  additionalModels?: WorkerModelConfig[];
+  scriptModelBaseUrl?: string;
   layoutModelBaseUrl: string;
   wasmBaseUrl: string;
   backend: OrtBackend;

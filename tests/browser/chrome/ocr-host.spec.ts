@@ -29,6 +29,14 @@ interface OcrResponse {
           matchedLineCount?: number;
           groupCount?: number;
         };
+        autoSelection?: {
+          method?: string;
+          decisive?: boolean;
+          scriptDetection?: {
+            script?: string;
+            probeCount?: number;
+          };
+        };
       };
       text?: string;
     };
@@ -93,7 +101,7 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
       ).chrome;
       await extensionApi.storage.local.set({
         settings: {
-          ocr: { providerId: "paddle", sourceLang: "en" },
+          ocr: { providerId: "paddle", sourceLang: "auto" },
           translation: {
             providerId: "google",
             targetLang: "en",
@@ -123,6 +131,14 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
           confidenceThreshold: 0.4,
           nmsIouThreshold: 0.25,
         },
+        autoSelection: {
+          method: "script-classifier",
+          decisive: true,
+          scriptDetection: {
+            script: "general",
+            probeCount: 2,
+          },
+        },
       },
     });
     expect(response.value?.ocr?.blocks?.length).toBeGreaterThanOrEqual(2);
@@ -130,6 +146,102 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
     expect(
       response.value?.ocr?.providerMeta?.grouping?.groupCount,
     ).toBeGreaterThan(0);
+
+    const scriptCases = [
+      {
+        lines: ["ПРОСТИЙ ТЕКСТ", "ДРУГИЙ РЯДОК"],
+        targetLang: "uk",
+        script: "cyrillic",
+        modelId: "cyrillic-v5",
+      },
+      {
+        lines: ["نص بسيط", "سطر آخر"],
+        targetLang: "ar",
+        script: "arabic",
+        modelId: "arabic-v5",
+        rtl: true,
+      },
+      {
+        lines: ["सरल पाठ", "दूसरी पंक्ति"],
+        targetLang: "hi",
+        script: "devanagari",
+        modelId: "devanagari-v5",
+      },
+      {
+        lines: ["간단한 글", "둘째 줄"],
+        targetLang: "ko",
+        script: "hangul",
+        modelId: "korean-v5",
+      },
+    ];
+    const scriptResponses = (await page.evaluate(async (cases) => {
+      const extensionApi = (
+        globalThis as typeof globalThis & {
+          chrome: {
+            runtime: {
+              sendMessage(message: unknown): Promise<unknown>;
+            };
+            storage: {
+              local: {
+                set(values: Record<string, unknown>): Promise<void>;
+              };
+            };
+          };
+        }
+      ).chrome;
+      const responses = [];
+      for (const [index, testCase] of cases.entries()) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 500;
+        canvas.height = 192;
+        const drawing = canvas.getContext("2d");
+        if (!drawing) {
+          throw new Error("Canvas 2D is unavailable.");
+        }
+        drawing.fillStyle = "white";
+        drawing.fillRect(0, 0, canvas.width, canvas.height);
+        drawing.fillStyle = "black";
+        drawing.font = "bold 56px sans-serif";
+        drawing.textBaseline = "middle";
+        drawing.textAlign = testCase.rtl ? "right" : "left";
+        drawing.direction = testCase.rtl ? "rtl" : "ltr";
+        const x = testCase.rtl ? canvas.width - 16 : 16;
+        drawing.fillText(testCase.lines[0], x, 48);
+        drawing.fillText(testCase.lines[1], x, 144);
+
+        await extensionApi.storage.local.set({
+          settings: {
+            ocr: { providerId: "paddle", sourceLang: "auto" },
+            translation: {
+              providerId: "google",
+              targetLang: testCase.targetLang,
+              llm: { baseUrl: "http://localhost:8080/v1" },
+            },
+          },
+        });
+        responses.push(
+          await extensionApi.runtime.sendMessage({
+            type: "OCR_TRANSLATE_REQUEST",
+            requestId: `script-smoke-test-${index}`,
+            imageUrl: canvas.toDataURL("image/png"),
+          }),
+        );
+      }
+      return responses;
+    }, scriptCases)) as OcrResponse[];
+
+    for (const [index, scriptCase] of scriptCases.entries()) {
+      const scriptResponse = scriptResponses[index];
+      expect(scriptResponse.ok).toBe(true);
+      expect(scriptResponse.value?.ocr?.providerMeta).toMatchObject({
+        modelId: scriptCase.modelId,
+        autoSelection: {
+          method: "script-classifier",
+          decisive: true,
+          scriptDetection: { script: scriptCase.script, probeCount: 2 },
+        },
+      });
+    }
   } finally {
     await context.close();
   }

@@ -83,7 +83,30 @@ test("initializes the Firefox OCR host and runs local recognition", {
             requestId: "firefox-browser-smoke-test",
             imageUrl: canvas.toDataURL("image/png"),
           });
-          done({ response });
+
+          drawing.fillStyle = "white";
+          drawing.fillRect(0, 0, canvas.width, canvas.height);
+          drawing.fillStyle = "black";
+          drawing.font = "bold 44px sans-serif";
+          drawing.fillText("ПРОСТИЙ ТЕКСТ", 16, 48);
+          drawing.fillText("ДРУГИЙ РЯДОК", 16, 144);
+
+          await browser.storage.local.set({
+            settings: {
+              ocr: { providerId: "paddle", sourceLang: "auto" },
+              translation: {
+                providerId: "google",
+                targetLang: "uk",
+                llm: { baseUrl: "http://localhost:8080/v1" },
+              },
+            },
+          });
+          const autoResponse = await browser.runtime.sendMessage({
+            type: "OCR_TRANSLATE_REQUEST",
+            requestId: "firefox-script-classifier-test",
+            imageUrl: canvas.toDataURL("image/png"),
+          });
+          done({ response, autoResponse });
         } catch (error) {
           done({ error: error instanceof Error ? error.message : String(error) });
         }
@@ -110,6 +133,23 @@ test("initializes the Firefox OCR host and runs local recognition", {
     assert.ok(ocr?.blocks?.length >= 2);
     assert.match(ocr?.text ?? "", /sample/i);
     assert.ok(ocr?.providerMeta?.grouping?.groupCount > 0);
+
+    assert.equal(
+      result.autoResponse.ok,
+      true,
+      result.autoResponse.error?.message ?? "The auto OCR request failed.",
+    );
+    const autoOcr = result.autoResponse.value?.ocr;
+    assert.equal(autoOcr?.providerMeta?.modelId, "cyrillic-v5");
+    assert.equal(
+      autoOcr?.providerMeta?.autoSelection?.method,
+      "script-classifier",
+    );
+    assert.equal(
+      autoOcr?.providerMeta?.autoSelection?.scriptDetection?.script,
+      "cyrillic",
+    );
+    assert.ok(autoOcr?.blocks?.length >= 2);
   } finally {
     await driver.quit();
   }

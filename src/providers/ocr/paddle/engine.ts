@@ -2,16 +2,6 @@
 // the result. Lives in the worker; uses ORT, OffscreenCanvas, and createImageBitmap.
 
 import { assembleGroupedResult, type RecognizedLine } from "./assemble";
-import {
-  chooseAutoRecognizer,
-  initialAutoProbeCount,
-  rankRepresentativeBoxes,
-  tryChooseGeneralRecognizer,
-  type AutoRecognizerCandidate,
-  type ProbeRecognition,
-  type RecognizerProbeResult,
-  type RecognizerScore,
-} from "./auto-select";
 import { charBoxes } from "./char-boxes";
 import {
   bitmapToImageData,
@@ -33,8 +23,21 @@ import {
   type OrtBackend,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
+import type { RecognizerScript } from "./protocol";
 import { RegionGrouper } from "./region-grouper";
-import type { OrientedRect, PipelineOcrResult } from "../../../shared/types";
+import {
+  chooseScript,
+  MAX_SCRIPT_PROBE_LINES,
+  rankRepresentativeBoxes,
+  SCRIPT_INPUT_HEIGHT,
+  ScriptClassifier,
+  type ScriptPrediction,
+} from "./script-classifier";
+import type {
+  OcrChar,
+  OrientedRect,
+  PipelineOcrResult,
+} from "../../../shared/types";
 
 interface Manifest {
   detector: {
@@ -61,30 +64,38 @@ interface Manifest {
 
 export interface EngineOptions {
   model: EngineModelOptions;
-  autoModels?: EngineModelOptions[];
+  additionalModels?: EngineModelOptions[];
+  scriptModelBaseUrl?: string;
   layoutModelBaseUrl: string;
   wasmBaseUrl: string;
   backend: OrtBackend;
   debug?: boolean;
 }
 
-export interface EngineModelOptions extends AutoRecognizerCandidate {
+export interface EngineModelOptions {
+  id: string;
+  script: RecognizerScript;
   modelBaseUrl: string;
 }
 
 interface LoadedRecognizer {
-  candidate: AutoRecognizerCandidate;
+  candidate: EngineModelOptions;
   config: Manifest["recognizer"];
   session: ort.InferenceSession;
   charAt: (index: number) => string | null;
 }
 
+interface LineRecognition {
+  text: string;
+  confidence: number;
+  chars?: OcrChar[];
+}
+
 interface AutoRecognition {
   lines: RecognizedLine[];
   modelId: string;
-  probeCount: number;
-  decisive: boolean;
-  scores: RecognizerScore[];
+  method: "script-classifier" | "default";
+  scriptDetection?: ScriptPrediction & { probeCount: number };
 }
 
 const LOG_PREFIX = "[PP-OCR]";
@@ -96,6 +107,7 @@ export class PaddleEngine {
     private readonly primaryModelId: string,
     private readonly modelOptions: Map<string, EngineModelOptions>,
     private readonly recognizers: Map<string, Promise<LoadedRecognizer>>,
+    private readonly scriptClassifier: Promise<ScriptClassifier | undefined>,
     private readonly regionGrouper: RegionGrouper,
     private readonly backend: OrtBackend,
     private readonly debug: boolean,
@@ -144,7 +156,7 @@ export class PaddleEngine {
       charAt: makeCharAt(dict),
     };
     const modelOptions = new Map<string, EngineModelOptions>();
-    for (const model of [options.model, ...(options.autoModels ?? [])]) {
+    for (const model of [options.model, ...(options.additionalModels ?? [])]) {
       if (!modelOptions.has(model.id)) {
         modelOptions.set(model.id, model);
       }
@@ -152,6 +164,14 @@ export class PaddleEngine {
     const recognizers = new Map<string, Promise<LoadedRecognizer>>([
       [options.model.id, Promise.resolve(primaryRecognizer)],
     ]);
+    const scriptClassifier = options.scriptModelBaseUrl
+      ? ScriptClassifier.create(options.scriptModelBaseUrl).catch((error) => {
+          if (debug) {
+            console.warn(`${LOG_PREFIX} script classifier unavailable`, error);
+          }
+          return undefined;
+        })
+      : Promise.resolve(undefined);
 
     if (debug) {
       console.log(
@@ -165,6 +185,7 @@ export class PaddleEngine {
       options.model.id,
       modelOptions,
       recognizers,
+      scriptClassifier,
       regionGrouper,
       backend,
       debug,
@@ -251,9 +272,12 @@ export class PaddleEngine {
         ...(autoRecognition
           ? {
               autoSelection: {
-                probeCount: autoRecognition.probeCount,
-                decisive: autoRecognition.decisive,
-                scores: autoRecognition.scores,
+                method: autoRecognition.method,
+                decisive:
+                  autoRecognition.scriptDetection?.decisive ?? false,
+                ...(autoRecognition.scriptDetection
+                  ? { scriptDetection: autoRecognition.scriptDetection }
+                  : {}),
               },
             }
           : {}),
@@ -288,6 +312,9 @@ export class PaddleEngine {
         .then(({ session }) => session.release())
         .catch(() => {});
     }
+    void this.scriptClassifier
+      .then((classifier) => classifier?.dispose())
+      .catch(() => {});
   }
 
   private async detect(bitmap: ImageBitmap) {
@@ -342,131 +369,107 @@ export class PaddleEngine {
       return {
         lines: [],
         modelId: this.primaryModelId,
-        probeCount: 0,
-        decisive: false,
-        scores: [],
+        method: "default",
       };
     }
 
     const primaryRecognizer = await this.getRecognizer(this.primaryModelId);
-    let recognizers = [primaryRecognizer];
     throwIfCancelled(isCancelled);
 
     const rankedBoxes = rankRepresentativeBoxes(
       boxes,
       imageWidth,
       imageHeight,
+      MAX_SCRIPT_PROBE_LINES,
     );
-    const probeResults = new Map<string, Map<number, ProbeRecognition>>();
-    for (const modelId of this.modelOptions.keys()) {
-      probeResults.set(modelId, new Map());
-    }
-    const recognizeProbe = async (
-      recognizer: LoadedRecognizer,
-      boxIndex: number,
-    ) => {
-      throwIfCancelled(isCancelled);
-      probeResults.get(recognizer.candidate.id)!.set(
-        boxIndex,
-        await this.recognizeLine(source, boxes[boxIndex], recognizer),
-      );
-    };
-
-    let probeCount = initialAutoProbeCount(boxes.length);
-    const firstBoxIndex = rankedBoxes[0];
-    await recognizeProbe(primaryRecognizer, firstBoxIndex);
-    let choice = tryChooseGeneralRecognizer(
-      this.buildProbeResults(
-        [primaryRecognizer],
-        rankedBoxes,
-        probeCount,
-        probeResults,
-      )[0],
-      this.primaryModelId,
+    const scriptDetection = await this.detectScript(
+      source,
+      boxes,
+      rankedBoxes,
+      primaryRecognizer.config.maxImageWidth,
+      isCancelled,
     );
+    const model = scriptDetection?.script
+      ? [...this.modelOptions.values()].find(
+          ({ script }) => script === scriptDetection.script,
+        )
+      : undefined;
+    const modelId = model?.id ?? this.primaryModelId;
 
-    if (!choice.decisive) {
-      const specialists = await Promise.all(
-        [...this.modelOptions.keys()]
-          .filter((modelId) => modelId !== this.primaryModelId)
-          .map((modelId) => this.getRecognizer(modelId)),
-      );
-      recognizers = [primaryRecognizer, ...specialists];
-      throwIfCancelled(isCancelled);
-
-      for (const recognizer of specialists) {
-        await recognizeProbe(recognizer, firstBoxIndex);
-      }
-      choice = chooseAutoRecognizer(
-        this.buildProbeResults(
-          recognizers,
-          rankedBoxes,
-          probeCount,
-          probeResults,
-        ),
-        this.primaryModelId,
-      );
-
-      while (!choice.decisive && probeCount < rankedBoxes.length) {
-        const boxIndex = rankedBoxes[probeCount];
-        probeCount++;
-        for (const recognizer of recognizers) {
-          await recognizeProbe(recognizer, boxIndex);
-        }
-        choice = chooseAutoRecognizer(
-          this.buildProbeResults(
-            recognizers,
-            rankedBoxes,
-            probeCount,
-            probeResults,
-          ),
-          this.primaryModelId,
+    if (this.debug) {
+      if (model && scriptDetection) {
+        console.log(
+          `${LOG_PREFIX} script classifier selected ${modelId} from ${scriptDetection.probeCount} line(s)${scriptDetection.decisive ? "" : " (low confidence)"}`,
+          scriptDetection,
+        );
+      } else {
+        console.log(
+          `${LOG_PREFIX} script classifier found no supported script; using ${this.primaryModelId}`,
+          scriptDetection,
         );
       }
     }
 
-    const modelId = choice.modelId;
-    const recognizer = recognizers.find(
-      ({ candidate }) => candidate.id === modelId,
-    )!;
+    const recognizer =
+      modelId === this.primaryModelId
+        ? primaryRecognizer
+        : await this.getRecognizer(modelId);
+    throwIfCancelled(isCancelled);
     const lines = await this.recognizeAllLines(
       source,
       boxes,
       recognizer,
       isCancelled,
       onProgress,
-      probeResults.get(modelId),
     );
-
-    if (this.debug) {
-      console.log(
-        `${LOG_PREFIX} auto selected ${modelId} from ${probeCount} probe(s)${choice.decisive ? "" : " (default fallback)"}`,
-        choice.scores,
-      );
-    }
 
     return {
       lines,
       modelId,
-      probeCount,
-      decisive: choice.decisive,
-      scores: choice.scores,
+      method: model ? "script-classifier" : "default",
+      ...(scriptDetection ? { scriptDetection } : {}),
     };
   }
 
-  private buildProbeResults(
-    recognizers: LoadedRecognizer[],
+  private async detectScript(
+    source: RgbaImage | null,
+    boxes: DetectedBox[],
     rankedBoxes: number[],
-    probeCount: number,
-    results: Map<string, Map<number, ProbeRecognition>>,
-  ): RecognizerProbeResult[] {
-    const boxIndices = rankedBoxes.slice(0, probeCount);
-    return recognizers.map((recognizer) => ({
-      candidate: recognizer.candidate,
-      lines: boxIndices.map(
-        (boxIndex) => results.get(recognizer.candidate.id)!.get(boxIndex)!,
-      ),
-    }));
+    maxImageWidth: number,
+    isCancelled: () => boolean,
+  ): Promise<(ScriptPrediction & { probeCount: number }) | undefined> {
+    if (!source) {
+      return undefined;
+    }
+    const classifier = await this.scriptClassifier;
+    if (!classifier) {
+      return undefined;
+    }
+
+    try {
+      const evidence = [];
+      const boxIndices = rankedBoxes.slice(0, MAX_SCRIPT_PROBE_LINES);
+      for (const boxIndex of boxIndices) {
+        throwIfCancelled(isCancelled);
+        const crop = cropQuadToImageData(
+          source,
+          boxes[boxIndex].quad,
+          SCRIPT_INPUT_HEIGHT,
+          3,
+          maxImageWidth,
+        );
+        evidence.push(await classifier.classify(crop));
+      }
+      return { ...chooseScript(evidence), probeCount: evidence.length };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
+      if (this.debug) {
+        console.warn(`${LOG_PREFIX} script classification failed`, error);
+      }
+      return undefined;
+    }
   }
 
   private async recognizeAllLines(
@@ -475,15 +478,12 @@ export class PaddleEngine {
     recognizer: LoadedRecognizer,
     isCancelled: () => boolean,
     onProgress?: (line: number, lineCount: number) => void,
-    cached?: Map<number, ProbeRecognition>,
   ): Promise<RecognizedLine[]> {
     const lines: RecognizedLine[] = [];
     for (const [index, box] of boxes.entries()) {
       throwIfCancelled(isCancelled);
       onProgress?.(index + 1, boxes.length);
-      const recognized =
-        cached?.get(index) ??
-        (await this.recognizeLine(source, box, recognizer));
+      const recognized = await this.recognizeLine(source, box, recognizer);
       if (this.debug) {
         const { x, y, width, height } = box.bbox;
         console.log(
@@ -541,7 +541,7 @@ export class PaddleEngine {
     source: RgbaImage | null,
     box: DetectedBox,
     recognizer: LoadedRecognizer,
-  ): Promise<ProbeRecognition> {
+  ): Promise<LineRecognition> {
     if (!source) {
       throw new Error("PP-OCRv6 source image is not available.");
     }

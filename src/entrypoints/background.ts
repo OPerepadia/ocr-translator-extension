@@ -69,7 +69,7 @@ function createOcrProvider(settings: Settings["ocr"]): OcrProvider {
   const config = {
     ...settings,
     model,
-    autoModels: isAutoOcr(settings) ? OCR_MODELS : undefined,
+    additionalModels: isAutoOcr(settings) ? OCR_MODELS : undefined,
     resolveUrl: getUrl,
     // A Chrome service worker cannot spawn the worker itself, so there the
     // engine is hosted by an offscreen document.
