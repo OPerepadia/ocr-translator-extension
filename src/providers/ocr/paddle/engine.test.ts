@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createSession: vi.fn(),
   createRegionGrouper: vi.fn(),
   resolveBackend: vi.fn(),
+  runSingleInput: vi.fn(),
 }));
 
 vi.mock("./ort-env", () => ({
@@ -12,6 +13,7 @@ vi.mock("./ort-env", () => ({
   createSession: mocks.createSession,
   ort: {},
   resolveBackend: mocks.resolveBackend,
+  runSingleInput: mocks.runSingleInput,
 }));
 
 vi.mock("./region-grouper", () => ({

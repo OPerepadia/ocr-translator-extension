@@ -19,6 +19,7 @@ with extension builds.
 | [protobuf.js](https://github.com/protobufjs/protobuf.js) and its `@protobufjs/*` runtime modules | 7.6.4 | BSD-3-Clause |
 | [tinyld](https://github.com/komodojp/tinyld) | 1.3.4 | MIT |
 | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) OCR models and dictionaries | PP-OCRv5 and PP-OCRv6 | Apache-2.0 |
+| [Tesseract OSD LSTM script classifier](https://huggingface.co/ogkalu/image-script-identification) ONNX port | revision `82c21077` | Apache-2.0 |
 | [Comic Text and Bubble Detector](https://huggingface.co/ogkalu/comic-text-and-bubble-detector) model | RT-DETR-v2 v4-s INT8 | Apache-2.0 |
 
 The ONNX Runtime Web package uses FlatBuffers, guid-typescript, long.js,
@@ -92,6 +93,18 @@ Source: <https://huggingface.co/ogkalu/comic-text-and-bubble-detector>
 The extension packages the upstream INT8 ONNX export without changing its
 weights. Source revision, preprocessing details, and checksums are in
 [`src/public/assets/layout-grouping/SOURCES.md`](src/public/assets/layout-grouping/SOURCES.md).
+
+## Tesseract OSD LSTM script classifier
+
+The packaged `osd_lstm.onnx` and `osd_labels.json` were published by `ogkalu`
+under Apache-2.0. The `comic-translate` integration describes the model as a
+port of the Tesseract OSD LSTM network to ONNX.
+
+Source: <https://huggingface.co/ogkalu/image-script-identification>
+
+The extension packages the upstream files without changing them. Source
+revision, checksums, preprocessing, and decoding references are in
+[`src/public/assets/script-identification/SOURCES.md`](src/public/assets/script-identification/SOURCES.md).
 
 ## platform.js
 
@@ -199,6 +212,7 @@ The Apache License below applies to:
 - FlatBuffers 25.9.23
 - long.js 5.3.2
 - the Comic Text and Bubble Detector RT-DETR-v2 model
+- the Tesseract OSD LSTM script classifier ONNX port
 - the packaged PaddleOCR PP-OCRv5 and PP-OCRv6 models, dictionaries, and
   derived model metadata
 

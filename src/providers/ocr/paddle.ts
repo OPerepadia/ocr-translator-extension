@@ -2,16 +2,18 @@ import type { PipelineOcrResult } from "../../shared/types";
 import { t } from "../../shared/i18n";
 import {
   deserializeError,
+  type RecognizerScript,
   type WorkerLike,
+  type WorkerModelConfig,
   type WorkerResponse,
 } from "./paddle/protocol";
 import { createInferenceWorker } from "./paddle/worker-factory";
 import type { OrtBackend } from "./paddle/ort-env";
-import type { RecognizerScript } from "./paddle/auto-select";
 import type { OcrProvider, OcrStatus } from "./types";
 
 const WASM_DIR = "ort/";
 const LAYOUT_MODEL_DIR = "assets/layout-grouping/";
+const SCRIPT_MODEL_DIR = "assets/script-identification/";
 const DEFAULT_RECOGNITION_TIMEOUT_MS = 60_000;
 
 const DEBUG_PPOCR = false;
@@ -30,7 +32,7 @@ const DEFAULT_MODEL: PaddleModelConfig = {
 
 export interface PaddleProviderConfig {
   model?: PaddleModelConfig;
-  autoModels?: readonly PaddleModelConfig[];
+  additionalModels?: readonly PaddleModelConfig[];
   backend?: OrtBackend;
   /** Log detection/recognition diagnostics to the worker console. */
   debug?: boolean;
@@ -136,6 +138,11 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
 
     if (!initPromise) {
       const resolve = resolveUrl;
+      const resolveModel = (model: PaddleModelConfig): WorkerModelConfig => ({
+        id: model.id,
+        modelBaseUrl: resolve(model.modelDir),
+        script: model.script,
+      });
       const activeWorker = ensureWorker();
       const id = nextId++;
       initPromise = new Promise<void>((resolvePromise, reject) => {
@@ -149,16 +156,11 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
         activeWorker.postMessage({
           type: "init",
           id,
-          model: {
-            id: model.id,
-            modelBaseUrl: resolve(model.modelDir),
-            script: model.script,
-          },
-          autoModels: config.autoModels?.map((model) => ({
-            id: model.id,
-            modelBaseUrl: resolve(model.modelDir),
-            script: model.script,
-          })),
+          model: resolveModel(model),
+          additionalModels: config.additionalModels?.map(resolveModel),
+          ...(config.additionalModels?.length
+            ? { scriptModelBaseUrl: resolve(SCRIPT_MODEL_DIR) }
+            : {}),
           layoutModelBaseUrl: resolve(LAYOUT_MODEL_DIR),
           wasmBaseUrl: resolve(WASM_DIR),
           backend,

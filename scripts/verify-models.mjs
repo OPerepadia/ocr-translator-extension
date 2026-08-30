@@ -9,6 +9,7 @@
 //   2. recognizer class count == dict lines + 2 (blank + dict + space) and the
 //      blank/space CTC layout still holds                (dict.ts / ctc.ts)
 //   3. recognizer output is already softmaxed            (engine.ts flag)
+//   4. script classifier output matches osd_labels.json  (script-classifier.ts)
 // and prints the manifest values the code reads, so a config drift is visible.
 //
 // Exits non-zero if any hard assumption is violated.
@@ -25,6 +26,10 @@ const DEFAULT_DIRS = [
   "src/public/assets/ocr/arabic-v5",
   "src/public/assets/ocr/devanagari-v5",
 ];
+const SCRIPT_MODEL_DIR = path.resolve(
+  "src/public/assets/script-identification",
+);
+const verifyScriptClassifier = process.argv.length <= 2;
 const modelDirs = (process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_DIRS).map(
   (dir) => path.resolve(dir),
 );
@@ -49,6 +54,24 @@ async function run(session, dims) {
   const feeds = { [session.inputNames[0]]: new ort.Tensor("float32", data, dims) };
   const results = await session.run(feeds);
   return results[session.outputNames[0]];
+}
+
+function inspectProbabilityRow(output, numClasses) {
+  const row = output.data.subarray(0, numClasses);
+  let sum = 0;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of row) {
+    sum += value;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+  return {
+    sum,
+    min,
+    max,
+    looksLikeProb: Math.abs(sum - 1) < 0.02 && min >= -1e-6 && max <= 1 + 1e-6,
+  };
 }
 
 async function verifyModelDir(modelDir) {
@@ -98,17 +121,10 @@ async function verifyModelDir(modelDir) {
     }
 
     // Softmax check on the first timestep.
-    const C = recOut.dims[2];
-    const row = recOut.data.subarray(0, C);
-    let sum = 0;
-    let min = Infinity;
-    let max = -Infinity;
-    for (const v of row) {
-      sum += v;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    const looksLikeProb = Math.abs(sum - 1) < 0.02 && min >= -1e-6 && max <= 1 + 1e-6;
+    const { sum, min, max, looksLikeProb } = inspectProbabilityRow(
+      recOut,
+      recOut.dims[2],
+    );
     if (looksLikeProb) {
       pass(`output already softmaxed (row sum ${sum.toFixed(3)}) — engine.ts uses outputsAreProbabilities=true`);
     } else {
@@ -116,6 +132,40 @@ async function verifyModelDir(modelDir) {
     }
   }
 
+}
+
+async function verifyScriptModel(modelDir) {
+  console.log(`\n---\n\nVerifying script classifier in ${modelDir}\n`);
+  const labels = JSON.parse(
+    await readFile(path.join(modelDir, "osd_labels.json"), "utf8"),
+  );
+  const session = await loadSession(modelDir, "osd_lstm.onnx");
+  const output = await run(session, [1, 1, 48, 320]);
+  info(
+    `input=${JSON.stringify(session.inputNames)}, output=${JSON.stringify(session.outputNames)}`,
+  );
+  info(`output dims ${JSON.stringify(output.dims)}`);
+
+  if (
+    output.dims.length === 2 &&
+    output.dims[1] === labels.length &&
+    labels[0] === "NULL" &&
+    labels[2] === "Broken"
+  ) {
+    pass(`output classes match ${labels.length} labels and CTC special ids`);
+  } else {
+    fail(`expected [T,${labels.length}] with NULL=0 and Broken=2`);
+  }
+
+  const { sum, looksLikeProb } = inspectProbabilityRow(
+    output,
+    output.dims[1],
+  );
+  if (looksLikeProb) {
+    pass(`output is softmaxed (row sum ${sum.toFixed(3)})`);
+  } else {
+    fail(`output is not softmaxed (row sum ${sum.toFixed(2)})`);
+  }
 }
 
 async function main() {
@@ -129,6 +179,9 @@ async function main() {
       console.log("\n---\n");
     }
     await verifyModelDir(modelDir);
+  }
+  if (verifyScriptClassifier) {
+    await verifyScriptModel(SCRIPT_MODEL_DIR);
   }
 
   console.log(

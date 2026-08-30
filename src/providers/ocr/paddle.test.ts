@@ -130,7 +130,7 @@ describe("createPaddleOcrProvider", () => {
         modelDir: "models/general/",
         script: "general",
       },
-      autoModels: [
+      additionalModels: [
         {
           id: "cyrillic-v5",
           modelDir: "models/cyrillic/",
@@ -145,12 +145,13 @@ describe("createPaddleOcrProvider", () => {
 
     expect(fake.ofType("init")[0]).toMatchObject({
       layoutModelBaseUrl: "extension://assets/layout-grouping/",
+      scriptModelBaseUrl: "extension://assets/script-identification/",
       model: {
         id: "v6-multi",
         modelBaseUrl: "extension://models/general/",
         script: "general",
       },
-      autoModels: [
+      additionalModels: [
         {
           id: "cyrillic-v5",
           modelBaseUrl: "extension://models/cyrillic/",

@@ -1,6 +1,7 @@
 import type { Rect } from "../../../shared/types";
 import type { RecognizedLine } from "./assemble";
 import { filterRecognizedLines } from "./assemble";
+import { fetchJson } from "./utils";
 import type { RgbaImage } from "./crop";
 import { createSession, ort } from "./ort-env";
 
@@ -344,12 +345,4 @@ function validateManifest(manifest: RegionManifest): void {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}: ${response.status}`);
-  }
-  return (await response.json()) as T;
 }

@@ -60,30 +60,53 @@ test("initializes the Firefox OCR host and runs local recognition", {
           if (!drawing) {
             throw new Error("Canvas 2D is unavailable.");
           }
-          drawing.fillStyle = "white";
-          drawing.fillRect(0, 0, canvas.width, canvas.height);
-          drawing.fillStyle = "black";
-          drawing.font = "bold 52px sans-serif";
-          drawing.textBaseline = "middle";
-          drawing.fillText("SAMPLE LINE", 16, 48);
-          drawing.fillText("SECOND LINE", 16, 144);
+          const runOcrCase = async ({
+            lines,
+            fontSize,
+            sourceLang,
+            targetLang,
+            requestId,
+          }) => {
+            drawing.fillStyle = "white";
+            drawing.fillRect(0, 0, canvas.width, canvas.height);
+            drawing.fillStyle = "black";
+            drawing.font = `bold ${fontSize}px sans-serif`;
+            drawing.textBaseline = "middle";
+            drawing.fillText(lines[0], 16, 48);
+            drawing.fillText(lines[1], 16, 144);
 
-          await browser.storage.local.set({
-            settings: {
-              ocr: { providerId: "paddle", sourceLang: "en" },
-              translation: {
-                providerId: "google",
-                targetLang: "en",
-                llm: { baseUrl: "http://localhost:8080/v1" },
+            await browser.storage.local.set({
+              settings: {
+                ocr: { providerId: "paddle", sourceLang },
+                translation: {
+                  providerId: "google",
+                  targetLang,
+                  llm: { baseUrl: "http://localhost:8080/v1" },
+                },
               },
-            },
-          });
-          const response = await browser.runtime.sendMessage({
-            type: "OCR_TRANSLATE_REQUEST",
+            });
+            return browser.runtime.sendMessage({
+              type: "OCR_TRANSLATE_REQUEST",
+              requestId,
+              imageUrl: canvas.toDataURL("image/png"),
+            });
+          };
+
+          const response = await runOcrCase({
+            lines: ["SAMPLE LINE", "SECOND LINE"],
+            fontSize: 52,
+            sourceLang: "en",
+            targetLang: "en",
             requestId: "firefox-browser-smoke-test",
-            imageUrl: canvas.toDataURL("image/png"),
           });
-          done({ response });
+          const autoResponse = await runOcrCase({
+            lines: ["ПРОСТИЙ ТЕКСТ", "ДРУГИЙ РЯДОК"],
+            fontSize: 44,
+            sourceLang: "auto",
+            targetLang: "uk",
+            requestId: "firefox-script-classifier-test",
+          });
+          done({ response, autoResponse });
         } catch (error) {
           done({ error: error instanceof Error ? error.message : String(error) });
         }
@@ -110,6 +133,23 @@ test("initializes the Firefox OCR host and runs local recognition", {
     assert.ok(ocr?.blocks?.length >= 2);
     assert.match(ocr?.text ?? "", /sample/i);
     assert.ok(ocr?.providerMeta?.grouping?.groupCount > 0);
+
+    assert.equal(
+      result.autoResponse.ok,
+      true,
+      result.autoResponse.error?.message ?? "The auto OCR request failed.",
+    );
+    const autoOcr = result.autoResponse.value?.ocr;
+    assert.equal(autoOcr?.providerMeta?.modelId, "cyrillic-v5");
+    assert.equal(
+      autoOcr?.providerMeta?.autoSelection?.method,
+      "script-classifier",
+    );
+    assert.equal(
+      autoOcr?.providerMeta?.autoSelection?.scriptDetection?.script,
+      "cyrillic",
+    );
+    assert.ok(autoOcr?.blocks?.length >= 2);
   } finally {
     await driver.quit();
   }

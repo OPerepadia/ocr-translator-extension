@@ -29,6 +29,14 @@ interface OcrResponse {
           matchedLineCount?: number;
           groupCount?: number;
         };
+        autoSelection?: {
+          method?: string;
+          decisive?: boolean;
+          scriptDetection?: {
+            script?: string;
+            probeCount?: number;
+          };
+        };
       };
       text?: string;
     };
@@ -36,17 +44,19 @@ interface OcrResponse {
   error?: { message?: string };
 }
 
+interface OcrCase {
+  lines: [string, string];
+  targetLang: string;
+  requestId: string;
+  width: number;
+  fontSize: number;
+  script: string;
+  modelId: string;
+  rtl?: boolean;
+}
+
 test("initializes the offscreen OCR host and runs local recognition", async () => {
-  const extensionPath = resolve(".output/chrome-mv3");
-  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-  const context = await chromium.launchPersistentContext("", {
-    ...(executablePath ? { executablePath } : { channel: "chromium" }),
-    headless: true,
-    args: [
-      `--disable-extensions-except=${extensionPath}`,
-      `--load-extension=${extensionPath}`,
-    ],
-  });
+  const context = await launchExtensionContext();
 
   const pageErrors: string[] = [];
   const watchPage = (page: Page): void => {
@@ -61,22 +71,55 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup.html`);
 
-    const response = (await page.evaluate(async () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 400;
-      canvas.height = 192;
-      const drawing = canvas.getContext("2d");
-      if (!drawing) {
-        throw new Error("Canvas 2D is unavailable.");
-      }
-      drawing.fillStyle = "white";
-      drawing.fillRect(0, 0, canvas.width, canvas.height);
-      drawing.fillStyle = "black";
-      drawing.font = "bold 52px sans-serif";
-      drawing.textBaseline = "middle";
-      drawing.fillText("SAMPLE LINE", 16, 48);
-      drawing.fillText("SECOND LINE", 16, 144);
-
+    const ocrCases: OcrCase[] = [
+      {
+        lines: ["SAMPLE LINE", "SECOND LINE"],
+        targetLang: "en",
+        requestId: "browser-smoke-test",
+        width: 400,
+        fontSize: 52,
+        script: "general",
+        modelId: "v6-multi",
+      },
+      {
+        lines: ["ПРОСТИЙ ТЕКСТ", "ДРУГИЙ РЯДОК"],
+        targetLang: "uk",
+        requestId: "script-smoke-test-0",
+        width: 500,
+        fontSize: 56,
+        script: "cyrillic",
+        modelId: "cyrillic-v5",
+      },
+      {
+        lines: ["نص بسيط", "سطر آخر"],
+        targetLang: "ar",
+        requestId: "script-smoke-test-1",
+        width: 500,
+        fontSize: 56,
+        script: "arabic",
+        modelId: "arabic-v5",
+        rtl: true,
+      },
+      {
+        lines: ["सरल पाठ", "दूसरी पंक्ति"],
+        targetLang: "hi",
+        requestId: "script-smoke-test-2",
+        width: 500,
+        fontSize: 56,
+        script: "devanagari",
+        modelId: "devanagari-v5",
+      },
+      {
+        lines: ["간단한 글", "둘째 줄"],
+        targetLang: "ko",
+        requestId: "script-smoke-test-3",
+        width: 500,
+        fontSize: 56,
+        script: "hangul",
+        modelId: "korean-v5",
+      },
+    ];
+    const [response, ...scriptResponses] = (await page.evaluate(async (cases) => {
       const extensionApi = (
         globalThis as typeof globalThis & {
           chrome: {
@@ -91,22 +134,49 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
           };
         }
       ).chrome;
-      await extensionApi.storage.local.set({
-        settings: {
-          ocr: { providerId: "paddle", sourceLang: "en" },
-          translation: {
-            providerId: "google",
-            targetLang: "en",
-            llm: { baseUrl: "http://localhost:8080/v1" },
+
+      const runOcrCase = async (testCase: OcrCase): Promise<unknown> => {
+        const canvas = document.createElement("canvas");
+        canvas.width = testCase.width;
+        canvas.height = 192;
+        const drawing = canvas.getContext("2d");
+        if (!drawing) {
+          throw new Error("Canvas 2D is unavailable.");
+        }
+        drawing.fillStyle = "white";
+        drawing.fillRect(0, 0, canvas.width, canvas.height);
+        drawing.fillStyle = "black";
+        drawing.font = `bold ${testCase.fontSize}px sans-serif`;
+        drawing.textBaseline = "middle";
+        drawing.textAlign = testCase.rtl ? "right" : "left";
+        drawing.direction = testCase.rtl ? "rtl" : "ltr";
+        const x = testCase.rtl ? canvas.width - 16 : 16;
+        drawing.fillText(testCase.lines[0], x, 48);
+        drawing.fillText(testCase.lines[1], x, 144);
+
+        await extensionApi.storage.local.set({
+          settings: {
+            ocr: { providerId: "paddle", sourceLang: "auto" },
+            translation: {
+              providerId: "google",
+              targetLang: testCase.targetLang,
+              llm: { baseUrl: "http://localhost:8080/v1" },
+            },
           },
-        },
-      });
-      return extensionApi.runtime.sendMessage({
-        type: "OCR_TRANSLATE_REQUEST",
-        requestId: "browser-smoke-test",
-        imageUrl: canvas.toDataURL("image/png"),
-      });
-    })) as OcrResponse;
+        });
+        return extensionApi.runtime.sendMessage({
+          type: "OCR_TRANSLATE_REQUEST",
+          requestId: testCase.requestId,
+          imageUrl: canvas.toDataURL("image/png"),
+        });
+      };
+
+      const responses = [];
+      for (const testCase of cases) {
+        responses.push(await runOcrCase(testCase));
+      }
+      return responses;
+    }, ocrCases)) as OcrResponse[];
 
     if (!response.ok) {
       throw new Error(response.error?.message ?? "The OCR request failed.");
@@ -123,6 +193,14 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
           confidenceThreshold: 0.4,
           nmsIouThreshold: 0.25,
         },
+        autoSelection: {
+          method: "script-classifier",
+          decisive: true,
+          scriptDetection: {
+            script: "general",
+            probeCount: 2,
+          },
+        },
       },
     });
     expect(response.value?.ocr?.blocks?.length).toBeGreaterThanOrEqual(2);
@@ -130,22 +208,26 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
     expect(
       response.value?.ocr?.providerMeta?.grouping?.groupCount,
     ).toBeGreaterThan(0);
+
+    for (const [index, scriptCase] of ocrCases.slice(1).entries()) {
+      const scriptResponse = scriptResponses[index];
+      expect(scriptResponse.ok).toBe(true);
+      expect(scriptResponse.value?.ocr?.providerMeta).toMatchObject({
+        modelId: scriptCase.modelId,
+        autoSelection: {
+          method: "script-classifier",
+          decisive: true,
+          scriptDetection: { script: scriptCase.script, probeCount: 2 },
+        },
+      });
+    }
   } finally {
     await context.close();
   }
 });
 
 test("reports a fallback WebGPU adapter as software-only", async () => {
-  const extensionPath = resolve(".output/chrome-mv3");
-  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-  const context = await chromium.launchPersistentContext("", {
-    ...(executablePath ? { executablePath } : { channel: "chromium" }),
-    headless: true,
-    args: [
-      `--disable-extensions-except=${extensionPath}`,
-      `--load-extension=${extensionPath}`,
-    ],
-  });
+  const context = await launchExtensionContext();
   await context.addInitScript(() => {
     Object.defineProperty(navigator, "gpu", {
       configurable: true,
@@ -175,6 +257,19 @@ test("reports a fallback WebGPU adapter as software-only", async () => {
     await context.close();
   }
 });
+
+function launchExtensionContext(): Promise<BrowserContext> {
+  const extensionPath = resolve(".output/chrome-mv3");
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  return chromium.launchPersistentContext("", {
+    ...(executablePath ? { executablePath } : { channel: "chromium" }),
+    headless: true,
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+    ],
+  });
+}
 
 async function findServiceWorker(context: BrowserContext) {
   return (
