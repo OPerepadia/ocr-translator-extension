@@ -56,6 +56,24 @@ async function run(session, dims) {
   return results[session.outputNames[0]];
 }
 
+function inspectProbabilityRow(output, numClasses) {
+  const row = output.data.subarray(0, numClasses);
+  let sum = 0;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of row) {
+    sum += value;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+  return {
+    sum,
+    min,
+    max,
+    looksLikeProb: Math.abs(sum - 1) < 0.02 && min >= -1e-6 && max <= 1 + 1e-6,
+  };
+}
+
 async function verifyModelDir(modelDir) {
   console.log(`Verifying models in ${modelDir}\n`);
 
@@ -103,17 +121,10 @@ async function verifyModelDir(modelDir) {
     }
 
     // Softmax check on the first timestep.
-    const C = recOut.dims[2];
-    const row = recOut.data.subarray(0, C);
-    let sum = 0;
-    let min = Infinity;
-    let max = -Infinity;
-    for (const v of row) {
-      sum += v;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    const looksLikeProb = Math.abs(sum - 1) < 0.02 && min >= -1e-6 && max <= 1 + 1e-6;
+    const { sum, min, max, looksLikeProb } = inspectProbabilityRow(
+      recOut,
+      recOut.dims[2],
+    );
     if (looksLikeProb) {
       pass(`output already softmaxed (row sum ${sum.toFixed(3)}) — engine.ts uses outputsAreProbabilities=true`);
     } else {
@@ -146,16 +157,11 @@ async function verifyScriptModel(modelDir) {
     fail(`expected [T,${labels.length}] with NULL=0 and Broken=2`);
   }
 
-  const row = output.data.subarray(0, output.dims[1]);
-  let sum = 0;
-  let min = Infinity;
-  let max = -Infinity;
-  for (const value of row) {
-    sum += value;
-    min = Math.min(min, value);
-    max = Math.max(max, value);
-  }
-  if (Math.abs(sum - 1) < 0.02 && min >= -1e-6 && max <= 1 + 1e-6) {
+  const { sum, looksLikeProb } = inspectProbabilityRow(
+    output,
+    output.dims[1],
+  );
+  if (looksLikeProb) {
     pass(`output is softmaxed (row sum ${sum.toFixed(3)})`);
   } else {
     fail(`output is not softmaxed (row sum ${sum.toFixed(2)})`);

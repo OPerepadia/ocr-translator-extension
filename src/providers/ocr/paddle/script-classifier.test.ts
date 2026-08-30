@@ -63,68 +63,62 @@ function evidence(
   };
 }
 
+function lineImage(
+  width: number,
+  pixelAt: (x: number) => [number, number, number, number],
+) {
+  const height = 48;
+  const data = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    data.set(pixelAt(i % width), i * 4);
+  }
+  return { data, width, height };
+}
+
 describe("script classifier preprocessing", () => {
   it("normalizes a black and white line around -1 and 1", () => {
-    const width = 4;
-    const height = 48;
-    const rgba = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      const value = i % width < 2 ? 0 : 255;
-      rgba.set([value, value, value, 255], i * 4);
-    }
-
-    const output = scriptImageToNchw({ data: rgba, width, height });
+    const output = scriptImageToNchw(
+      lineImage(4, (x) => {
+        const value = x < 2 ? 0 : 255;
+        return [value, value, value, 255];
+      }),
+    );
 
     expect(output[0]).toBeLessThan(-0.99);
     expect(output[2]).toBeGreaterThan(0.99);
   });
 
   it("inverts predominantly dark lines", () => {
-    const width = 4;
-    const height = 48;
-    const rgba = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      const value = i % width === 0 ? 255 : 0;
-      rgba.set([value, value, value, 255], i * 4);
-    }
-
-    const output = scriptImageToNchw({ data: rgba, width, height });
+    const output = scriptImageToNchw(
+      lineImage(4, (x) => {
+        const value = x === 0 ? 255 : 0;
+        return [value, value, value, 255];
+      }),
+    );
 
     expect(output[0]).toBeLessThan(-0.99);
     expect(output[1]).toBeGreaterThan(0.99);
   });
 
   it("inverts white text on a red background", () => {
-    const width = 8;
-    const height = 48;
-    const rgba = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      const x = i % width;
-      rgba.set(
-        x === 3 || x === 4 ? [255, 255, 255, 255] : [195, 24, 51, 255],
-        i * 4,
-      );
-    }
-
-    const output = scriptImageToNchw({ data: rgba, width, height });
+    const output = scriptImageToNchw(
+      lineImage(8, (x) =>
+        x === 3 || x === 4
+          ? [255, 255, 255, 255]
+          : [195, 24, 51, 255],
+      ),
+    );
 
     expect(output[3]).toBeLessThan(-0.99);
     expect(output[0]).toBeGreaterThan(0.99);
   });
 
   it("keeps black text on a red background", () => {
-    const width = 8;
-    const height = 48;
-    const rgba = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      const x = i % width;
-      rgba.set(
+    const output = scriptImageToNchw(
+      lineImage(8, (x) =>
         x === 3 || x === 4 ? [0, 0, 0, 255] : [195, 24, 51, 255],
-        i * 4,
-      );
-    }
-
-    const output = scriptImageToNchw({ data: rgba, width, height });
+      ),
+    );
 
     expect(output[3]).toBeLessThan(-0.99);
     expect(output[0]).toBeGreaterThan(0.95);

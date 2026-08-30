@@ -1,6 +1,7 @@
+import { fetchJson } from "./utils";
 import { cropQuadToImageData, type RgbaImage } from "./crop";
 import type { DetectedBox } from "./db-postprocess";
-import { createSession, ort } from "./ort-env";
+import { createSession, ort, runSingleInput } from "./ort-env";
 import type { RecognizerScript } from "./protocol";
 
 const NULL_CLASS = 0;
@@ -58,10 +59,7 @@ export class ScriptClassifier {
       scriptImageToNchw(image),
       [1, 1, image.height, image.width],
     );
-    const results = await this.session.run({
-      [this.session.inputNames[0]]: tensor,
-    });
-    const output = results[this.session.outputNames[0]];
+    const output = await runSingleInput(this.session, tensor);
     const timeSteps = output.dims[0];
     const numClasses = output.dims[1];
     return decodeScriptScores(
@@ -467,11 +465,3 @@ const RECOGNIZER_SCRIPTS: readonly RecognizerScript[] = [
   "arabic",
   "devanagari",
 ];
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}: ${response.status}`);
-  }
-  return (await response.json()) as T;
-}

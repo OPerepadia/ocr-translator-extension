@@ -45,4 +45,12 @@ export async function createSession(
   });
 }
 
+export async function runSingleInput(
+  session: ort.InferenceSession,
+  tensor: ort.Tensor,
+): Promise<ort.Tensor> {
+  const results = await session.run({ [session.inputNames[0]]: tensor });
+  return results[session.outputNames[0]];
+}
+
 export { ort };

@@ -4,6 +4,7 @@ import {
   deserializeError,
   type RecognizerScript,
   type WorkerLike,
+  type WorkerModelConfig,
   type WorkerResponse,
 } from "./paddle/protocol";
 import { createInferenceWorker } from "./paddle/worker-factory";
@@ -137,6 +138,11 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
 
     if (!initPromise) {
       const resolve = resolveUrl;
+      const resolveModel = (model: PaddleModelConfig): WorkerModelConfig => ({
+        id: model.id,
+        modelBaseUrl: resolve(model.modelDir),
+        script: model.script,
+      });
       const activeWorker = ensureWorker();
       const id = nextId++;
       initPromise = new Promise<void>((resolvePromise, reject) => {
@@ -150,16 +156,8 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
         activeWorker.postMessage({
           type: "init",
           id,
-          model: {
-            id: model.id,
-            modelBaseUrl: resolve(model.modelDir),
-            script: model.script,
-          },
-          additionalModels: config.additionalModels?.map((model) => ({
-            id: model.id,
-            modelBaseUrl: resolve(model.modelDir),
-            script: model.script,
-          })),
+          model: resolveModel(model),
+          additionalModels: config.additionalModels?.map(resolveModel),
           ...(config.additionalModels?.length
             ? { scriptModelBaseUrl: resolve(SCRIPT_MODEL_DIR) }
             : {}),

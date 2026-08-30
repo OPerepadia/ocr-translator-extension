@@ -2,6 +2,7 @@
 // the result. Lives in the worker; uses ORT, OffscreenCanvas, and createImageBitmap.
 
 import { assembleGroupedResult, type RecognizedLine } from "./assemble";
+import { fetchJson, fetchText } from "./utils";
 import { charBoxes } from "./char-boxes";
 import {
   bitmapToImageData,
@@ -20,6 +21,7 @@ import {
   configureOrt,
   ort,
   resolveBackend,
+  runSingleInput,
   type OrtBackend,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
@@ -310,7 +312,7 @@ export class PaddleEngine {
       [1, 3, targetH, targetW],
     );
 
-    const output = await this.run(this.detSession, tensor);
+    const output = await runSingleInput(this.detSession, tensor);
     const probMap = output.data as Float32Array;
     const mapH = output.dims[2];
     const mapW = output.dims[3];
@@ -535,7 +537,7 @@ export class PaddleEngine {
       [1, 3, imageData.height, imageData.width],
     );
 
-    const output = await this.run(recognizer.session, tensor);
+    const output = await runSingleInput(recognizer.session, tensor);
     const timeSteps = output.dims[1];
     const numClasses = output.dims[2];
     // PP-OCRv6 rec exports with a final softmax -> output is already probabilities.
@@ -571,15 +573,6 @@ export class PaddleEngine {
       }),
     };
   }
-
-  private async run(
-    session: ort.InferenceSession,
-    tensor: ort.Tensor,
-  ): Promise<ort.Tensor> {
-    const feeds = { [session.inputNames[0]]: tensor };
-    const results = await session.run(feeds);
-    return results[session.outputNames[0]];
-  }
 }
 
 async function loadRecognizer(
@@ -613,20 +606,4 @@ function now(): number {
 
 function elapsed(startedAt: number): string {
   return `${Math.round(now() - startedAt)}ms`;
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}: ${response.status}`);
-  }
-  return (await response.json()) as T;
-}
-
-async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}: ${response.status}`);
-  }
-  return response.text();
 }

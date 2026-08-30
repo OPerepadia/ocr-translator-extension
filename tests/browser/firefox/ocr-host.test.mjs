@@ -60,51 +60,51 @@ test("initializes the Firefox OCR host and runs local recognition", {
           if (!drawing) {
             throw new Error("Canvas 2D is unavailable.");
           }
-          drawing.fillStyle = "white";
-          drawing.fillRect(0, 0, canvas.width, canvas.height);
-          drawing.fillStyle = "black";
-          drawing.font = "bold 52px sans-serif";
-          drawing.textBaseline = "middle";
-          drawing.fillText("SAMPLE LINE", 16, 48);
-          drawing.fillText("SECOND LINE", 16, 144);
+          const runOcrCase = async ({
+            lines,
+            fontSize,
+            sourceLang,
+            targetLang,
+            requestId,
+          }) => {
+            drawing.fillStyle = "white";
+            drawing.fillRect(0, 0, canvas.width, canvas.height);
+            drawing.fillStyle = "black";
+            drawing.font = `bold ${fontSize}px sans-serif`;
+            drawing.textBaseline = "middle";
+            drawing.fillText(lines[0], 16, 48);
+            drawing.fillText(lines[1], 16, 144);
 
-          await browser.storage.local.set({
-            settings: {
-              ocr: { providerId: "paddle", sourceLang: "en" },
-              translation: {
-                providerId: "google",
-                targetLang: "en",
-                llm: { baseUrl: "http://localhost:8080/v1" },
+            await browser.storage.local.set({
+              settings: {
+                ocr: { providerId: "paddle", sourceLang },
+                translation: {
+                  providerId: "google",
+                  targetLang,
+                  llm: { baseUrl: "http://localhost:8080/v1" },
+                },
               },
-            },
-          });
-          const response = await browser.runtime.sendMessage({
-            type: "OCR_TRANSLATE_REQUEST",
+            });
+            return browser.runtime.sendMessage({
+              type: "OCR_TRANSLATE_REQUEST",
+              requestId,
+              imageUrl: canvas.toDataURL("image/png"),
+            });
+          };
+
+          const response = await runOcrCase({
+            lines: ["SAMPLE LINE", "SECOND LINE"],
+            fontSize: 52,
+            sourceLang: "en",
+            targetLang: "en",
             requestId: "firefox-browser-smoke-test",
-            imageUrl: canvas.toDataURL("image/png"),
           });
-
-          drawing.fillStyle = "white";
-          drawing.fillRect(0, 0, canvas.width, canvas.height);
-          drawing.fillStyle = "black";
-          drawing.font = "bold 44px sans-serif";
-          drawing.fillText("ПРОСТИЙ ТЕКСТ", 16, 48);
-          drawing.fillText("ДРУГИЙ РЯДОК", 16, 144);
-
-          await browser.storage.local.set({
-            settings: {
-              ocr: { providerId: "paddle", sourceLang: "auto" },
-              translation: {
-                providerId: "google",
-                targetLang: "uk",
-                llm: { baseUrl: "http://localhost:8080/v1" },
-              },
-            },
-          });
-          const autoResponse = await browser.runtime.sendMessage({
-            type: "OCR_TRANSLATE_REQUEST",
+          const autoResponse = await runOcrCase({
+            lines: ["ПРОСТИЙ ТЕКСТ", "ДРУГИЙ РЯДОК"],
+            fontSize: 44,
+            sourceLang: "auto",
+            targetLang: "uk",
             requestId: "firefox-script-classifier-test",
-            imageUrl: canvas.toDataURL("image/png"),
           });
           done({ response, autoResponse });
         } catch (error) {
