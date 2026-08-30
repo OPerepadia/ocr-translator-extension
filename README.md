@@ -79,6 +79,8 @@ When the source language is set to Auto, a local classifier detects the script a
 
 Recognized text can be translated into any language supported by Google Translate, or any language supported by your configured LLM endpoint.
 
+If Ollama returns HTTP 403, enable **Remove Origin header** in the LLM endpoint settings.
+
 ## Limitations
 
 Recognized text lines are grouped into regions using a bundled RT-DETR model.

@@ -75,6 +75,8 @@ async function initOptions(): Promise<void> {
   );
 
   elements.llmBaseUrlInput.value = settings.translation.llm?.baseUrl ?? "";
+  elements.llmRemoveOriginHeaderInput.checked =
+    settings.translation.llm?.removeOriginHeader === true;
   elements.llmApiKeyInput.value = settings.translation.llm?.apiKey ?? "";
   fillLlmModelSelect(
     elements.llmModelSelect,
@@ -209,6 +211,7 @@ async function initOptions(): Promise<void> {
   for (const input of [
     elements.ocrWebGpuInput,
     elements.llmBaseUrlInput,
+    elements.llmRemoveOriginHeaderInput,
     elements.llmApiKeyInput,
     elements.llmModelSelect,
     elements.llmDisableThinkingInput,
@@ -314,6 +317,7 @@ async function testConnection(elements: OptionsElements): Promise<void> {
       baseUrl: llm?.baseUrl ?? "",
       apiKey: llm?.apiKey,
       model: llm?.model,
+      removeOriginHeader: llm?.removeOriginHeader,
       disableThinking: llm?.disableThinking,
       timeoutMs: llm?.timeoutMs,
     });
@@ -367,6 +371,7 @@ function readLlmSettings(formData: FormData): Settings["translation"]["llm"] {
   const model = String(formData.get("llmModel") ?? "").trim();
   // Unchecked checkboxes are absent from FormData.
   const disableThinking = formData.get("llmDisableThinking") !== null;
+  const removeOriginHeader = formData.get("llmRemoveOriginHeader") !== null;
   // Empty or invalid means "use the provider default" and stays unset.
   const timeoutSeconds = Number(String(formData.get("llmTimeout") ?? "").trim());
   const timeoutMs =
@@ -376,13 +381,21 @@ function readLlmSettings(formData: FormData): Settings["translation"]["llm"] {
 
   // A checked box is the default, so the whole section is "untouched" when
   // everything else is empty too.
-  if (!baseUrl && !apiKey && !model && disableThinking && !timeoutMs) {
+  if (
+    !baseUrl &&
+    !apiKey &&
+    !model &&
+    !removeOriginHeader &&
+    disableThinking &&
+    !timeoutMs
+  ) {
     return undefined;
   }
   return {
     baseUrl: baseUrl || undefined,
     apiKey: apiKey || undefined,
     model: model || undefined,
+    removeOriginHeader: removeOriginHeader || undefined,
     // Thinking is disabled by default; only an explicit re-enable is stored.
     disableThinking: disableThinking ? undefined : false,
     timeoutMs,
@@ -531,6 +544,7 @@ function getOptionsElements(): {
   ocrWebGpuStatus: HTMLElement;
   llmSettings: HTMLFieldSetElement;
   llmBaseUrlInput: HTMLInputElement;
+  llmRemoveOriginHeaderInput: HTMLInputElement;
   llmUrlError: HTMLElement;
   llmApiKeyInput: HTMLInputElement;
   llmApiKeyToggle: HTMLButtonElement;
@@ -573,6 +587,9 @@ function getOptionsElements(): {
   const llmBaseUrlInput = app.querySelector<HTMLInputElement>(
     "input[name='llmBaseUrl']",
   );
+  const llmRemoveOriginHeaderInput = app.querySelector<HTMLInputElement>(
+    "input[name='llmRemoveOriginHeader']",
+  );
   const llmUrlError = app.querySelector<HTMLElement>(".llm-url-error");
   const llmApiKeyInput = app.querySelector<HTMLInputElement>(
     "input[name='llmApiKey']",
@@ -612,6 +629,7 @@ function getOptionsElements(): {
     !ocrWebGpuStatus ||
     !llmSettings ||
     !llmBaseUrlInput ||
+    !llmRemoveOriginHeaderInput ||
     !llmUrlError ||
     !llmApiKeyInput ||
     !llmApiKeyToggle ||
@@ -640,6 +658,7 @@ function getOptionsElements(): {
     ocrWebGpuStatus,
     llmSettings,
     llmBaseUrlInput,
+    llmRemoveOriginHeaderInput,
     llmUrlError,
     llmApiKeyInput,
     llmApiKeyToggle,

@@ -2,23 +2,15 @@ import type { LangCode } from "../../shared/types";
 import { t } from "../../shared/i18n";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
 import { RemoteTranslationError, type TranslationProvider } from "./types";
+import { fetchWithModifiedHeaders } from "../../shared/fetch-with-modified-headers";
 
-// Translation through an OpenAI-compatible chat-completions endpoint: OpenAI
-// itself or a local server such as llama.cpp or LM Studio. The user configures
-// the endpoint URL, an optional API key (local servers don't need one), and a
-// model name on the options page.
+// Translation through a user-configured OpenAI-compatible chat-completions
+// endpoint, including hosted APIs and local servers such as Ollama, llama.cpp,
+// and LM Studio.
 //
-// Like Google, this is a REMOTE provider: the recognized text is sent to the
-// configured endpoint. It is opt-in and never the default, which is why the
-// add-on declares website-content data collection as *optional* (see
-// wxt.config.ts and docs/AMO-REVIEW-NOTES.md). With a localhost endpoint
-// nothing actually leaves the device, but the URL is user-configured, so the
-// provider is still treated as remote.
-//
-// All lines go out in one request as JSON segments with ids. The model returns
-// the same ids with their translations, so an extra or reordered result cannot
-// shift translations onto the wrong OCR boxes. Invalid replies get one
-// corrective retry and are never shown as raw protocol output.
+// Non-blank lines are sent together as numbered JSON segments. The response is
+// matched by id so missing, extra, or reordered translations cannot shift text
+// onto the wrong OCR boxes. An invalid response gets one corrective retry.
 
 // LLMs (especially local ones) are far slower than a translation API, so the
 // timeout is much more generous than Google's 15s.
@@ -35,10 +27,10 @@ export interface OpenAiProviderConfig {
      * single-model servers ignore it, hosted APIs reject a missing model with
      * an error the user sees. */
     model?: string;
-    /** Ask the server to skip the model's "thinking" phase
-     * (chat_template_kwargs.enable_thinking = false — understood by
-     * compatible local servers). Opt-in because strict cloud APIs reject
-     * unknown request fields. */
+    /** Remove Origin from chat-completions requests for Ollama compatibility. */
+    removeOriginHeader?: boolean;
+    /** Ask the server to skip the model's thinking phase. Enabled by default;
+     * users can disable it for APIs that reject chat_template_kwargs. */
     disableThinking?: boolean;
     /** Per-request timeout in ms, set on the options page (as seconds).
      * Defaults to DEFAULT_TIMEOUT_MS; non-positive values are ignored. */
@@ -106,6 +98,7 @@ export function createOpenAiTranslationProvider(
         apiKey: config.llm?.apiKey?.trim() || undefined,
         model: config.llm?.model?.trim() || undefined,
         disableThinking: config.llm?.disableThinking !== false,
+        removeOriginHeader: config.llm?.removeOriginHeader === true,
         systemPrompt: buildSystemPrompt(input.sourceLang, targetLang),
         userContent: JSON.stringify({
           segments: nonBlank.map((entry, id) => ({ id, text: entry.line })),
@@ -162,6 +155,7 @@ async function requestChatCompletion(args: {
   apiKey?: string;
   model?: string;
   disableThinking?: boolean;
+  removeOriginHeader?: boolean;
   systemPrompt: string;
   userContent: string;
   correction?: {
@@ -219,14 +213,22 @@ async function requestChatCompletion(args: {
   let response: Response;
   let raw: string;
   try {
-    response = await args.fetchImpl(url, {
+    const init: RequestInit = {
       method: "POST",
       headers,
       // Send only our own Authorization header, never the user's cookies.
       credentials: "omit",
       body: JSON.stringify(body),
       signal: controller.signal,
-    });
+    };
+    response = args.removeOriginHeader
+      ? await fetchWithModifiedHeaders(
+          url,
+          init,
+          [{ header: "Origin", operation: "remove" }],
+          args.fetchImpl,
+        )
+      : await args.fetchImpl(url, init);
     raw = await response.text();
   } catch (error) {
     // A real cancel by the caller propagates untouched so callers see an
@@ -364,6 +366,7 @@ export async function testLlmConnection(args: {
   baseUrl: string;
   apiKey?: string;
   model?: string;
+  removeOriginHeader?: boolean;
   disableThinking?: boolean;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -382,6 +385,7 @@ export async function testLlmConnection(args: {
     apiKey: args.apiKey?.trim() || undefined,
     model: args.model?.trim() || undefined,
     disableThinking: args.disableThinking !== false,
+    removeOriginHeader: args.removeOriginHeader === true,
     systemPrompt: "You are a connection test. Reply only with OK.",
     userContent: "OK",
     fetchImpl: args.fetchImpl ?? globalThis.fetch.bind(globalThis),

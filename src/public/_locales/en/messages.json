@@ -128,7 +128,13 @@
     "message": "LLM endpoint"
   },
   "optionsLlmEndpointHint": {
-    "message": "Any OpenAI-compatible server: OpenAI, OpenRouter, or local llama.cpp / LM Studio."
+    "message": "Any server with an OpenAI-compatible API, such as llama.cpp, Ollama, LM Studio, OpenRouter, etc."
+  },
+  "optionsRemoveOriginHeader": {
+    "message": "Remove Origin header"
+  },
+  "optionsRemoveOriginHeaderHint": {
+    "message": "For Ollama only. Removes the Origin request header to prevent HTTP 403 Forbidden errors when requests are sent from the extension."
   },
   "optionsEndpointUrl": {
     "message": "Endpoint URL"

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemoteTranslationError } from "./types";
 import {
   createOpenAiTranslationProvider,
@@ -9,6 +9,10 @@ import {
   stripThinking,
   testLlmConnection,
 } from "./openai";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 interface RecordedRequest {
   url: string;
@@ -258,6 +262,36 @@ describe("createOpenAiTranslationProvider", () => {
     await provider.translate({ text: "hi", targetLang: "en" });
 
     expect(requests[0].body.chat_template_kwargs).toBeUndefined();
+  });
+
+  it("removes Origin when configured", async () => {
+    const updateSessionRules = vi.fn(
+      async (_options: {
+        addRules?: Array<{ action?: unknown }>;
+        removeRuleIds?: number[];
+      }) => undefined,
+    );
+    vi.stubGlobal("browser", {
+      runtime: { getURL: () => "chrome-extension://extension-id/" },
+      declarativeNetRequest: { updateSessionRules },
+    });
+    const { fetchImpl } = llmFetchMock((segments) =>
+      translationReply(segments),
+    );
+    const provider = createOpenAiTranslationProvider({
+      llm: { ...llm, removeOriginHeader: true },
+      fetchImpl,
+    });
+
+    await provider.translate({ text: "hi", targetLang: "en" });
+
+    expect(updateSessionRules).toHaveBeenCalledTimes(2);
+    expect(
+      updateSessionRules.mock.calls[0]?.[0].addRules?.[0]?.action,
+    ).toEqual({
+      type: "modifyHeaders",
+      requestHeaders: [{ header: "Origin", operation: "remove" }],
+    });
   });
 
   it("ignores a leaked <think> block before the translations", async () => {

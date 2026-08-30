@@ -128,7 +128,13 @@
     "message": "Кінцева точка LLM"
   },
   "optionsLlmEndpointHint": {
-    "message": "Будь-який OpenAI-сумісний сервер: OpenAI, OpenRouter або локальний llama.cpp / LM Studio."
+    "message": "Будь-який сервер, сумісний з OpenAI API, наприклад llama.cpp, Ollama, LM Studio або OpenRouter."
+  },
+  "optionsRemoveOriginHeader": {
+    "message": "Видаляти заголовок Origin"
+  },
+  "optionsRemoveOriginHeaderHint": {
+    "message": "Лише для Ollama. Видаляє заголовок Origin із запитів, щоб уникнути помилки HTTP 403 Forbidden під час запитів із розширення."
   },
   "optionsEndpointUrl": {
     "message": "URL кінцевої точки"

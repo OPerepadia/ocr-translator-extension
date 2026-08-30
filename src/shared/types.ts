@@ -110,6 +110,8 @@ export interface Settings {
       baseUrl?: string;
       apiKey?: string;
       model?: string;
+      /** Remove the browser extension's Origin header. Defaults to false. */
+      removeOriginHeader?: boolean;
       /** Thinking is disabled unless this is explicitly false. */
       disableThinking?: boolean;
       /** Per-request timeout; the provider default (60s) when unset. */
