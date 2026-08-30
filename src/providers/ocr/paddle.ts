@@ -16,7 +16,7 @@ const LAYOUT_MODEL_DIR = "assets/layout-grouping/";
 const SCRIPT_MODEL_DIR = "assets/script-identification/";
 const DEFAULT_RECOGNITION_TIMEOUT_MS = 60_000;
 
-const DEBUG_PPOCR = true;
+const DEBUG_PPOCR = false;
 
 export interface PaddleModelConfig {
   id: string;
