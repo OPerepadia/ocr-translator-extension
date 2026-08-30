@@ -63,15 +63,17 @@ for a walkthrough.
 
 ### Text recognition
 
-The extension bundles several recognizers. By default, it uses [PP-OCRv6](https://www.paddleocr.ai/main/en/version3.x/algorithm/PP-OCRv6/PP-OCRv6.html), which supports 50 languages and provides the best accuracy. Scripts that PP-OCRv6 doesn't cover (Cyrillic, Korean and others) use PP-OCRv5 recognizers.
+The extension bundles several recognizer models. The general recognizer is [PP-OCRv6](https://www.paddleocr.ai/main/en/version3.x/algorithm/PP-OCRv6/PP-OCRv6.html). It's a multilingual model that supports 50 languages and provides the best accuracy. Other scripts use separate PP-OCRv5 recognizers.
 
-| Script model | Recognized languages |
+| Model | Recognized languages |
 |---|---|
-| Latin / Chinese / Japanese *(default)* | Afrikaans, Albanian, Azerbaijani, Basque, Bosnian, Catalan, Chinese (Simplified & Traditional), Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Hungarian, Icelandic, Indonesian, Irish, Italian, Japanese, Latvian, Lithuanian, Malay, Norwegian, Polish, Portuguese, Romanian, Serbian (Latin), Slovak, Slovenian, Spanish, Swahili, Swedish, Tagalog, Turkish, Uzbek, Vietnamese, Welsh |
-| Cyrillic | Belarusian, Bulgarian, Kazakh, Macedonian, Mongolian, Russian, Serbian (Cyrillic), Ukrainian |
-| Korean | Korean |
-| Arabic | Arabic, Pashto, Persian, Urdu |
-| Devanagari | Hindi, Marathi, Nepali |
+| PP-OCRv6 (multilingual) | Afrikaans, Albanian, Azerbaijani, Basque, Bosnian, Catalan, Chinese (Simplified & Traditional), Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Hungarian, Icelandic, Indonesian, Irish, Italian, Japanese, Latvian, Lithuanian, Malay, Norwegian, Polish, Portuguese, Romanian, Serbian (Latin), Slovak, Slovenian, Spanish, Swahili, Swedish, Tagalog, Turkish, Uzbek, Vietnamese, Welsh |
+| Cyrillic-PP-OCRv5 | Belarusian, Bulgarian, Kazakh, Macedonian, Mongolian, Russian, Serbian (Cyrillic), Ukrainian |
+| Korean-PP-OCRv5 | Korean |
+| Arabic-PP-OCRv5 | Arabic, Pashto, Persian, Urdu |
+| Devanagari-PP-OCRv5 | Hindi, Marathi, Nepali |
+
+When the source language is set to Auto, a local classifier detects the script and selects the matching recognizer.
 
 ### Translation
 
