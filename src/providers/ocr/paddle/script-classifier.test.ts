@@ -184,6 +184,7 @@ describe("script classifier choice", () => {
     expect(prediction).toMatchObject({
       script: "cyrillic",
       decisive: true,
+      probeCount: 2,
       evidence: 4,
       voteRatio: 0.8,
       confidence: 0.9,
@@ -229,14 +230,14 @@ describe("representative script-classifier boxes", () => {
 
     expect(ranked[0]).toBe(0);
     expect(ranked[1]).toBe(2);
-    expect(new Set(ranked)).toEqual(new Set([0, 1, 2, 3]));
+    expect(new Set(ranked)).toEqual(new Set([0, 1, 2]));
   });
 
-  it("honors the requested line limit", () => {
+  it("limits classification to three lines", () => {
     const boxes = Array.from({ length: 8 }, (_, index) =>
       box(index * 100, 20, 160, 20),
     );
 
-    expect(rankRepresentativeBoxes(boxes, 1000, 400, 3)).toHaveLength(3);
+    expect(rankRepresentativeBoxes(boxes, 1000, 400)).toHaveLength(3);
   });
 });

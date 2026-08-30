@@ -48,15 +48,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     if (message.type === "init") {
       // Guard against duplicate init messages (the provider already memoizes init).
       if (!engine || initId !== message.id) {
-        engine = await PaddleEngine.create({
-          model: message.model,
-          additionalModels: message.additionalModels,
-          scriptModelBaseUrl: message.scriptModelBaseUrl,
-          layoutModelBaseUrl: message.layoutModelBaseUrl,
-          wasmBaseUrl: message.wasmBaseUrl,
-          backend: message.backend,
-          debug: message.debug,
-        });
+        engine = await PaddleEngine.create(message);
         initId = message.id;
       }
       post({ type: "ready", id: message.id });

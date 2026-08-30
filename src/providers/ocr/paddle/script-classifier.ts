@@ -1,4 +1,4 @@
-import type { RgbaImage } from "./crop";
+import { cropQuadToImageData, type RgbaImage } from "./crop";
 import type { DetectedBox } from "./db-postprocess";
 import { createSession, ort } from "./ort-env";
 import type { RecognizerScript } from "./protocol";
@@ -10,8 +10,8 @@ const MIN_VOTE_RATIO = 0.7;
 const MIN_MEAN_CONFIDENCE = 0.72;
 const BACKGROUND_DARKER_DISTANCE_RATIO = 0.8;
 
-export const MAX_SCRIPT_PROBE_LINES = 3;
-export const SCRIPT_INPUT_HEIGHT = 48;
+const MAX_SCRIPT_PROBE_LINES = 3;
+const SCRIPT_INPUT_HEIGHT = 48;
 
 type ScriptCounts = Partial<Record<RecognizerScript, number>>;
 
@@ -25,6 +25,7 @@ export interface ScriptLineEvidence {
 export interface ScriptPrediction {
   script?: RecognizerScript;
   decisive: boolean;
+  probeCount: number;
   evidence: number;
   voteRatio: number;
   confidence: number;
@@ -69,6 +70,34 @@ export class ScriptClassifier {
       numClasses,
       this.labels,
     );
+  }
+
+  async detect(
+    source: RgbaImage,
+    boxes: DetectedBox[],
+    maxImageWidth: number,
+    isCancelled: () => boolean,
+  ): Promise<ScriptPrediction> {
+    const evidence: ScriptLineEvidence[] = [];
+    const boxIndices = rankRepresentativeBoxes(
+      boxes,
+      source.width,
+      source.height,
+    );
+    for (const boxIndex of boxIndices) {
+      if (isCancelled()) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      const crop = cropQuadToImageData(
+        source,
+        boxes[boxIndex].quad,
+        SCRIPT_INPUT_HEIGHT,
+        3,
+        maxImageWidth,
+      );
+      evidence.push(await this.classify(crop));
+    }
+    return chooseScript(evidence);
   }
 
   dispose(): void {
@@ -200,7 +229,7 @@ export function chooseScript(lines: ScriptLineEvidence[]): ScriptPrediction {
     for (const [label, count] of Object.entries(line.rawCounts)) {
       rawCounts[label] = (rawCounts[label] ?? 0) + count;
     }
-    for (const script of recognizerScripts()) {
+    for (const script of RECOGNIZER_SCRIPTS) {
       counts[script] = (counts[script] ?? 0) + (line.counts[script] ?? 0);
       confidenceTotals[script] =
         (confidenceTotals[script] ?? 0) +
@@ -208,7 +237,7 @@ export function chooseScript(lines: ScriptLineEvidence[]): ScriptPrediction {
     }
   }
 
-  const ranked = recognizerScripts()
+  const ranked = RECOGNIZER_SCRIPTS
     .map((script) => ({ script, count: counts[script] ?? 0 }))
     .sort((a, b) => b.count - a.count);
   const winner = ranked[0];
@@ -226,6 +255,7 @@ export function chooseScript(lines: ScriptLineEvidence[]): ScriptPrediction {
   return {
     ...(evidence > 0 ? { script: winner.script } : {}),
     decisive,
+    probeCount: lines.length,
     evidence,
     voteRatio,
     confidence,
@@ -238,11 +268,10 @@ export function rankRepresentativeBoxes(
   boxes: DetectedBox[],
   imageWidth: number,
   imageHeight: number,
-  requestedLimit = boxes.length,
 ): number[] {
   const remaining = boxes.map((_, index) => index);
   const selected: number[] = [];
-  const limit = Math.min(boxes.length, requestedLimit);
+  const limit = Math.min(boxes.length, MAX_SCRIPT_PROBE_LINES);
 
   while (selected.length < limit) {
     let bestPosition = 0;
@@ -431,9 +460,13 @@ function labelToScript(label: string | undefined): RecognizerScript | undefined 
   }
 }
 
-function recognizerScripts(): RecognizerScript[] {
-  return ["general", "cyrillic", "hangul", "arabic", "devanagari"];
-}
+const RECOGNIZER_SCRIPTS: readonly RecognizerScript[] = [
+  "general",
+  "cyrillic",
+  "hangul",
+  "arabic",
+  "devanagari",
+];
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);

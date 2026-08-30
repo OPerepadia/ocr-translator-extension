@@ -23,13 +23,9 @@ import {
   type OrtBackend,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
-import type { RecognizerScript } from "./protocol";
+import type { InitRequest, WorkerModelConfig } from "./protocol";
 import { RegionGrouper } from "./region-grouper";
 import {
-  chooseScript,
-  MAX_SCRIPT_PROBE_LINES,
-  rankRepresentativeBoxes,
-  SCRIPT_INPUT_HEIGHT,
   ScriptClassifier,
   type ScriptPrediction,
 } from "./script-classifier";
@@ -62,24 +58,12 @@ interface Manifest {
   };
 }
 
-export interface EngineOptions {
-  model: EngineModelOptions;
-  additionalModels?: EngineModelOptions[];
-  scriptModelBaseUrl?: string;
-  layoutModelBaseUrl: string;
-  wasmBaseUrl: string;
-  backend: OrtBackend;
+export type EngineOptions = Omit<InitRequest, "type" | "id" | "debug"> & {
   debug?: boolean;
-}
-
-export interface EngineModelOptions {
-  id: string;
-  script: RecognizerScript;
-  modelBaseUrl: string;
-}
+};
 
 interface LoadedRecognizer {
-  candidate: EngineModelOptions;
+  candidate: WorkerModelConfig;
   config: Manifest["recognizer"];
   session: ort.InferenceSession;
   charAt: (index: number) => string | null;
@@ -94,8 +78,11 @@ interface LineRecognition {
 interface AutoRecognition {
   lines: RecognizedLine[];
   modelId: string;
-  method: "script-classifier" | "default";
-  scriptDetection?: ScriptPrediction & { probeCount: number };
+  autoSelection: {
+    method: "script-classifier" | "default";
+    decisive: boolean;
+    scriptDetection?: ScriptPrediction;
+  };
 }
 
 const LOG_PREFIX = "[PP-OCR]";
@@ -105,7 +92,7 @@ export class PaddleEngine {
     private readonly detector: Manifest["detector"],
     private readonly detSession: ort.InferenceSession,
     private readonly primaryModelId: string,
-    private readonly modelOptions: Map<string, EngineModelOptions>,
+    private readonly modelOptions: Map<string, WorkerModelConfig>,
     private readonly recognizers: Map<string, Promise<LoadedRecognizer>>,
     private readonly scriptClassifier: Promise<ScriptClassifier | undefined>,
     private readonly regionGrouper: RegionGrouper,
@@ -155,7 +142,7 @@ export class PaddleEngine {
       session: recSession,
       charAt: makeCharAt(dict),
     };
-    const modelOptions = new Map<string, EngineModelOptions>();
+    const modelOptions = new Map<string, WorkerModelConfig>();
     for (const model of [options.model, ...(options.additionalModels ?? [])]) {
       if (!modelOptions.has(model.id)) {
         modelOptions.set(model.id, model);
@@ -220,8 +207,6 @@ export class PaddleEngine {
         ? await this.recognizeAuto(
             sourceImageData,
             boxes,
-            bitmap.width,
-            bitmap.height,
             isCancelled,
             onProgress,
           )
@@ -271,14 +256,7 @@ export class PaddleEngine {
         },
         ...(autoRecognition
           ? {
-              autoSelection: {
-                method: autoRecognition.method,
-                decisive:
-                  autoRecognition.scriptDetection?.decisive ?? false,
-                ...(autoRecognition.scriptDetection
-                  ? { scriptDetection: autoRecognition.scriptDetection }
-                  : {}),
-              },
+              autoSelection: autoRecognition.autoSelection,
             }
           : {}),
       };
@@ -360,8 +338,6 @@ export class PaddleEngine {
   private async recognizeAuto(
     source: RgbaImage | null,
     boxes: DetectedBox[],
-    imageWidth: number,
-    imageHeight: number,
     isCancelled: () => boolean,
     onProgress?: (line: number, lineCount: number) => void,
   ): Promise<AutoRecognition> {
@@ -369,23 +345,16 @@ export class PaddleEngine {
       return {
         lines: [],
         modelId: this.primaryModelId,
-        method: "default",
+        autoSelection: { method: "default", decisive: false },
       };
     }
 
     const primaryRecognizer = await this.getRecognizer(this.primaryModelId);
     throwIfCancelled(isCancelled);
 
-    const rankedBoxes = rankRepresentativeBoxes(
-      boxes,
-      imageWidth,
-      imageHeight,
-      MAX_SCRIPT_PROBE_LINES,
-    );
     const scriptDetection = await this.detectScript(
       source,
       boxes,
-      rankedBoxes,
       primaryRecognizer.config.maxImageWidth,
       isCancelled,
     );
@@ -426,18 +395,20 @@ export class PaddleEngine {
     return {
       lines,
       modelId,
-      method: model ? "script-classifier" : "default",
-      ...(scriptDetection ? { scriptDetection } : {}),
+      autoSelection: {
+        method: model ? "script-classifier" : "default",
+        decisive: scriptDetection?.decisive ?? false,
+        ...(scriptDetection ? { scriptDetection } : {}),
+      },
     };
   }
 
   private async detectScript(
     source: RgbaImage | null,
     boxes: DetectedBox[],
-    rankedBoxes: number[],
     maxImageWidth: number,
     isCancelled: () => boolean,
-  ): Promise<(ScriptPrediction & { probeCount: number }) | undefined> {
+  ): Promise<ScriptPrediction | undefined> {
     if (!source) {
       return undefined;
     }
@@ -447,20 +418,12 @@ export class PaddleEngine {
     }
 
     try {
-      const evidence = [];
-      const boxIndices = rankedBoxes.slice(0, MAX_SCRIPT_PROBE_LINES);
-      for (const boxIndex of boxIndices) {
-        throwIfCancelled(isCancelled);
-        const crop = cropQuadToImageData(
-          source,
-          boxes[boxIndex].quad,
-          SCRIPT_INPUT_HEIGHT,
-          3,
-          maxImageWidth,
-        );
-        evidence.push(await classifier.classify(crop));
-      }
-      return { ...chooseScript(evidence), probeCount: evidence.length };
+      return await classifier.detect(
+        source,
+        boxes,
+        maxImageWidth,
+        isCancelled,
+      );
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw error;
@@ -620,7 +583,7 @@ export class PaddleEngine {
 }
 
 async function loadRecognizer(
-  model: EngineModelOptions,
+  model: WorkerModelConfig,
   backend: OrtBackend,
 ): Promise<LoadedRecognizer> {
   const manifest = await fetchJson<Manifest>(
