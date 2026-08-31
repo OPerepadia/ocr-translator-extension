@@ -170,7 +170,7 @@
     "message": "Disable model thinking"
   },
   "optionsDisableModelThinkingHint": {
-    "message": "Faster answers from reasoning models. Works with llama.cpp. WARNING: this setting is not supported by api.openai.com/v1 endpoint."
+    "message": "Faster answers from reasoning models. Works with vLLM, llama.cpp and Ollama. WARNING: this setting is not supported by api.openai.com/v1 endpoint."
   },
   "optionsTestConnection": {
     "message": "Test connection"

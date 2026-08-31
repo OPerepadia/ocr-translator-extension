@@ -170,7 +170,7 @@
     "message": "Вимкнути міркування моделі"
   },
   "optionsDisableModelThinkingHint": {
-    "message": "Пришвидшує відповіді моделей із міркуванням. Працює з llama.cpp. УВАГА: кінцева точка api.openai.com/v1 не підтримує це налаштування."
+    "message": "Пришвидшує відповіді моделей із міркуванням. Працює з vLLM, llama.cpp та Ollama. УВАГА: кінцева точка api.openai.com/v1 не підтримує це налаштування."
   },
   "optionsTestConnection": {
     "message": "Перевірити з’єднання"

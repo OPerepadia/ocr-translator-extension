@@ -20,6 +20,7 @@ interface RecordedRequest {
   credentials?: string;
   body: {
     model?: string;
+    reasoning_effort?: unknown;
     chat_template_kwargs?: unknown;
     messages: Array<{ role: string; content: string }>;
   };
@@ -245,6 +246,7 @@ describe("createOpenAiTranslationProvider", () => {
     expect(request.body.messages[0].content).toContain("Japanese (ja)");
     expect(request.body.messages[0].content).toContain("English (en)");
     // Thinking is disabled by default.
+    expect(request.body.reasoning_effort).toBe("none");
     expect(request.body.chat_template_kwargs).toEqual({
       enable_thinking: false,
     });
@@ -261,6 +263,7 @@ describe("createOpenAiTranslationProvider", () => {
 
     await provider.translate({ text: "hi", targetLang: "en" });
 
+    expect(requests[0].body.reasoning_effort).toBeUndefined();
     expect(requests[0].body.chat_template_kwargs).toBeUndefined();
   });
 
@@ -686,6 +689,7 @@ describe("testLlmConnection", () => {
         credentials: "omit",
         body: {
           model: "qwen2.5",
+          reasoning_effort: "none",
           chat_template_kwargs: { enable_thinking: false },
           messages: [
             {
