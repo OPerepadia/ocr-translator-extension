@@ -11,6 +11,7 @@ export interface ContentControlPicker {
 
 interface PickerOptions {
   position?: "below" | "auto";
+  compact?: boolean;
 }
 
 export function createOcrSourceLanguagePicker(
@@ -35,6 +36,9 @@ export function createOcrSourceLanguagePicker(
       },
     ],
     position: options.position,
+    buttonLabel: options.compact
+      ? compactLanguageLabel(controls.currentOcrSourceLanguageId)
+      : undefined,
     title: (name) => t("panelSourceLanguage", name),
     onChange: controls.selectOcrSourceLanguage,
   });
@@ -44,6 +48,7 @@ export function createTargetLanguagePicker(args: {
   controls: ContentControls;
   target: LangCode | undefined;
   position?: "below" | "auto";
+  compact?: boolean;
   onSelect(target: LangCode): void;
 }): ContentControlPicker | undefined {
   if (!args.target) {
@@ -54,11 +59,18 @@ export function createTargetLanguagePicker(args: {
     target: args.target,
     languages: args.controls.targetLanguages,
     position: args.position,
+    buttonLabel: args.compact
+      ? compactLanguageLabel(args.target)
+      : undefined,
     onChange: (target) => {
       args.onSelect(target);
       args.controls.selectTargetLanguage(target);
     },
   });
+}
+
+function compactLanguageLabel(code: LangCode): string {
+  return code.toUpperCase();
 }
 
 export function createTranslationProviderPicker(

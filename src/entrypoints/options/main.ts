@@ -15,9 +15,11 @@ import {
 } from "@/entrypoints/content/language-picker";
 import {
   createSettingsRepository,
+  getDefaultOverlayMode,
   getDisplayMode,
   getStartOcrImmediately,
   setDisplayMode,
+  setDefaultOverlayMode,
   setStartOcrImmediately,
 } from "@/shared/storage";
 import {
@@ -121,6 +123,17 @@ async function initOptions(): Promise<void> {
   elements.displayModeSelect.addEventListener("change", () => {
     setDisplayMode(
       elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",
+    ).then(
+      () => showStatus(t("commonSaved")),
+      (error: unknown) => showSaveError(error),
+    );
+  });
+  elements.defaultOverlayModeSelect.value = await getDefaultOverlayMode();
+  elements.defaultOverlayModeSelect.addEventListener("change", () => {
+    setDefaultOverlayMode(
+      elements.defaultOverlayModeSelect.value === "original"
+        ? "original"
+        : "translation",
     ).then(
       () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
@@ -538,6 +551,7 @@ function getOptionsElements(): {
   sourceLangSelect: HTMLSelectElement;
   targetLangSelect: HTMLSelectElement;
   displayModeSelect: HTMLSelectElement;
+  defaultOverlayModeSelect: HTMLSelectElement;
   startOcrImmediatelyInput: HTMLInputElement;
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
@@ -574,6 +588,9 @@ function getOptionsElements(): {
   );
   const displayModeSelect = app.querySelector<HTMLSelectElement>(
     "select[name='displayMode']",
+  );
+  const defaultOverlayModeSelect = app.querySelector<HTMLSelectElement>(
+    "select[name='defaultOverlayMode']",
   );
   const startOcrImmediatelyInput = app.querySelector<HTMLInputElement>(
     "input[name='startOcrImmediately']",
@@ -623,6 +640,7 @@ function getOptionsElements(): {
     !sourceLangSelect ||
     !targetLangSelect ||
     !displayModeSelect ||
+    !defaultOverlayModeSelect ||
     !startOcrImmediatelyInput ||
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
@@ -652,6 +670,7 @@ function getOptionsElements(): {
     sourceLangSelect,
     targetLangSelect,
     displayModeSelect,
+    defaultOverlayModeSelect,
     startOcrImmediatelyInput,
     ocrWebGpuInput,
     ocrWebGpuNote,

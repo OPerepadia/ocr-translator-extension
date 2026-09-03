@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createSettingsRepository,
   defaultSettings,
+  getDefaultOverlayMode,
   getDisplayMode,
   getStartOcrImmediately,
   setDisplayMode,
+  setDefaultOverlayMode,
 } from "./storage";
 
 afterEach(() => {
@@ -36,6 +38,23 @@ describe("storage defaults", () => {
       await setDisplayMode(mode);
 
       expect(set).toHaveBeenCalledWith({ displayMode: mode });
+    },
+  );
+
+  it("shows translations in new overlays by default", async () => {
+    stubStorage({});
+    await expect(getDefaultOverlayMode()).resolves.toBe("translation");
+  });
+
+  it.each(["translation", "original"] as const)(
+    "saves %s as the default overlay content",
+    async (mode) => {
+      const set = vi.fn(async () => {});
+      vi.stubGlobal("browser", { storage: { local: { set } } });
+
+      await setDefaultOverlayMode(mode);
+
+      expect(set).toHaveBeenCalledWith({ defaultOverlayMode: mode });
     },
   );
 

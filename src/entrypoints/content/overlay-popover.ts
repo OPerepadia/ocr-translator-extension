@@ -1,5 +1,5 @@
 import type { LangCode, Rect } from "@/shared/types";
-import type { OverlayMode } from "@/shared/storage";
+import type { OverlayMode } from "@/shared/types";
 import { t } from "@/shared/i18n";
 import {
   CHECK_ICON,

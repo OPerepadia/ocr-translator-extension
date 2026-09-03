@@ -223,6 +223,18 @@
   "optionsDisplayHint": {
     "message": "Where the translated text appears after capture."
   },
+  "optionsDefaultOverlayMode": {
+    "message": "Initial overlay view"
+  },
+  "optionsOverlayModeTranslation": {
+    "message": "Translation"
+  },
+  "optionsOverlayModeOriginal": {
+    "message": "Original"
+  },
+  "optionsDefaultOverlayModeHint": {
+    "message": "Choose the initial view for each new overlay"
+  },
   "optionsSetEndpointFirst": {
     "message": "Set the endpoint URL first."
   },
@@ -377,22 +389,22 @@
     "message": "Toggle translation overlay"
   },
   "overlayCopyAllOriginal": {
-    "message": "Copy all original text"
+    "message": "Copy original"
   },
   "overlayCopyAllTranslated": {
-    "message": "Copy all translated text"
+    "message": "Copy translation"
   },
   "overlayReadAllOriginal": {
-    "message": "Read all original text"
+    "message": "Read original"
   },
   "overlayReadAllTranslated": {
-    "message": "Read all translated text"
+    "message": "Read translation"
   },
   "overlayCopyAllText": {
-    "message": "Copy all text"
+    "message": "Copy text"
   },
   "overlayReadAllText": {
-    "message": "Read all text"
+    "message": "Read text"
   },
   "overlayShowInPanel": {
     "message": "Show in panel"

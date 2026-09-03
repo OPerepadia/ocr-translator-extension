@@ -66,8 +66,6 @@ let recognizedBoxRef: HTMLTextAreaElement | undefined;
 // re-renders the box from that text — so an edit made mid-translation would be
 // silently discarded. Locking the box prevents that lost edit.
 let recognizedReadOnly = false;
-// Document-level listener cleanup, separated by lifetime: the menu belongs to
-// the persistent popup shell, while body controls are replaced on each render.
 let popupDisposers: Array<() => void> = [];
 let mountedControlDisposers: Array<() => void> = [];
 // Shadow-root container the popup is mounted into, set once the content script
@@ -584,19 +582,13 @@ function createRecognizedExtras(): HTMLElement {
   return wrapper;
 }
 
-// The extras shown next to the "Translation" heading: the provider picker plus
-// the target-language pill, with the Translate button grouped right after them.
+// The extras shown next to the "Translation" heading: the target-language pill
+// plus the provider picker, with the Translate button grouped right after them.
 // Mirrors createRecognizedExtras on the source side.
 function createTranslationExtras(): HTMLElement {
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-translation-extras";
   const controls = config?.controls;
-  const provider = mountControlPicker(
-    controls ? createTranslationProviderPicker(controls) : undefined,
-  );
-  if (provider) {
-    wrapper.append(provider);
-  }
   const target = mountControlPicker(
     controls
       ? createTargetLanguagePicker({
@@ -610,6 +602,12 @@ function createTranslationExtras(): HTMLElement {
   );
   if (target) {
     wrapper.append(target);
+  }
+  const provider = mountControlPicker(
+    controls ? createTranslationProviderPicker(controls) : undefined,
+  );
+  if (provider) {
+    wrapper.append(provider);
   }
   wrapper.append(createTranslateButton());
   return wrapper;

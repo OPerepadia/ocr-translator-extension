@@ -1,5 +1,5 @@
 import { browser } from "wxt/browser";
-import type { Settings } from "./types";
+import type { OverlayMode, Settings } from "./types";
 
 const SETTINGS_KEY = "settings";
 
@@ -42,32 +42,21 @@ export async function setStartOcrImmediately(enabled: boolean): Promise<void> {
   });
 }
 
-// Which view the overlay boxes open in: the translated text painted over the
-// image, or transparent frames leaving the image readable. Not an Options
-// setting — the toolbar switch writes the last used view here so the next
-// capture opens the same way.
-export type OverlayMode = "translation" | "original";
+const DEFAULT_OVERLAY_MODE_KEY = "defaultOverlayMode";
 
-const OVERLAY_MODE_KEY = "overlayMode";
-const DEFAULT_OVERLAY_MODE: OverlayMode = "translation";
-
-export async function getOverlayMode(): Promise<OverlayMode> {
+export async function getDefaultOverlayMode(): Promise<OverlayMode> {
   try {
-    const values = await browser.storage.local.get(OVERLAY_MODE_KEY);
-    return values[OVERLAY_MODE_KEY] === "original"
+    const values = await browser.storage.local.get(DEFAULT_OVERLAY_MODE_KEY);
+    return values[DEFAULT_OVERLAY_MODE_KEY] === "original"
       ? "original"
-      : DEFAULT_OVERLAY_MODE;
+      : "translation";
   } catch {
-    return DEFAULT_OVERLAY_MODE;
+    return "translation";
   }
 }
 
-export async function setOverlayMode(mode: OverlayMode): Promise<void> {
-  try {
-    await browser.storage.local.set({ [OVERLAY_MODE_KEY]: mode });
-  } catch {
-    // Losing the preference is not worth surfacing mid-capture.
-  }
+export async function setDefaultOverlayMode(mode: OverlayMode): Promise<void> {
+  await browser.storage.local.set({ [DEFAULT_OVERLAY_MODE_KEY]: mode });
 }
 
 export const defaultSettings: Settings = {

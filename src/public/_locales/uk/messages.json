@@ -223,6 +223,18 @@
   "optionsDisplayHint": {
     "message": "Місце, де з’являється переклад після захоплення зображення."
   },
+  "optionsDefaultOverlayMode": {
+    "message": "Початковий вигляд оверлею"
+  },
+  "optionsOverlayModeTranslation": {
+    "message": "Переклад"
+  },
+  "optionsOverlayModeOriginal": {
+    "message": "Оригінал"
+  },
+  "optionsDefaultOverlayModeHint": {
+    "message": "Виберіть початковий вигляд для кожного нового оверлею"
+  },
   "optionsSetEndpointFirst": {
     "message": "Спочатку вкажіть URL кінцевої точки."
   },
@@ -377,25 +389,25 @@
     "message": "Показати або приховати переклад поверх зображення"
   },
   "overlayCopyAllOriginal": {
-    "message": "Копіювати весь оригінальний текст"
+    "message": "Копіювати оригінал"
   },
   "overlayCopyAllTranslated": {
-    "message": "Копіювати весь текст перекладу"
+    "message": "Копіювати переклад"
   },
   "overlayReadAllOriginal": {
-    "message": "Прочитати весь оригінальний текст"
+    "message": "Прочитати оригінал"
   },
   "overlayReadAllTranslated": {
-    "message": "Прочитати весь переклад"
+    "message": "Прочитати переклад"
   },
   "overlayCopyAllText": {
-    "message": "Копіювати весь текст"
+    "message": "Копіювати текст"
   },
   "overlayReadAllText": {
-    "message": "Прочитати весь текст"
+    "message": "Прочитати текст"
   },
   "overlayShowInPanel": {
-    "message": "Показати на панелі"
+    "message": "Показати в панелі"
   },
   "overlayRecognizedAndTranslatedText": {
     "message": "Розпізнаний і перекладений текст"

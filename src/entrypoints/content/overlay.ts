@@ -1,5 +1,11 @@
 import { sendRequest } from "../../shared/runtime-messaging";
-import type { LangCode, PipelineResult, PipelineStatus, Rect } from "@/shared/types";
+import type {
+  LangCode,
+  OverlayMode,
+  PipelineResult,
+  PipelineStatus,
+  Rect,
+} from "@/shared/types";
 import { t } from "@/shared/i18n";
 import {
   CLOSE_ICON,
@@ -17,7 +23,6 @@ import {
   type ActionMenu,
   type ActionMenuItem,
 } from "./action-menu";
-import { setOverlayMode, type OverlayMode } from "../../shared/storage";
 import {
   createOcrSourceLanguagePicker,
   createTargetLanguagePicker,
@@ -83,7 +88,7 @@ let currentRect: Rect | undefined;
 // alone behind transparent frames, and the text is read from the popover and
 // selected off the picture itself.
 let mode: OverlayMode = "translation";
-let defaultMode: OverlayMode = "translation";
+let selectedMode: OverlayMode = "translation";
 let activeReadAllMode: OverlayMode | undefined;
 let hasTranslationText = false;
 let currentOriginalText = "";
@@ -127,8 +132,9 @@ export function setOverlaySnapshot(snapshot: ImageBitmap | undefined): void {
   refreshRegionSnapshot();
 }
 
-export function setOverlayDefaultMode(nextMode: OverlayMode): void {
-  defaultMode = nextMode;
+export function resetOverlayMode(initialMode: OverlayMode): void {
+  mode = initialMode;
+  selectedMode = initialMode;
 }
 
 export function configureOverlay(nextConfig: OverlayConfig): void {
@@ -214,7 +220,7 @@ export function showOverlay(args: {
     rect,
     orientation: result.ocr.orientation,
   });
-  mode = hasTranslationText ? defaultMode : "original";
+  mode = hasTranslationText ? selectedMode : "original";
 
   render();
 }
@@ -497,15 +503,19 @@ function createToolbar(): HTMLElement {
   const controls = config?.controls;
   const sourcePicker = mountControlPicker(
     controls
-      ? createOcrSourceLanguagePicker(controls, { position: "auto" })
+      ? createOcrSourceLanguagePicker(controls, {
+          position: "auto",
+          compact: true,
+        })
       : undefined,
   );
-  const languagePicker = mountControlPicker(
+  const targetPicker = mountControlPicker(
     controls
       ? createTargetLanguagePicker({
           controls,
           target: currentTargetLang,
           position: "auto",
+          compact: true,
           onSelect: (targetLang) => {
             currentTargetLang = targetLang;
           },
@@ -540,15 +550,15 @@ function createToolbar(): HTMLElement {
   if (sourcePicker) {
     bar.append(sourcePicker);
   }
-  if (sourcePicker && languagePicker) {
+  if (sourcePicker && targetPicker) {
     const direction = document.createElement("span");
     direction.className = "ocr-translate-overlay-direction";
     direction.setAttribute("aria-hidden", "true");
     direction.textContent = "→";
     bar.append(direction);
   }
-  if (languagePicker) {
-    bar.append(languagePicker);
+  if (targetPicker) {
+    bar.append(targetPicker);
   }
   if (providerPicker) {
     bar.append(providerPicker);
@@ -562,15 +572,6 @@ function createToolbar(): HTMLElement {
 function createOcrRecoveryToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "ocr-translate-overlay-toolbar";
-
-  const sourcePicker = mountControlPicker(
-    config
-      ? createOcrSourceLanguagePicker(config.controls, { position: "auto" })
-      : undefined,
-  );
-  if (sourcePicker) {
-    bar.append(sourcePicker);
-  }
 
   bar.append(
     iconButton(SELECT_REGION_ICON, t("panelSelectNewRegion"), () => {
@@ -617,8 +618,7 @@ function createModeButton(): HTMLButtonElement {
       stopSpeaking();
     }
     mode = mode === "translation" ? "original" : "translation";
-    defaultMode = mode;
-    void setOverlayMode(mode);
+    selectedMode = mode;
     renderBoxes();
     updateModeButton();
   });

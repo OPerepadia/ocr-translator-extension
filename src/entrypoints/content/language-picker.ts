@@ -15,6 +15,7 @@ export function createLanguagePill(args: {
   position?: "below" | "auto";
   specialEntries?: Array<{ code: LangCode; name: string }>;
   title?: (name: string) => string;
+  buttonLabel?: string;
 }): LanguagePill {
   const { target, languages, onChange, position = "below" } = args;
   const wrapper = document.createElement("div");
@@ -28,14 +29,18 @@ export function createLanguagePill(args: {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ocr-translate-popup-langpill-button";
+  if (args.buttonLabel) {
+    button.classList.add("is-compact");
+  }
   button.setAttribute("aria-haspopup", "listbox");
   button.setAttribute("aria-expanded", "false");
   button.title = args.title
     ? args.title(currentName)
     : t("languageTargetTitle", currentName);
+  button.setAttribute("aria-label", button.title);
 
   const label = document.createElement("span");
-  label.textContent = currentName;
+  label.textContent = args.buttonLabel ?? currentName;
   const chevron = document.createElement("span");
   chevron.className = "ocr-translate-popup-langpill-chevron";
   chevron.innerHTML = CHEVRON_ICON;

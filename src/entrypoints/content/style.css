@@ -437,7 +437,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: clamp(380px, 28vw, 600px);
+  width: clamp(400px, 30vw, 640px);
   max-width: calc(100vw - 16px);
   height: 520px;
   max-height: calc(100dvh - 16px);
@@ -1444,8 +1444,7 @@
 /* Overlay toolbar */
 
 /* The capture underneath can be any colour, so the edge is a strong border plus
-   a ring in the opposite tone. Spacing carries the grouping: 2px inside a
-   cluster, 10px between the pills and the actions. */
+   a ring in the opposite tone. */
 .ocr-translate-overlay-toolbar {
   position: absolute;
   z-index: 6;
@@ -1501,13 +1500,25 @@
   height: var(--ocr-control-h);
 }
 
-.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill {
-  margin-inline: 2px;
+.ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button.is-compact {
+  min-width: 40px;
+  padding-inline: 8px;
+  letter-spacing: 0.04em;
+}
+
+.ocr-translate-overlay-toolbar
+  .ocr-translate-popup-langpill-button.is-compact
+  .ocr-translate-popup-langpill-chevron {
+  display: none;
 }
 
 .ocr-translate-overlay-provider-button {
   gap: 3px;
-  padding: 0 8px;
+  padding-inline: 8px;
+}
+
+.ocr-translate-overlay-provider {
+  margin-inline-start: 4px;
 }
 
 .ocr-translate-overlay-provider-label {
@@ -1557,11 +1568,17 @@
   margin-inline-start: 6px;
 }
 
-/* A step above the labels: the glyph paints smaller than the letters. */
 .ocr-translate-overlay-direction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: var(--ocr-control-h);
   margin-inline: 2px;
-  color: var(--ocr-ink-subtle);
-  font-size: var(--ocr-size-body);
+  color: var(--ocr-ink-muted);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .ocr-translate-overlay-divider {

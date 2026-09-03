@@ -35,6 +35,7 @@ export interface EncodedImage {
 }
 
 export type LangCode = string;
+export type OverlayMode = "translation" | "original";
 
 /** One recognized character and where it sits, in the same pixel space as the
  * block's bbox. Derived from the recognizer's timesteps, so positions are

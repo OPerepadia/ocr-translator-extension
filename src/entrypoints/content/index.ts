@@ -18,10 +18,9 @@ import type {
   Rect,
 } from "@/shared/types";
 import {
+  getDefaultOverlayMode,
   getDisplayMode,
-  getOverlayMode,
   getStartOcrImmediately,
-  setDisplayMode,
   type DisplayMode,
 } from "@/shared/storage";
 import { createRequestId } from "@/shared/request-id";
@@ -51,7 +50,7 @@ import {
   configureOverlay,
   dispose as disposeOverlay,
   isOverlayable,
-  setOverlayDefaultMode,
+  resetOverlayMode,
   setOverlaySnapshot,
   setOverlayUiRoot,
   showOverlay,
@@ -490,8 +489,12 @@ async function runCapture(
   setOverlayAvailable(false);
   closeOverlay();
   clearCaptureSnapshot();
-  displayMode = await getDisplayMode();
-  setOverlayDefaultMode(await getOverlayMode());
+  const [nextDisplayMode, initialOverlayMode] = await Promise.all([
+    getDisplayMode(),
+    getDefaultOverlayMode(),
+  ]);
+  displayMode = nextDisplayMode;
+  resetOverlayMode(initialOverlayMode);
   // Head toward that view now so the loading spinner lands there; presentResult
   // falls back to the panel later if the result can't be drawn as an overlay.
   activeView = displayMode;
@@ -713,7 +716,6 @@ function switchToOverlay(): void {
   activeView = "overlay";
   releaseSelectionDim();
   closeRegionOutline();
-  void setDisplayMode(activeView).catch(() => {});
   closePopup({ notify: false });
   showResultOverlay(lastResult, lastRect);
 }
@@ -738,7 +740,6 @@ function switchToPanel(): void {
     return;
   }
   activeView = "panel";
-  void setDisplayMode(activeView).catch(() => {});
   closeOverlay();
   setOverlayAvailable(isOverlayable(lastResult) && Boolean(lastRect));
   showResult(lastResult);
