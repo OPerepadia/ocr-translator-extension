@@ -24,7 +24,11 @@ Translation appears over the original text. Hover over a text box to view the or
 The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:addons`, click the gear button, and select **Manage Extension Shortcuts**. In Chrome, open `chrome://extensions/shortcuts`.
 
 > [!NOTE]
-> On Firefox 153 and later, if you want to run this extension on local image files, open the add-on's **Permissions and data** settings and enable **Access local files on your computer**, then reload the image.
+> To use the extension on local image files, you need to manually grant the permission.
+> - Firefox: open the add-on's **Permissions and data** settings and enable **Access local files on your computer**.
+> - Chrome: open the extension details and enable **Allow access to file URLs**.
+>
+> After granting the permission, reload the image and try again.
 
 ## How it works
 
@@ -37,8 +41,8 @@ The default shortcut is `Ctrl+Shift+F`. To change it in Firefox, open `about:add
 
 ### WebGPU setup
 
-> [!TIP]
-> You can enable GPU acceleration in extension settings to run OCR faster.
+> [!WARNING]
+> GPU acceleration is experimental. Depending on your browser, OS and hardware, it may make text recognition faster or slower. You can enable it in settings.
 
 On Linux, WebGPU is generally disabled by default. Follow the steps below to enable it.
 

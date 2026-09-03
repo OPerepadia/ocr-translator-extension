@@ -191,10 +191,10 @@
     "message": "Select the language of the original text, or \"Auto\" to automatically detect the language (text recognition may take a little longer)."
   },
   "optionsGpuAcceleration": {
-    "message": "GPU acceleration"
+    "message": "GPU acceleration (experimental)"
   },
   "optionsGpuHint": {
-    "message": "Speeds up text recognition using WebGPU. Falls back to the CPU automatically."
+    "message": "Runs text recognition on WebGPU. Depending on your browser, OS, and hardware, this may make it faster or slower. Falls back to CPU if not available."
   },
   "optionsStartOcrImmediately": {
     "message": "Start OCR immediately"
