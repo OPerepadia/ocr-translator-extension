@@ -95,10 +95,6 @@ export function startSelectionOverlay(
     controls.className = "ocr-translate-selection-controls";
     controls.hidden = true;
 
-    const sizeLabel = document.createElement("span");
-    sizeLabel.className = "ocr-translate-selection-size";
-    sizeLabel.setAttribute("aria-live", "polite");
-
     const runButton = document.createElement("button");
     runButton.type = "button";
     runButton.className = "ocr-translate-selection-run";
@@ -109,7 +105,7 @@ export function startSelectionOverlay(
     cancelButton.className = "ocr-translate-selection-cancel";
     cancelButton.textContent = t("commonCancel");
 
-    controls.append(sizeLabel, runButton, cancelButton);
+    controls.append(runButton, cancelButton);
     overlay.append(controls);
     container.append(overlay);
 
@@ -337,10 +333,6 @@ export function startSelectionOverlay(
       if (!currentRect || controls.hidden) {
         return;
       }
-
-      sizeLabel.textContent = `${Math.round(currentRect.width)} × ${Math.round(
-        currentRect.height,
-      )}`;
 
       const controlsWidth = controls.offsetWidth || 230;
       const controlsHeight = controls.offsetHeight || 36;

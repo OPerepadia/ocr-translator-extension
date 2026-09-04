@@ -373,18 +373,6 @@
   display: none;
 }
 
-/* Tabular figures, so the bar doesn't shift as the number changes. */
-.ocr-translate-selection-size {
-  min-width: 76px;
-  padding: 0 8px;
-  color: var(--ocr-ink-subtle);
-  font-size: var(--ocr-size-sm);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  white-space: nowrap;
-}
-
 .ocr-translate-selection-controls button {
   height: var(--ocr-control-h);
   padding: 0 10px;

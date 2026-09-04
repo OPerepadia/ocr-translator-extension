@@ -51,7 +51,7 @@ async function initOptions(): Promise<void> {
   const settings = await settingsRepository.get();
   const elements = getOptionsElements();
 
-  elements.versionLink.textContent = t(
+  elements.versionText.textContent = t(
     "optionsVersion",
     browser.runtime.getManifest().version,
   );
@@ -544,7 +544,7 @@ type OptionsElements = ReturnType<typeof getOptionsElements>;
 
 function getOptionsElements(): {
   form: HTMLFormElement;
-  versionLink: HTMLAnchorElement;
+  versionText: HTMLElement;
   storeLink: HTMLAnchorElement;
   translationProviderSelect: HTMLSelectElement;
   googleProviderNote: HTMLElement;
@@ -570,9 +570,7 @@ function getOptionsElements(): {
   llmTimeoutInput: HTMLInputElement;
 } {
   const form = app.querySelector<HTMLFormElement>("form");
-  const versionLink = app.querySelector<HTMLAnchorElement>(
-    ".about-version-link",
-  );
+  const versionText = app.querySelector<HTMLElement>(".about-version");
   const storeLink = app.querySelector<HTMLAnchorElement>(".about-store-link");
   const translationProviderSelect = app.querySelector<HTMLSelectElement>(
     "select[name='translationProvider']",
@@ -633,7 +631,7 @@ function getOptionsElements(): {
 
   if (
     !form ||
-    !versionLink ||
+    !versionText ||
     !storeLink ||
     !translationProviderSelect ||
     !googleProviderNote ||
@@ -663,7 +661,7 @@ function getOptionsElements(): {
 
   return {
     form,
-    versionLink,
+    versionText,
     storeLink,
     translationProviderSelect,
     googleProviderNote,
