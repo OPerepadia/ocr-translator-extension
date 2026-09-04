@@ -179,7 +179,7 @@
     "message": "Розпізнавання тексту (OCR)"
   },
   "optionsOpenSourceNote": {
-    "message": "Screen OCR Translator — це додаток з відкритим кодом, що поширюється за ліцензією Mozilla Public License 2.0."
+    "message": "Screen OCR Translator — це розширення з відкритим кодом, що поширюється за ліцензією Mozilla Public License 2.0."
   },
   "optionsVersion": {
     "message": "Версія $1"
@@ -188,7 +188,7 @@
     "message": "Мова для OCR"
   },
   "optionsDefaultSourceLanguageHint": {
-    "message": "Виберіть мову оригінального тексту, або \"Авто\" для автоматичного визначення мови (розпізнавання може виконуватись довше)."
+    "message": "Виберіть мову оригінального тексту або «Авто», щоб визначити мову автоматично (розпізнавання може тривати довше)."
   },
   "optionsGpuAcceleration": {
     "message": "GPU прискорення (експериментальна функція)"
@@ -209,13 +209,13 @@
     "message": "як увімкнути WebGPU у вашому браузері"
   },
   "optionsDisplaySectionTitle": {
-    "message": "Інше"
+    "message": "Відображення"
   },
   "optionsDefaultDisplayMode": {
     "message": "Режим відображення за замовчуванням"
   },
   "optionsDisplayModeOverlay": {
-    "message": "Поверх вибраної ділянки"
+    "message": "Оверлей поверх вибраної ділянки"
   },
   "optionsDisplayModePanel": {
     "message": "Панель у правому нижньому куті"
@@ -275,10 +275,10 @@
     "message": "Режим відображення"
   },
   "popupDisplayModeOverlay": {
-    "message": "Поверх тексту"
+    "message": "Оверлей"
   },
   "popupDisplayModePanel": {
-    "message": "В панелі"
+    "message": "Панель"
   },
   "popupSelectArea": {
     "message": "Вибрати ділянку"
@@ -311,7 +311,7 @@
     "message": "Не вдалося запустити Screen OCR Translator на цій сторінці."
   },
   "popupCouldNotSaveSettings": {
-    "message": "Не вдалося зберегти налаштування спливного вікна."
+    "message": "Не вдалося зберегти налаштування."
   },
   "popupLocalFilePermission": {
     "message": "Розширенню потрібен дозвіл на доступ до локальних файлів. У налаштуваннях додатка виберіть «Дозволи й дані» та увімкніть «Доступ до локальних файлів на вашому комп’ютері», а потім перезавантажте цей файл."
@@ -341,7 +341,7 @@
     "message": "Мова оригіналу: $1"
   },
   "languageSearchPlaceholder": {
-    "message": "Пошук..."
+    "message": "Пошук…"
   },
   "languageSearchLabel": {
     "message": "Пошук мов"
@@ -353,7 +353,7 @@
     "message": "Змінити розмір панелі"
   },
   "panelShowInOverlay": {
-    "message": "Показати поверх зображення"
+    "message": "Показати в оверлеї"
   },
   "panelDetectedLanguage": {
     "message": "Визначена мова: $1"

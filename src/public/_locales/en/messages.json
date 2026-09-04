@@ -209,16 +209,16 @@
     "message": "how to enable WebGPU in your browser"
   },
   "optionsDisplaySectionTitle": {
-    "message": "Other"
+    "message": "Display"
   },
   "optionsDefaultDisplayMode": {
     "message": "Default display mode"
   },
   "optionsDisplayModeOverlay": {
-    "message": "Overlay (on the selected region)"
+    "message": "Overlay on the selected area"
   },
   "optionsDisplayModePanel": {
-    "message": "Panel (bottom-right corner)"
+    "message": "Panel in the bottom-right corner"
   },
   "optionsDisplayHint": {
     "message": "Where the translated text appears after capture."
@@ -257,10 +257,10 @@
     "message": "Couldn't save settings ($1)."
   },
   "popupStartingSelection": {
-    "message": "Starting selection..."
+    "message": "Starting selection…"
   },
   "popupStartingImagePicker": {
-    "message": "Starting image picker..."
+    "message": "Starting image picker…"
   },
   "popupSourceLanguage": {
     "message": "Source language"
@@ -311,7 +311,7 @@
     "message": "Screen OCR Translator could not start on this page."
   },
   "popupCouldNotSaveSettings": {
-    "message": "Could not save the popup settings."
+    "message": "Could not save settings."
   },
   "popupLocalFilePermission": {
     "message": "This extension needs permission to access local files. In add-on settings, select “Permissions and data” and enable “Access local files on your computer”, then reload this file."
@@ -332,7 +332,7 @@
     "message": "Resize selection"
   },
   "selectionRunOcr": {
-    "message": "Run OCR"
+    "message": "Recognize text"
   },
   "languageTargetTitle": {
     "message": "Target language: $1"
@@ -341,7 +341,7 @@
     "message": "Source language: $1"
   },
   "languageSearchPlaceholder": {
-    "message": "Search..."
+    "message": "Search…"
   },
   "languageSearchLabel": {
     "message": "Search languages"
@@ -449,7 +449,7 @@
     "message": "Couldn't reach the endpoint ($1)."
   },
   "errorEndpointHttp": {
-    "message": "The endpoint answered with HTTP $1."
+    "message": "The endpoint returned HTTP $1."
   },
   "errorEndpointNoModelList": {
     "message": "The endpoint didn't return a model list. Check that the URL points to an OpenAI-compatible API (usually ending in /v1)."
