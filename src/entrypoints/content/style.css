@@ -1149,7 +1149,7 @@
    room around it; the values here apply only until it is first positioned. */
 .ocr-translate-overlay-popover {
   position: absolute;
-  z-index: 5;
+  z-index: 7;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
