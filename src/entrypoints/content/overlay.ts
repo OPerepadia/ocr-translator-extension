@@ -40,6 +40,7 @@ import {
   type OverlayLine,
 } from "./overlay-layout";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
+import { startTextSelection } from "./overlay-selection";
 import type { ContentControls } from "./content-controls";
 import {
   createOverlayPopover,
@@ -367,6 +368,7 @@ function render(): void {
       sourceLang: currentSourceLang,
       targetLang: currentTargetLang,
       selectingFromPopover: selectingFrom === "popover",
+      selectingFromLayer: selectingFrom === "layer",
     }),
     beginSelection: () => beginSelection("popover"),
     endSelection,
@@ -483,6 +485,7 @@ function mountControlPicker(
 }
 
 function disposePopover(): void {
+  endSelection();
   popover?.dispose();
   popover = undefined;
 }
@@ -731,6 +734,7 @@ function renderBoxes(): void {
   if (!container || !currentLayout) {
     return;
   }
+  endSelection();
   for (const box of renderedBoxes) {
     box.element.remove();
   }
@@ -995,13 +999,20 @@ function createTextLayer(
 ): HTMLElement {
   const layer = document.createElement("div");
   layer.className = "ocr-translate-overlay-text-layer";
-  layer.addEventListener("pointerdown", () => {
+  let mouseSelection = false;
+  layer.addEventListener("pointerdown", (event) => {
+    mouseSelection = event.pointerType === "mouse";
     beginSelection("layer");
+  });
+  layer.addEventListener("mousedown", (event) => {
+    if (!mouseSelection) return;
+    stopTextSelection?.();
+    stopTextSelection = startTextSelection(event, layer, angle, endSelection);
   });
   // The screen-reader label above already carries the text.
   layer.setAttribute("aria-hidden", "true");
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     if (!line.text) {
       continue;
     }
@@ -1009,7 +1020,10 @@ function createTextLayer(
       if (!piece.text) {
         continue;
       }
-      layer.append(createTextLayerPiece(piece, line.vertical));
+      const span = createTextLayerPiece(piece, line.vertical);
+      span.dataset.line = `${index}`;
+      span.dataset.character = `${Boolean(line.chars?.length)}`;
+      layer.append(span);
     }
   }
   return layer;
@@ -1152,6 +1166,7 @@ function paintedRect(span: HTMLElement): DOMRect {
 // started in is made unselectable, so the selection stays where it began.
 let selectingFrom: "popover" | "layer" | "box" | undefined;
 let pageUserSelect: string | undefined;
+let stopTextSelection: (() => void) | undefined;
 
 function beginSelection(from: "popover" | "layer" | "box"): void {
   if (selectingFrom) {
@@ -1166,6 +1181,8 @@ function beginSelection(from: "popover" | "layer" | "box"): void {
 }
 
 function endSelection(): void {
+  stopTextSelection?.();
+  stopTextSelection = undefined;
   if (!selectingFrom) {
     return;
   }

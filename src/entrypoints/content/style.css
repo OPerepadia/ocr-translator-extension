@@ -1295,6 +1295,16 @@
   writing-mode: vertical-rl;
 }
 
+/* Keep selection paint inside each character along the reading direction,
+   while leaving room for font ascent and descent across it. */
+.ocr-translate-overlay-text-layer-line[data-character="true"] {
+  clip-path: inset(-100% 0);
+}
+
+.ocr-translate-overlay-text-layer-line[data-character="true"].is-vertical {
+  clip-path: inset(0 -100%);
+}
+
 .ocr-translate-overlay-text-layer::selection,
 .ocr-translate-overlay-text-layer-line::selection {
   color: transparent;
@@ -1302,6 +1312,10 @@
 }
 
 /* A drag stays in the part it started in, so the range can't spill across. */
+.ocr-translate-overlay.is-selecting-layer .ocr-translate-overlay-popover {
+  pointer-events: none;
+}
+
 .ocr-translate-overlay.is-selecting-popover .ocr-translate-overlay-text-layer,
 .ocr-translate-overlay.is-selecting-popover
   .ocr-translate-overlay-text-layer-line,

@@ -38,6 +38,7 @@ interface OverlayPopoverState {
   sourceLang?: LangCode;
   targetLang?: LangCode;
   selectingFromPopover: boolean;
+  selectingFromLayer?: boolean;
 }
 
 interface OverlayPopoverOptions {
@@ -115,6 +116,7 @@ export function createOverlayPopover(
     event: PointerEvent,
   ): void {
     clearSettleTimer();
+    if (state().selectingFromLayer) return;
     if (activeView?.boxIndex === index) {
       return;
     }
@@ -122,6 +124,7 @@ export function createOverlayPopover(
     settleTimer = setTimeout(() => {
       settleTimer = undefined;
       settleOrigin = undefined;
+      if (state().selectingFromLayer) return;
       show(index);
     }, POPOVER_SETTLE_MS);
   }
@@ -155,6 +158,7 @@ export function createOverlayPopover(
 
   function handlePointerLeave(event: PointerEvent): void {
     clearSettleTimer();
+    if (state().selectingFromLayer) return;
     if (!activeView || event.pointerType === "touch") {
       return;
     }
@@ -186,6 +190,7 @@ export function createOverlayPopover(
     }
     return (
       state().selectingFromPopover ||
+      state().selectingFromLayer ||
       hasSelectionInside(activeView.el) ||
       (speakingBoxIndex === activeView.boxIndex &&
         isSpeaking(options.speechOwner))
