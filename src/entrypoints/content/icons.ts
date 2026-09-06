@@ -3,9 +3,9 @@ export const CLOSE_ICON =
   '<path d="M5 5l10 10M15 5l-10 10" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>' +
   "</svg>";
 
-export const MENU_ICON =
-  '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">' +
-  '<path d="M5 6h10M5 10h10M5 14h10" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>' +
+export const MORE_ICON =
+  '<svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false">' +
+  '<circle cx="5" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="15" cy="10" r="1.5"/>' +
   "</svg>";
 
 export const CHEVRON_ICON =

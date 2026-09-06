@@ -47,7 +47,7 @@
     "message": "Перекласти"
   },
   "commonTranslateAgain": {
-    "message": "Повторити переклад"
+    "message": "Перекласти повторно"
   },
   "commonReadAloud": {
     "message": "Читати вголос"
@@ -92,13 +92,10 @@
     "message": "Завантаження…"
   },
   "statusInitializingOcr": {
-    "message": "Ініціалізація OCR…"
+    "message": "Ініціалізація…"
   },
   "statusRecognizingText": {
     "message": "Розпізнавання тексту…"
-  },
-  "statusAnalyzingImage": {
-    "message": "Аналіз зображення…"
   },
   "statusTranslating": {
     "message": "Перекладаємо…"
@@ -332,7 +329,7 @@
     "message": "Змінити розмір виділення"
   },
   "selectionRunOcr": {
-    "message": "Розпізнати текст"
+    "message": "Перекласти"
   },
   "languageTargetTitle": {
     "message": "Мова перекладу: $1"
@@ -385,8 +382,11 @@
   "overlayAlreadyInTargetLanguage": {
     "message": "Текст уже написано мовою перекладу"
   },
-  "overlayToggleTranslation": {
-    "message": "Показати або приховати переклад поверх зображення"
+  "overlayShowTranslation": {
+    "message": "Показати переклад"
+  },
+  "overlayHideTranslation": {
+    "message": "Приховати переклад"
   },
   "overlayCopyAllOriginal": {
     "message": "Копіювати оригінал"

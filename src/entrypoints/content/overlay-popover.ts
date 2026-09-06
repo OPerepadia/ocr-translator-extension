@@ -296,6 +296,20 @@ export function createOverlayPopover(
       row.classList.add("is-source");
     }
 
+    const title = document.createElement("h3");
+    title.className = "ocr-translate-overlay-popover-row-title";
+    const lang = modeLang(textMode);
+    const roleLabel = t(
+      textMode === "original"
+        ? "optionsOverlayModeOriginal"
+        : "optionsOverlayModeTranslation",
+    );
+    title.textContent = lang && lang !== "auto" ? lang.toUpperCase() : roleLabel;
+    if (lang && lang !== "auto") {
+      title.title = roleLabel;
+      title.setAttribute("aria-label", roleLabel);
+    }
+
     const controls = document.createElement("div");
     controls.className = "ocr-translate-overlay-popover-row-controls";
     controls.append(
@@ -303,7 +317,10 @@ export function createOverlayPopover(
       createCopyButton(textMode, content),
     );
 
-    row.append(createText(textMode, content), controls);
+    const header = document.createElement("div");
+    header.className = "ocr-translate-overlay-popover-row-header";
+    header.append(title, controls);
+    row.append(header, createText(textMode, content));
     return row;
   }
 

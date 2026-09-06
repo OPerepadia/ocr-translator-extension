@@ -8,10 +8,10 @@ describe("pipelineStatusMessage", () => {
   it("describes each pipeline stage", () => {
     expect(pipelineStatusMessage({ stage: "loading" })).toBe("Loading…");
     expect(pipelineStatusMessage({ stage: "initializing" })).toBe(
-      "Initializing OCR engine…",
+      "Initializing…",
     );
     expect(pipelineStatusMessage({ stage: "recognizing" })).toBe(
-      "Analyzing image…",
+      "Recognizing text…",
     );
     expect(
       pipelineStatusMessage({ stage: "recognizing", lineCount: 3 }),

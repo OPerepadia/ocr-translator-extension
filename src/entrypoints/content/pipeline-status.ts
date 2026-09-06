@@ -8,9 +8,7 @@ export function pipelineStatusMessage(status: PipelineStatus): string {
     case "initializing":
       return t("statusInitializingOcr");
     case "recognizing":
-      return status.lineCount && status.lineCount > 0
-        ? t("statusRecognizingText")
-        : t("statusAnalyzingImage");
+      return t("statusRecognizingText");
     case "translating":
       return t("statusTranslating");
   }

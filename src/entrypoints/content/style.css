@@ -10,10 +10,10 @@
     sans-serif;
   --ocr-size-xs: 12px;
   --ocr-size-sm: 13px;
-  --ocr-size-ui: 14px;
+  --ocr-size-ui: 15px;
   --ocr-size-body: 15px;
   /* Reading size for text pulled off the page; the denser panel stays at `body`. */
-  --ocr-size-read: 16px;
+  --ocr-size-read: 15px;
   --ocr-size-title: 16px;
   /* Never 1: the em box is shorter than ascent+descent, so a line box that tight
      clips descenders out of any label with `overflow: hidden`. */
@@ -101,7 +101,7 @@
 
   /* Surface radius is concentric with the control radius: 10 − 5 ≈ 6. */
   --ocr-control-h: 30px;
-  --ocr-control-h-sm: 28px;
+  --ocr-popover-control-size: 24px;
   --ocr-surface-pad: 5px;
   --ocr-radius-surface: 10px;
   --ocr-radius-control: 6px;
@@ -591,6 +591,12 @@
 
 .ocr-translate-popup-menu-list[hidden] {
   display: none;
+}
+
+.ocr-translate-popup-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--ocr-line-divider);
 }
 
 /* Fixed, not inherited: the panel and the toolbar set different body sizes. */
@@ -1154,13 +1160,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 180px;
   max-width: min(384px, calc(100vw - 16px));
   max-height: 60vh;
   overflow: hidden;
   padding: 8px 12px;
   border: 1px solid var(--ocr-line);
   border-radius: var(--ocr-radius-surface);
-  background: var(--ocr-surface);
+  background: var(--ocr-surface-solid);
   color: var(--ocr-ink);
   font-family: var(--ocr-font);
   font-size: var(--ocr-size-read);
@@ -1198,7 +1205,7 @@
 .ocr-translate-overlay-popover-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -1208,25 +1215,37 @@
 
 .ocr-translate-overlay-popover-row {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ocr-translate-overlay-popover-row .ocr-translate-overlay-popover-text {
+  min-width: 0;
+}
+
+.ocr-translate-overlay-popover-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-/* Centre the first line against the buttons, from the real line box. */
-.ocr-translate-overlay-popover-row .ocr-translate-overlay-popover-text {
-  flex: 1;
-  min-width: 0;
-  padding-top: max(0px, calc((var(--ocr-control-h-sm) - 1lh) / 2));
+.ocr-translate-overlay-popover-row-title {
+  margin: 0;
+  color: var(--ocr-ink-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: var(--ocr-leading-ui);
 }
 
 .ocr-translate-overlay-popover-row.is-source {
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid var(--ocr-line);
 }
 
 .ocr-translate-overlay-popover-row.is-source
   .ocr-translate-overlay-popover-text {
-  color: var(--ocr-ink-subtle);
+  color: var(--ocr-ink-muted);
   font-size: var(--ocr-size-ui);
 }
 
@@ -1246,8 +1265,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--ocr-control-h-sm);
-  height: var(--ocr-control-h-sm);
+  width: var(--ocr-popover-control-size);
+  height: var(--ocr-popover-control-size);
   border: none;
   border-radius: var(--ocr-radius-control);
   padding: 0;
@@ -1257,6 +1276,11 @@
   transition:
     background-color var(--ocr-duration-fast) ease,
     color var(--ocr-duration-fast) ease;
+}
+
+.ocr-translate-overlay-popover-button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .ocr-translate-overlay-popover-button:hover {
@@ -1445,16 +1469,16 @@
 
 /* Overlay toolbar */
 
-/* The capture underneath can be any colour, so the edge is a strong border plus
-   a ring in the opposite tone. */
+/* Keep the outer ring visible against varied capture backgrounds. */
 .ocr-translate-overlay-toolbar {
+  --ocr-radius-control: 7px;
   position: absolute;
   z-index: 6;
   display: inline-flex;
   align-items: center;
   gap: 2px;
   padding: var(--ocr-surface-pad);
-  border: 1px solid var(--ocr-line-strong);
+  border: 1px solid var(--ocr-line-control);
   border-radius: var(--ocr-radius-surface);
   background: var(--ocr-surface);
   box-shadow: var(--ocr-edge), var(--ocr-shadow-float);
@@ -1504,14 +1528,9 @@
 
 .ocr-translate-overlay-toolbar .ocr-translate-popup-langpill-button.is-compact {
   min-width: 40px;
+  gap: 3px;
   padding-inline: 8px;
   letter-spacing: 0.04em;
-}
-
-.ocr-translate-overlay-toolbar
-  .ocr-translate-popup-langpill-button.is-compact
-  .ocr-translate-popup-langpill-chevron {
-  display: none;
 }
 
 .ocr-translate-overlay-provider-button {
@@ -1535,6 +1554,10 @@
   left: auto;
   width: max-content;
   min-width: 100%;
+}
+
+.ocr-translate-overlay-toolbar .ocr-translate-popup-menu-list {
+  background: var(--ocr-surface-solid);
 }
 
 .ocr-translate-overlay-toolbar .ocr-translate-popup-menu-list,
@@ -1567,7 +1590,7 @@
 
 .ocr-translate-overlay-mode-button-wrap {
   display: inline-flex;
-  margin-inline-start: 6px;
+  margin-inline-start: 10px;
 }
 
 .ocr-translate-overlay-direction {
@@ -1636,8 +1659,16 @@
 
 .ocr-translate-overlay-mode-button[aria-pressed="true"],
 .ocr-translate-overlay-mode-button[aria-pressed="true"]:hover {
-  color: var(--ocr-accent);
-  background: var(--ocr-accent-tint);
+  color: var(--ocr-on-accent);
+  background: var(--ocr-accent-solid);
+}
+
+.ocr-translate-overlay-mode-button[aria-pressed="true"]:not(:disabled):hover {
+  background: var(--ocr-accent-solid-hover);
+}
+
+.ocr-translate-overlay-mode-button[aria-pressed="true"]:not(:disabled):active {
+  background: var(--ocr-accent-solid-press);
 }
 
 .ocr-translate-overlay-menu.is-open-above .ocr-translate-popup-menu-list {

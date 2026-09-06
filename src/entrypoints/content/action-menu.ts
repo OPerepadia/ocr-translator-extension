@@ -1,9 +1,10 @@
 import { t } from "@/shared/i18n";
-import { MENU_ICON } from "./icons";
+import { MORE_ICON } from "./icons";
 
 export interface ActionMenuItem {
   icon: string;
   label: string;
+  separatorBefore?: boolean;
   onSelect(): void;
 }
 
@@ -32,7 +33,7 @@ export function createActionMenu(config: {
   button.setAttribute("aria-haspopup", "true");
   button.setAttribute("aria-expanded", "false");
   button.title = t("commonMenu");
-  button.innerHTML = MENU_ICON;
+  button.innerHTML = MORE_ICON;
 
   const list = document.createElement("div");
   list.className = "ocr-translate-popup-menu-list";
@@ -46,6 +47,12 @@ export function createActionMenu(config: {
   };
 
   const itemElements = config.items.map((item) => {
+    if (item.separatorBefore && list.childElementCount > 0) {
+      const separator = document.createElement("div");
+      separator.className = "ocr-translate-popup-menu-separator";
+      separator.setAttribute("role", "separator");
+      list.append(separator);
+    }
     const entry = document.createElement("button");
     entry.type = "button";
     entry.className = "ocr-translate-popup-menu-item";

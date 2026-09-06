@@ -92,13 +92,10 @@
     "message": "Loading…"
   },
   "statusInitializingOcr": {
-    "message": "Initializing OCR engine…"
+    "message": "Initializing…"
   },
   "statusRecognizingText": {
     "message": "Recognizing text…"
-  },
-  "statusAnalyzingImage": {
-    "message": "Analyzing image…"
   },
   "statusTranslating": {
     "message": "Translating…"
@@ -332,7 +329,7 @@
     "message": "Resize selection"
   },
   "selectionRunOcr": {
-    "message": "Recognize text"
+    "message": "Translate"
   },
   "languageTargetTitle": {
     "message": "Target language: $1"
@@ -385,8 +382,11 @@
   "overlayAlreadyInTargetLanguage": {
     "message": "The text is already in the target language"
   },
-  "overlayToggleTranslation": {
-    "message": "Toggle translation overlay"
+  "overlayShowTranslation": {
+    "message": "Show translation overlay"
+  },
+  "overlayHideTranslation": {
+    "message": "Hide translation overlay"
   },
   "overlayCopyAllOriginal": {
     "message": "Copy original"

@@ -530,7 +530,6 @@ function createToolbar(): HTMLElement {
       ? createTranslationProviderPicker(controls, { overlay: true })
       : undefined,
   );
-  const retranslateButton = createRetranslateButton();
   const menu = createMenu();
   controlDisposers.push(menu.dispose);
   const selectButton = iconButton(
@@ -566,7 +565,6 @@ function createToolbar(): HTMLElement {
   if (providerPicker) {
     bar.append(providerPicker);
   }
-  bar.append(retranslateButton);
   bar.append(modeButtonWrapper);
   bar.append(selectButton, menu.element, divider, closeButton);
   return bar;
@@ -591,16 +589,6 @@ function createOcrRecoveryToolbar(): HTMLElement {
   closeButton.classList.add("ocr-translate-overlay-close");
   bar.append(divider, closeButton);
   return bar;
-}
-
-function createRetranslateButton(): HTMLButtonElement {
-  const button = iconButton(RETRANSLATE_ICON, t("commonTranslateAgain"), () => {
-    if (currentTargetLang) {
-      config?.controls.selectTargetLanguage(currentTargetLang);
-    }
-  });
-  button.disabled = !hasTranslationText || !currentTargetLang || !config;
-  return button;
 }
 
 function createModeButton(): HTMLButtonElement {
@@ -634,7 +622,9 @@ function updateModeButton(): void {
     return;
   }
   const showingTranslation = mode === "translation";
-  const label = t("overlayToggleTranslation");
+  const label = t(
+    showingTranslation ? "overlayHideTranslation" : "overlayShowTranslation",
+  );
   modeButton.setAttribute("aria-pressed", String(showingTranslation));
   modeButton.setAttribute("aria-label", label);
   if (hasTranslationText) {
@@ -648,11 +638,13 @@ function createMenu(): ActionMenu {
     iconMarkup: string,
     labelText: string,
     onSelect: () => void,
+    separatorBefore = false,
   ): void => {
     items.push({
       icon: iconMarkup,
       label: labelText,
       onSelect,
+      separatorBefore,
     });
   };
 
@@ -677,8 +669,28 @@ function createMenu(): ActionMenu {
       speakAll("original");
     });
   }
-  addItem(PANEL_ICON, t("overlayShowInPanel"), () => config?.onShowPanel());
-  addItem(SETTINGS_ICON, t("commonSettings"), openSettings);
+  const canRetranslate = Boolean(
+    hasTranslationText && currentTargetLang && config,
+  );
+  if (canRetranslate) {
+    addItem(
+      RETRANSLATE_ICON,
+      t("commonTranslateAgain"),
+      () => {
+        if (currentTargetLang) {
+          config?.controls.selectTargetLanguage(currentTargetLang);
+        }
+      },
+      true,
+    );
+  }
+  addItem(
+    PANEL_ICON,
+    t("overlayShowInPanel"),
+    () => config?.onShowPanel(),
+    !canRetranslate,
+  );
+  addItem(SETTINGS_ICON, t("commonSettings"), openSettings, true);
   return createActionMenu({ items, overlay: true });
 }
 

@@ -70,7 +70,7 @@ export function createTargetLanguagePicker(args: {
 }
 
 function compactLanguageLabel(code: LangCode): string {
-  return code.toUpperCase();
+  return code === "auto" ? t("commonAuto") : code.toUpperCase();
 }
 
 export function createTranslationProviderPicker(
