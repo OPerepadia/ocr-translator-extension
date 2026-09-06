@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OcrBlock, Rect } from "../../shared/types";
+import { assembleGroupedResult } from "../../providers/ocr/paddle/assemble";
 import {
   buildOverlayLayout,
   getRenderedImageRect,
@@ -443,6 +444,27 @@ describe("paragraphAngle", () => {
 });
 
 describe("buildOverlayLayout tilted text", () => {
+  it.each([-25, 25, 155])("keeps a horizontal inset at %s° on a vertical page", (tilt) => {
+    const inset = tiltedBlock(0, { x: 100, y: 200, width: 150, height: 50 }, tilt, "sample");
+    const ocr = assembleGroupedResult([
+      [{ ...inset, confidence: 1 }],
+      [{ text: "column", bbox: { x: 400, y: 0, width: 40, height: 600 }, confidence: 1 }],
+    ]);
+    expect(ocr.orientation).toBe("vertical");
+    const layout = buildOverlayLayout({
+      ocrText: ocr.text,
+      translationText: ocr.text,
+      blocks: ocr.blocks ?? [],
+      orientation: ocr.orientation,
+      imageWidth: 600,
+      imageHeight: 800,
+      rect: { x: 0, y: 0, width: 600, height: 800 },
+    });
+    const paragraph = layout.paragraphs.find((paragraph) => paragraph.original === "sample")!;
+    expect(paragraph.vertical).toBe(false);
+    expect(degrees(paragraph.angle)).toBeCloseTo(tilt === 155 ? -25 : tilt, 6);
+  });
+
   it("wraps a tilted line in a box that follows it", () => {
     const layout = buildOverlayLayout({
       ocrText: "hello",

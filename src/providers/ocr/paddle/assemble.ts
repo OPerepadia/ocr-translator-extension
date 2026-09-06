@@ -10,8 +10,7 @@ import type {
 
 export interface RecognizedLine {
   bbox: Rect;
-  /** The detector's tilted box for this line, when it found one. Grouping works
-   * off `bbox` throughout; this rides along for the overlay to draw. */
+  /** The line's reading frame, used for orientation and overlay placement. */
   oriented?: OrientedRect;
   text: string;
   confidence: number;
@@ -228,9 +227,16 @@ function orientationVote(
   let vertical = 0;
   let horizontal = 0;
   for (const line of lines) {
-    const orientation = readingOrientation(line.bbox);
+    const rect = line.oriented?.rect ?? line.bbox;
+    const shape = readingOrientation(rect);
+    // Tilt can make an oblong line's axis-aligned bounds look square.
+    const orientation = shape && line.oriented
+      ? Math.abs(Math.sin(line.oriented.angle)) > Math.abs(Math.cos(line.oriented.angle))
+        ? "vertical"
+        : "horizontal"
+      : shape;
     if (!orientation) continue;
-    const long = Math.max(line.bbox.width, line.bbox.height);
+    const long = Math.max(rect.width, rect.height);
     if (orientation === "vertical") vertical += long;
     else horizontal += long;
   }

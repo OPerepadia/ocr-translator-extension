@@ -162,6 +162,37 @@ describe("assembleGroupedResult", () => {
     expect(result.blocks?.[0].orientation).toBe("horizontal");
   });
 
+  it("uses a tilted column's reading angle on a horizontal page", () => {
+    const result = assembleGroupedResult([
+      [line("heading", 0, 0, 600, 40)],
+      [{
+        ...line("column", 100, 100, 109, 157),
+        oriented: {
+          rect: { x: 100, y: 100, width: 150, height: 50 },
+          angle: 65 * Math.PI / 180,
+        },
+      }],
+    ]);
+
+    expect(result.orientation).toBe("horizontal");
+    expect(result.blocks?.find((block) => block.text === "column")?.orientation).toBe("vertical");
+  });
+
+  it("lets square oriented boxes inherit the page orientation", () => {
+    const result = assembleGroupedResult([
+      [vcol("column", 300, 300, 40, 600)],
+      [{
+        ...line("mark", 100, 100, 30, 30),
+        oriented: {
+          rect: { x: 100, y: 100, width: 20, height: 18 },
+          angle: 0.4,
+        },
+      }],
+    ]);
+
+    expect(result.blocks?.find((block) => block.text === "mark")?.orientation).toBe("vertical");
+  });
+
   it("orders vertical columns right-to-left and split columns top-to-bottom", () => {
     const result = assembleGroupedResult([[
       vcol("左", 100, 200),
