@@ -402,6 +402,7 @@ function mountChip(chip: HTMLElement, showSourceLanguageToolbar = false): void {
 
   container = document.createElement("div");
   container.className = "ocr-translate-overlay";
+  container.classList.add("is-status");
   renderRegionLayers();
 
   if (showSourceLanguageToolbar) {

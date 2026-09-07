@@ -63,6 +63,9 @@
   --ocr-accent-ring: rgba(62, 123, 214, 0.15);
   --ocr-item-hover: #edf3fc;
   --ocr-on-accent: #ffffff;
+  --ocr-toggle-bg: #4b88df;
+  --ocr-toggle-bg-hover: #3e7bd6;
+  --ocr-toggle-bg-press: #3269bd;
 
   /* Status */
   --ocr-danger: #dc2626;
@@ -79,6 +82,7 @@
   --ocr-marker-tint-strong: rgba(255, 45, 149, 0.12);
 
   --ocr-scrim: rgba(15, 23, 42, 0.38);
+  --ocr-status-veil: rgba(15, 23, 42, 0.15);
   --ocr-scrim-ink: #f1f5f9;
   --ocr-scrim-ink-muted: #cbd5e1;
   --ocr-scrim-surface: rgba(15, 23, 42, 0.85);
@@ -155,6 +159,9 @@
     --ocr-accent-border-hover: rgba(91, 147, 232, 0.42);
     --ocr-accent-ring: rgba(91, 147, 232, 0.12);
     --ocr-item-hover: rgba(91, 147, 232, 0.1);
+    --ocr-toggle-bg: var(--ocr-accent-solid);
+    --ocr-toggle-bg-hover: var(--ocr-accent-solid-hover);
+    --ocr-toggle-bg-press: var(--ocr-accent-solid-press);
 
     --ocr-danger: #f87171;
     --ocr-danger-tint: rgba(248, 113, 113, 0.12);
@@ -1384,6 +1391,10 @@
   pointer-events: none;
 }
 
+.ocr-translate-overlay.is-status .ocr-translate-overlay-dim {
+  background: var(--ocr-status-veil);
+}
+
 .ocr-translate-overlay-region {
   position: absolute;
   box-sizing: border-box;
@@ -1660,15 +1671,15 @@
 .ocr-translate-overlay-mode-button[aria-pressed="true"],
 .ocr-translate-overlay-mode-button[aria-pressed="true"]:hover {
   color: var(--ocr-on-accent);
-  background: var(--ocr-accent-solid);
+  background: var(--ocr-toggle-bg);
 }
 
 .ocr-translate-overlay-mode-button[aria-pressed="true"]:not(:disabled):hover {
-  background: var(--ocr-accent-solid-hover);
+  background: var(--ocr-toggle-bg-hover);
 }
 
 .ocr-translate-overlay-mode-button[aria-pressed="true"]:not(:disabled):active {
-  background: var(--ocr-accent-solid-press);
+  background: var(--ocr-toggle-bg-press);
 }
 
 .ocr-translate-overlay-menu.is-open-above .ocr-translate-popup-menu-list {
