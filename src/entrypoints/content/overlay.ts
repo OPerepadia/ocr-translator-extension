@@ -426,6 +426,14 @@ function ensureGlobalHandlers(): void {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
+        const openLanguageButton = toolbar?.querySelector<HTMLButtonElement>(
+          '.ocr-translate-popup-langpill-button[aria-expanded="true"]',
+        );
+        if (openLanguageButton) {
+          openLanguageButton.click();
+          openLanguageButton.focus();
+          return;
+        }
         if (!popover?.dismiss()) {
           closeOverlay();
         }

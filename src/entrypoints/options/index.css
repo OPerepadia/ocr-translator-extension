@@ -377,7 +377,8 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.ocr-translate-popup-langpill-item:hover {
+.ocr-translate-popup-langpill-item:hover,
+.ocr-translate-popup-langpill-item.is-active {
   background: var(--hover-bg);
 }
 

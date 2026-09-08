@@ -2,6 +2,8 @@ import type { LangCode } from "@/shared/types";
 import { t, uiLanguage } from "@/shared/i18n";
 import { CHEVRON_ICON } from "./icons";
 
+let nextPickerId = 0;
+
 export interface LanguagePill {
   element: HTMLElement;
   /** Detach document-level listeners owned by this picker. */
@@ -48,13 +50,13 @@ export function createLanguagePill(args: {
 
   const list = document.createElement("div");
   list.className = "ocr-translate-popup-langpill-list";
-  list.setAttribute("role", "listbox");
   list.hidden = true;
 
   function closeList(): void {
     list.hidden = true;
     wrapper.classList.remove("is-open-above");
     button.setAttribute("aria-expanded", "false");
+    search?.setAttribute("aria-expanded", "false");
   }
 
   const codes = languages.length > 0 ? languages : [target];
@@ -80,15 +82,40 @@ export function createLanguagePill(args: {
 
   const itemsBox = document.createElement("div");
   itemsBox.className = "ocr-translate-popup-langpill-items";
+  itemsBox.id = `ocr-languages-${nextPickerId++}`;
+  itemsBox.setAttribute("role", "listbox");
+  itemsBox.setAttribute("aria-label", button.title);
+  button.setAttribute("aria-controls", itemsBox.id);
+  if (search) {
+    search.setAttribute("role", "combobox");
+    search.setAttribute("aria-autocomplete", "list");
+    search.setAttribute("aria-controls", itemsBox.id);
+    search.setAttribute("aria-expanded", "false");
+  }
   list.append(itemsBox);
 
   const entries: Array<{ element: HTMLElement; haystack: string }> = [];
+  let activeItem: HTMLElement | undefined;
+
+  function setActive(item: HTMLElement | undefined): void {
+    activeItem?.classList.remove("is-active");
+    activeItem = item;
+    activeItem?.classList.add("is-active");
+    if (activeItem) {
+      search?.setAttribute("aria-activedescendant", activeItem.id);
+      activeItem.scrollIntoView({ block: "nearest" });
+    } else {
+      search?.removeAttribute("aria-activedescendant");
+    }
+  }
 
   for (const option of options) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "ocr-translate-popup-langpill-item";
+    item.id = `${itemsBox.id}-${entries.length}`;
     item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", String(option.code === target));
     item.textContent = option.name;
     if (option.code === target) {
       item.setAttribute("aria-selected", "true");
@@ -96,11 +123,13 @@ export function createLanguagePill(args: {
     }
     item.addEventListener("click", () => {
       closeList();
+      button.focus();
       if (option.code !== target) {
         onChange(option.code);
       }
     });
     itemsBox.append(item);
+    item.addEventListener("focus", () => setActive(item));
 
     const native = nativeLanguageName(option.code);
     const haystack =
@@ -118,38 +147,72 @@ export function createLanguagePill(args: {
     for (const entry of entries) {
       entry.element.hidden = query !== "" && !entry.haystack.includes(query);
     }
+    setActive(entries.find((entry) => !entry.element.hidden)?.element);
   }
 
   if (search) {
     search.addEventListener("input", applyFilter);
-    search.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        entries.find((entry) => !entry.element.hidden)?.element.click();
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        closeList();
-        button.focus();
-      }
-    });
   }
 
-  button.addEventListener("click", () => {
-    const open = list.hidden;
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
+  function openList(): void {
+    list.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    search?.setAttribute("aria-expanded", "true");
     wrapper.classList.remove("is-open-above");
     if (
-      open &&
       position === "auto" &&
       list.getBoundingClientRect().bottom > window.innerHeight - 8
     ) {
       wrapper.classList.add("is-open-above");
     }
-    if (open && search) {
+    if (search) {
       search.value = "";
       applyFilter();
       search.focus();
+    }
+    setActive(
+      entries.find((entry) => entry.element.classList.contains("is-selected"))
+        ?.element ?? entries[0]?.element,
+    );
+    if (!search) activeItem?.focus();
+  }
+
+  button.addEventListener("click", () => {
+    if (list.hidden) openList();
+    else closeList();
+  });
+
+  wrapper.addEventListener("keydown", (event) => {
+    if (event.isComposing) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (list.hidden) {
+        openList();
+        return;
+      }
+      const visible = entries.filter((entry) => !entry.element.hidden);
+      const index = visible.findIndex((entry) => entry.element === activeItem);
+      const next = Math.max(
+        0,
+        Math.min(visible.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)),
+      );
+      setActive(visible[next]?.element);
+      if (search) search.focus();
+      else activeItem?.focus();
+    } else if (
+      !list.hidden &&
+      event.key === "Enter" &&
+      event.target !== button
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      activeItem?.click();
+    } else if (!list.hidden && event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeList();
+      button.focus();
     }
   });
 

@@ -754,7 +754,8 @@
   transition: background-color var(--ocr-duration-fast) ease;
 }
 
-.ocr-translate-popup-langpill-item:hover {
+.ocr-translate-popup-langpill-item:hover,
+.ocr-translate-popup-langpill-item.is-active {
   background: var(--ocr-item-hover);
 }
 
