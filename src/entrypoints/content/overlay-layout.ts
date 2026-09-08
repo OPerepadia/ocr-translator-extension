@@ -72,7 +72,7 @@ export interface BuildOverlayInput {
   orientation?: "horizontal" | "vertical";
 }
 
-const VERTICAL_TRANSLATION_MIN_WIDTH = 120;
+const VERTICAL_TRANSLATION_MIN_WIDTH = 110;
 // A line only votes on tilt if it is clearly oblong, the same bar the OCR
 // assembler sets for reading orientation.
 const ANGLE_VOTE_MIN_ASPECT = 1.5;

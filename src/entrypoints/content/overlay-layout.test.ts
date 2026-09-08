@@ -256,12 +256,12 @@ describe("buildOverlayLayout", () => {
 
     expect(layout.paragraphs[0].sourceRect.width).toBeCloseTo(100);
     expect(layout.paragraphs[0].sourceRect.height).toBeCloseTo(16);
-    expect(layout.paragraphs[0].translationRect.width).toBe(120);
+    expect(layout.paragraphs[0].translationRect.width).toBe(110);
     expect(layout.paragraphs[0].translationRect.height).toBeCloseTo(16);
     expect(layout.combinedRect).toEqual({
-      x: -20,
+      x: -15,
       y: 0,
-      width: 120,
+      width: 110,
       height: 100,
     });
   });
@@ -304,7 +304,7 @@ describe("buildOverlayLayout", () => {
       translationText: "翻訳の例文です",
     });
 
-    expect(layout.paragraphs[0].translationRect.width).toBe(120);
+    expect(layout.paragraphs[0].translationRect.width).toBe(110);
   });
 
   it("marks paragraphs vertical so the original view can match the layout", () => {
