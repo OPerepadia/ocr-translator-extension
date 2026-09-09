@@ -1,0 +1,497 @@
+{
+  "extensionName": {
+    "message": "Screen OCR Translator"
+  },
+  "extensionDescription": {
+    "message": "Распознавайте и переводите текст на изображениях или в любой части веб-страницы."
+  },
+  "commandTranslateScreenRegion": {
+    "message": "Перевести область экрана"
+  },
+  "contextTranslateScreenRegion": {
+    "message": "Перевести область экрана…"
+  },
+  "contextTranslateImage": {
+    "message": "Перевести это изображение"
+  },
+  "providerGoogle": {
+    "message": "Google"
+  },
+  "providerLlm": {
+    "message": "LLM"
+  },
+  "commonSettings": {
+    "message": "Настройки"
+  },
+  "commonClose": {
+    "message": "Закрыть"
+  },
+  "commonDismiss": {
+    "message": "Закрыть"
+  },
+  "commonMenu": {
+    "message": "Меню"
+  },
+  "commonRetry": {
+    "message": "Попробовать ещё раз"
+  },
+  "commonCancel": {
+    "message": "Отмена"
+  },
+  "commonCopy": {
+    "message": "Копировать"
+  },
+  "commonTranslate": {
+    "message": "Перевести"
+  },
+  "commonTranslateAgain": {
+    "message": "Перевести повторно"
+  },
+  "commonReadAloud": {
+    "message": "Читать вслух"
+  },
+  "commonStopSpeaking": {
+    "message": "Остановить озвучивание"
+  },
+  "commonUnknown": {
+    "message": "Неизвестно"
+  },
+  "commonAuto": {
+    "message": "Авто"
+  },
+  "commonNotSet": {
+    "message": "(не указано)"
+  },
+  "commonCurrentValue": {
+    "message": "$1 (текущее значение)"
+  },
+  "commonAvailable": {
+    "message": "Доступно"
+  },
+  "commonSoftwareOnly": {
+    "message": "Только программно"
+  },
+  "commonNotAvailable": {
+    "message": "Недоступно"
+  },
+  "commonSaved": {
+    "message": "Сохранено."
+  },
+  "commonConnected": {
+    "message": "Подключено"
+  },
+  "commonTranslationFailed": {
+    "message": "Не удалось перевести."
+  },
+  "commonNoTextDetected": {
+    "message": "Текст не распознан. Проверьте, правильно ли выбран язык, или выберите «Авто»."
+  },
+  "statusLoadingImage": {
+    "message": "Загрузка…"
+  },
+  "statusInitializingOcr": {
+    "message": "Инициализация…"
+  },
+  "statusRecognizingText": {
+    "message": "Распознавание текста…"
+  },
+  "statusTranslating": {
+    "message": "Перевод…"
+  },
+  "optionsPageTitle": {
+    "message": "Настройки"
+  },
+  "optionsAboutSectionTitle": {
+    "message": "О расширении"
+  },
+  "optionsTranslationSectionTitle": {
+    "message": "Перевод"
+  },
+  "optionsTargetLanguage": {
+    "message": "Язык перевода"
+  },
+  "optionsTranslationProvider": {
+    "message": "Сервис перевода"
+  },
+  "optionsGoogleProviderHint": {
+    "message": "Ключ API не требуется. Могут действовать ограничения на количество запросов."
+  },
+  "optionsLlmEndpoint": {
+    "message": "Конечная точка LLM"
+  },
+  "optionsLlmEndpointHint": {
+    "message": "Любой сервер, совместимый с OpenAI API, например llama.cpp, Ollama, LM Studio или OpenRouter."
+  },
+  "optionsRemoveOriginHeader": {
+    "message": "Удалять заголовок Origin"
+  },
+  "optionsRemoveOriginHeaderHint": {
+    "message": "Только для Ollama. Удаляет заголовок Origin из запросов, чтобы избежать ошибки HTTP 403 Forbidden при отправке запросов из расширения."
+  },
+  "optionsEndpointUrl": {
+    "message": "URL конечной точки"
+  },
+  "optionsApiKey": {
+    "message": "Ключ API"
+  },
+  "optionsOptional": {
+    "message": "Необязательно"
+  },
+  "optionsShowApiKey": {
+    "message": "Показать ключ API"
+  },
+  "optionsHideApiKey": {
+    "message": "Скрыть ключ API"
+  },
+  "optionsModel": {
+    "message": "Модель"
+  },
+  "optionsFetchModels": {
+    "message": "Получить список моделей"
+  },
+  "optionsModelNotFound": {
+    "message": "$1 (не найдена)"
+  },
+  "optionsRequestTimeout": {
+    "message": "Время ожидания запроса"
+  },
+  "optionsSeconds": {
+    "message": "секунд"
+  },
+  "optionsDisableModelThinking": {
+    "message": "Отключить рассуждения модели"
+  },
+  "optionsDisableModelThinkingHint": {
+    "message": "Ускоряет ответы моделей с рассуждением. Работает с vLLM, llama.cpp и Ollama. ВНИМАНИЕ: конечная точка api.openai.com/v1 не поддерживает эту настройку."
+  },
+  "optionsTestConnection": {
+    "message": "Проверить соединение"
+  },
+  "optionsOcrSectionTitle": {
+    "message": "Распознавание текста (OCR)"
+  },
+  "optionsOpenSourceNote": {
+    "message": "Screen OCR Translator — это расширение с открытым исходным кодом, распространяемое по лицензии Mozilla Public License 2.0."
+  },
+  "optionsVersion": {
+    "message": "Версия $1"
+  },
+  "optionsDefaultSourceLanguage": {
+    "message": "Язык для OCR"
+  },
+  "optionsDefaultSourceLanguageHint": {
+    "message": "Выберите язык исходного текста или «Авто», чтобы определить язык автоматически (распознавание может занять больше времени)."
+  },
+  "optionsGpuAcceleration": {
+    "message": "GPU-ускорение (экспериментальная функция)"
+  },
+  "optionsGpuHint": {
+    "message": "Использует WebGPU для распознавания текста. В зависимости от браузера, операционной системы и конфигурации это может ускорить или замедлить распознавание. Если WebGPU недоступен, используется процессор."
+  },
+  "optionsStartOcrImmediately": {
+    "message": "Запускать OCR сразу после выделения области"
+  },
+  "optionsStartOcrImmediatelyHint": {
+    "message": "Пропускает этап корректировки и запускает OCR, как только вы отпускаете кнопку мыши."
+  },
+  "optionsSee": {
+    "message": "См."
+  },
+  "optionsEnableWebGpuLink": {
+    "message": "как включить WebGPU в вашем браузере"
+  },
+  "optionsDisplaySectionTitle": {
+    "message": "Отображение"
+  },
+  "optionsUiLanguage": {
+    "message": "Язык интерфейса"
+  },
+  "optionsUiLanguageAuto": {
+    "message": "Автоматически"
+  },
+  "optionsUiLanguageHint": {
+    "message": "Выберите язык интерфейса расширения."
+  },
+  "optionsDefaultDisplayMode": {
+    "message": "Режим отображения по умолчанию"
+  },
+  "optionsDisplayModeOverlay": {
+    "message": "Наложение поверх выбранной области (оверлей)"
+  },
+  "optionsDisplayModePanel": {
+    "message": "Панель в правом нижнем углу"
+  },
+  "optionsDisplayHint": {
+    "message": "Место, где появляется перевод после захвата изображения."
+  },
+  "optionsDefaultOverlayMode": {
+    "message": "Начальный вид оверлея"
+  },
+  "optionsOverlayModeTranslation": {
+    "message": "Перевод"
+  },
+  "optionsOverlayModeOriginal": {
+    "message": "Оригинал"
+  },
+  "optionsDefaultOverlayModeHint": {
+    "message": "Выберите начальный вид для каждого нового оверлея"
+  },
+  "optionsSetEndpointFirst": {
+    "message": "Сначала укажите URL конечной точки."
+  },
+  "optionsFetchingModels": {
+    "message": "Получение…"
+  },
+  "optionsNoModels": {
+    "message": "Конечная точка не вернула ни одной модели."
+  },
+  "optionsOneModelFound": {
+    "message": "Найдена 1 модель."
+  },
+  "optionsModelsFound": {
+    "message": "Найдено моделей: $1."
+  },
+  "optionsTestingConnection": {
+    "message": "Проверка соединения…"
+  },
+  "optionsSaveFailed": {
+    "message": "Не удалось сохранить настройки ($1)."
+  },
+  "popupStartingSelection": {
+    "message": "Запускаем выбор…"
+  },
+  "popupStartingImagePicker": {
+    "message": "Запускаем выбор изображения…"
+  },
+  "popupSourceLanguage": {
+    "message": "Язык оригинала"
+  },
+  "popupTargetLanguage": {
+    "message": "Язык перевода"
+  },
+  "popupProvider": {
+    "message": "Сервис перевода"
+  },
+  "popupResultMode": {
+    "message": "Режим отображения"
+  },
+  "popupDisplayModeOverlay": {
+    "message": "Наложение"
+  },
+  "popupDisplayModePanel": {
+    "message": "Панель"
+  },
+  "popupSelectArea": {
+    "message": "Выбрать область"
+  },
+  "popupPickImage": {
+    "message": "Выбрать изображение"
+  },
+  "popupShortcutPrefix": {
+    "message": "Нажмите"
+  },
+  "popupShortcutSuffix": {
+    "message": "для выбора области"
+  },
+  "popupEditShortcut": {
+    "message": "Изменить сочетание клавиш"
+  },
+  "popupShortcutNotSet": {
+    "message": "Сочетание клавиш не задано."
+  },
+  "popupSetShortcut": {
+    "message": "Настроить"
+  },
+  "popupRestrictedPage": {
+    "message": "Доступ к этой странице браузера ограничен, поэтому расширение не может с ней работать. Попробуйте на обычной веб-странице."
+  },
+  "popupReloadPage": {
+    "message": "Не удалось запустить. Перезагрузите страницу и повторите попытку."
+  },
+  "popupCouldNotStart": {
+    "message": "Не удалось запустить Screen OCR Translator на этой странице."
+  },
+  "popupCouldNotSaveSettings": {
+    "message": "Не удалось сохранить настройки."
+  },
+  "popupLocalFilePermission": {
+    "message": "Расширению требуется разрешение на доступ к локальным файлам. В настройках дополнения выберите «Разрешения и данные» и включите «Доступ к локальным файлам на вашем компьютере», затем перезагрузите этот файл."
+  },
+  "popupCouldNotOpenShortcutSettings": {
+    "message": "Не удалось открыть настройки сочетаний клавиш."
+  },
+  "selectionDragArea": {
+    "message": "Потяните мышью, чтобы выбрать область"
+  },
+  "selectionPressKeyToCancel": {
+    "message": "Нажмите $1 для отмены"
+  },
+  "imagePickerSelectImage": {
+    "message": "Нажмите на изображение, чтобы перевести"
+  },
+  "selectionResize": {
+    "message": "Изменить размер выделения"
+  },
+  "selectionRunOcr": {
+    "message": "Перевести"
+  },
+  "languageTargetTitle": {
+    "message": "Язык перевода: $1"
+  },
+  "languageSourceTitle": {
+    "message": "Язык оригинала: $1"
+  },
+  "languageSearchPlaceholder": {
+    "message": "Поиск…"
+  },
+  "languageSearchLabel": {
+    "message": "Поиск языков"
+  },
+  "panelSelectNewRegion": {
+    "message": "Выбрать новую область"
+  },
+  "panelResize": {
+    "message": "Изменить размер панели"
+  },
+  "panelShowInOverlay": {
+    "message": "Показать в оверлее"
+  },
+  "panelDetectedLanguage": {
+    "message": "Определён язык: $1"
+  },
+  "panelLanguageNotDetected": {
+    "message": "Язык не определён"
+  },
+  "panelSourceLanguage": {
+    "message": "Язык оригинала: $1"
+  },
+  "panelTranslationProvider": {
+    "message": "Сервис перевода: $1"
+  },
+  "panelTranslationHeading": {
+    "message": "Перевод"
+  },
+  "panelSourceText": {
+    "message": "Исходный текст"
+  },
+  "panelAlreadyInLanguage": {
+    "message": "Текст уже написан на языке: $1."
+  },
+  "panelAlreadyInTargetLanguage": {
+    "message": "Текст уже написан на языке перевода."
+  },
+  "overlayTranslationUnavailable": {
+    "message": "Перевод недоступен"
+  },
+  "overlayAlreadyInTargetLanguage": {
+    "message": "Текст уже написан на языке перевода"
+  },
+  "overlayShowTranslation": {
+    "message": "Показать перевод"
+  },
+  "overlayHideTranslation": {
+    "message": "Скрыть перевод"
+  },
+  "overlayCopyAllOriginal": {
+    "message": "Копировать оригинал"
+  },
+  "overlayCopyAllTranslated": {
+    "message": "Копировать перевод"
+  },
+  "overlayReadAllOriginal": {
+    "message": "Прочитать оригинал"
+  },
+  "overlayReadAllTranslated": {
+    "message": "Прочитать перевод"
+  },
+  "overlayCopyAllText": {
+    "message": "Копировать текст"
+  },
+  "overlayReadAllText": {
+    "message": "Прочитать текст"
+  },
+  "overlayShowInPanel": {
+    "message": "Показать в панели"
+  },
+  "overlayRecognizedAndTranslatedText": {
+    "message": "Распознанный и переведённый текст"
+  },
+  "errorGoogleTranslateTimeout": {
+    "message": "Время ожидания ответа от Google Translate ($1 с) истекло. Попробуйте ещё раз или выберите другой сервис перевода."
+  },
+  "errorGoogleTranslateUnreachable": {
+    "message": "Не удалось подключиться к Google Translate ($1). Проверьте интернет-соединение или выберите другой сервис перевода."
+  },
+  "errorGoogleTranslateRequest": {
+    "message": "Ошибка запроса к Google Translate (HTTP $1). Попробуйте позже или выберите другой сервис перевода."
+  },
+  "errorLlmEndpointNotConfigured": {
+    "message": "Для сервиса LLM не настроена конечная точка. Укажите её URL на странице настроек расширения (например, http://localhost:8080/v1 для локального сервера)."
+  },
+  "errorLlmFixEndpoint": {
+    "message": "$1 Исправьте URL конечной точки на странице настроек расширения."
+  },
+  "errorLlmInvalidTranslationFormat": {
+    "message": "LLM вернула перевод в неправильном формате даже после повторной попытки."
+  },
+  "errorLlmTimeout": {
+    "message": "LLM не ответила в течение $1 с. Возможно, модель работает медленно — увеличьте время ожидания запроса и попробуйте ещё раз или выберите другой сервис перевода."
+  },
+  "errorLlmUnreachable": {
+    "message": "Не удалось подключиться к конечной точке LLM ($1). Проверьте конфигурацию и убедитесь, что сервер работает."
+  },
+  "errorLlmRequest": {
+    "message": "Ошибка запроса к LLM (HTTP $1)."
+  },
+  "errorLlmUnexpectedResponse": {
+    "message": "Конечная точка LLM вернула неожиданный ответ. Убедитесь, что URL ведёт к OpenAI-совместимому API (обычно он заканчивается на /v1)."
+  },
+  "errorLlmEmptyResponse": {
+    "message": "LLM вернула пустой ответ. Попробуйте ещё раз или проверьте название модели в настройках."
+  },
+  "errorEndpointUnreachable": {
+    "message": "Не удалось подключиться к конечной точке ($1)."
+  },
+  "errorEndpointHttp": {
+    "message": "Конечная точка ответила с кодом HTTP $1."
+  },
+  "errorEndpointNoModelList": {
+    "message": "Конечная точка не вернула список моделей. Убедитесь, что URL ведёт к OpenAI-совместимому API (обычно он заканчивается на /v1)."
+  },
+  "errorLlmInvalidAbsoluteUrl": {
+    "message": "URL конечной точки LLM не является корректным абсолютным URL (например, http://localhost:8080/v1)."
+  },
+  "errorLlmHttpProtocol": {
+    "message": "URL конечной точки LLM должен начинаться с http:// или https://."
+  },
+  "errorLlmNoQueryOrFragment": {
+    "message": "URL конечной точки LLM не должен содержать строку запроса или фрагмент."
+  },
+  "errorCouldNotLoadImage": {
+    "message": "Не удалось загрузить изображение ($1)."
+  },
+  "errorSelectionOutsideVisibleArea": {
+    "message": "Выбранная область находится за пределами видимой части страницы."
+  },
+  "errorCanvasContext": {
+    "message": "Не удалось создать холст для обработки изображения."
+  },
+  "errorEncodeCapturedImage": {
+    "message": "Не удалось закодировать захваченное изображение."
+  },
+  "errorCapturedImageUnavailable": {
+    "message": "Изображение больше недоступно. Выберите область ещё раз."
+  },
+  "errorOcrWorkerCrashed": {
+    "message": "Процесс OCR аварийно завершил работу."
+  },
+  "errorRecognitionStoppedResponding": {
+    "message": "Средство распознавания текста не отвечает."
+  },
+  "errorOcrInsufficientMemory": {
+    "message": "Ошибка OCR: недостаточно памяти. Освободите память GPU или отключите ускорение в настройках."
+  },
+  "errorOcrHostStoppedResponding": {
+    "message": "Служба OCR не отвечает."
+  }
+}

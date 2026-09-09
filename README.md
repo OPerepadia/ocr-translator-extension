@@ -25,7 +25,7 @@ Browser extension that uses local OCR to extract text from images, comics, scans
 
 ## Usage
 
-Activate the extension from the browser toolbar or context menu, or press `Ctrl+Shift+F`. Select an area of the page and click "Recognize text".
+Activate the extension from the browser toolbar or context menu, or press `Ctrl+Shift+F`. Select an area of the page and click "Translate".
 
 To translate an image directly, right-click it and select "Translate this image".
 

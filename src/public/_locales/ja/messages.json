@@ -1,0 +1,497 @@
+{
+  "extensionName": {
+    "message": "Screen OCR Translator"
+  },
+  "extensionDescription": {
+    "message": "ローカルOCRを使って、画像やウェブページの選択した範囲から文字を認識し、翻訳します。"
+  },
+  "commandTranslateScreenRegion": {
+    "message": "画面の範囲を翻訳"
+  },
+  "contextTranslateScreenRegion": {
+    "message": "画面の範囲を翻訳…"
+  },
+  "contextTranslateImage": {
+    "message": "この画像を翻訳"
+  },
+  "providerGoogle": {
+    "message": "Google"
+  },
+  "providerLlm": {
+    "message": "LLM"
+  },
+  "commonSettings": {
+    "message": "設定"
+  },
+  "commonClose": {
+    "message": "閉じる"
+  },
+  "commonDismiss": {
+    "message": "非表示にする"
+  },
+  "commonMenu": {
+    "message": "メニュー"
+  },
+  "commonRetry": {
+    "message": "再試行"
+  },
+  "commonCancel": {
+    "message": "キャンセル"
+  },
+  "commonCopy": {
+    "message": "コピー"
+  },
+  "commonTranslate": {
+    "message": "翻訳"
+  },
+  "commonTranslateAgain": {
+    "message": "再翻訳"
+  },
+  "commonReadAloud": {
+    "message": "読み上げ"
+  },
+  "commonStopSpeaking": {
+    "message": "読み上げを停止"
+  },
+  "commonUnknown": {
+    "message": "不明"
+  },
+  "commonAuto": {
+    "message": "自動検出"
+  },
+  "commonNotSet": {
+    "message": "（未設定）"
+  },
+  "commonCurrentValue": {
+    "message": "$1（現在の設定）"
+  },
+  "commonAvailable": {
+    "message": "利用可能"
+  },
+  "commonSoftwareOnly": {
+    "message": "ソフトウェアのみ"
+  },
+  "commonNotAvailable": {
+    "message": "利用不可"
+  },
+  "commonSaved": {
+    "message": "保存しました。"
+  },
+  "commonConnected": {
+    "message": "接続成功"
+  },
+  "commonTranslationFailed": {
+    "message": "翻訳に失敗しました。"
+  },
+  "commonNoTextDetected": {
+    "message": "文字が検出されませんでした。翻訳元の言語が正しく設定されているか確認するか、「自動検出」を選択してください。"
+  },
+  "statusLoadingImage": {
+    "message": "読み込み中…"
+  },
+  "statusInitializingOcr": {
+    "message": "初期化中…"
+  },
+  "statusRecognizingText": {
+    "message": "文字を認識中…"
+  },
+  "statusTranslating": {
+    "message": "翻訳中…"
+  },
+  "optionsPageTitle": {
+    "message": "設定"
+  },
+  "optionsAboutSectionTitle": {
+    "message": "この拡張機能について"
+  },
+  "optionsTranslationSectionTitle": {
+    "message": "翻訳"
+  },
+  "optionsTargetLanguage": {
+    "message": "翻訳先の言語"
+  },
+  "optionsTranslationProvider": {
+    "message": "翻訳サービス"
+  },
+  "optionsGoogleProviderHint": {
+    "message": "APIキーは不要です。利用回数が制限される場合があります。"
+  },
+  "optionsLlmEndpoint": {
+    "message": "LLMエンドポイント"
+  },
+  "optionsLlmEndpointHint": {
+    "message": "llama.cpp、Ollama、LM Studio、OpenRouterなど、OpenAI互換APIを提供するサーバーを利用できます。"
+  },
+  "optionsRemoveOriginHeader": {
+    "message": "Originヘッダーを削除"
+  },
+  "optionsRemoveOriginHeaderHint": {
+    "message": "Ollama専用です。拡張機能からリクエストを送信した際のHTTP 403 Forbiddenエラーを防ぐため、Originリクエストヘッダーを削除します。"
+  },
+  "optionsEndpointUrl": {
+    "message": "エンドポイントURL"
+  },
+  "optionsApiKey": {
+    "message": "APIキー"
+  },
+  "optionsOptional": {
+    "message": "任意"
+  },
+  "optionsShowApiKey": {
+    "message": "APIキーを表示"
+  },
+  "optionsHideApiKey": {
+    "message": "APIキーを隠す"
+  },
+  "optionsModel": {
+    "message": "モデル"
+  },
+  "optionsFetchModels": {
+    "message": "モデル一覧を取得"
+  },
+  "optionsModelNotFound": {
+    "message": "$1（見つかりません）"
+  },
+  "optionsRequestTimeout": {
+    "message": "リクエストのタイムアウト"
+  },
+  "optionsSeconds": {
+    "message": "秒"
+  },
+  "optionsDisableModelThinking": {
+    "message": "モデルの思考を無効にする"
+  },
+  "optionsDisableModelThinkingHint": {
+    "message": "推論モデルの応答を速くします。vLLM、llama.cpp、Ollamaで利用できます。注意：api.openai.com/v1エンドポイントはこの設定に対応していません。"
+  },
+  "optionsTestConnection": {
+    "message": "接続をテスト"
+  },
+  "optionsOcrSectionTitle": {
+    "message": "文字認識（OCR）"
+  },
+  "optionsOpenSourceNote": {
+    "message": "Screen OCR Translatorは、Mozilla Public License 2.0に基づくオープンソースソフトウェアです。"
+  },
+  "optionsVersion": {
+    "message": "バージョン $1"
+  },
+  "optionsDefaultSourceLanguage": {
+    "message": "文字認識の言語"
+  },
+  "optionsDefaultSourceLanguageHint": {
+    "message": "文字認識する言語を選択してください。「自動検出」を選択すると、言語を自動で検出します（文字認識に少し時間がかかる場合があります）。"
+  },
+  "optionsGpuAcceleration": {
+    "message": "GPUアクセラレーション（試験的機能）"
+  },
+  "optionsGpuHint": {
+    "message": "WebGPUを使用して文字認識を実行します。ブラウザー、OS、ハードウェアによっては、処理が速くなる場合もあれば、遅くなる場合もあります。利用できない場合はCPUを使用します。"
+  },
+  "optionsStartOcrImmediately": {
+    "message": "文字認識をすぐに開始"
+  },
+  "optionsStartOcrImmediatelyHint": {
+    "message": "範囲の調整を省略し、マウスボタンを離すとすぐに文字認識を開始します。"
+  },
+  "optionsSee": {
+    "message": "参考："
+  },
+  "optionsEnableWebGpuLink": {
+    "message": "ブラウザーでWebGPUを有効にする方法"
+  },
+  "optionsDisplaySectionTitle": {
+    "message": "表示"
+  },
+  "optionsUiLanguage": {
+    "message": "表示言語"
+  },
+  "optionsUiLanguageAuto": {
+    "message": "自動"
+  },
+  "optionsUiLanguageHint": {
+    "message": "拡張機能で使用する言語を選択します。"
+  },
+  "optionsDefaultDisplayMode": {
+    "message": "既定の表示モード"
+  },
+  "optionsDisplayModeOverlay": {
+    "message": "選択範囲に重ねて表示"
+  },
+  "optionsDisplayModePanel": {
+    "message": "右下のパネルに表示"
+  },
+  "optionsDisplayHint": {
+    "message": "キャプチャ後の翻訳結果の表示方法を選択します。"
+  },
+  "optionsDefaultOverlayMode": {
+    "message": "オーバーレイの初期表示内容"
+  },
+  "optionsOverlayModeTranslation": {
+    "message": "翻訳"
+  },
+  "optionsOverlayModeOriginal": {
+    "message": "元の画像"
+  },
+  "optionsDefaultOverlayModeHint": {
+    "message": "オーバーレイを開いたときに最初に表示する内容を選択します。"
+  },
+  "optionsSetEndpointFirst": {
+    "message": "先にエンドポイントURLを設定してください。"
+  },
+  "optionsFetchingModels": {
+    "message": "取得中…"
+  },
+  "optionsNoModels": {
+    "message": "エンドポイントからモデルが返されませんでした。"
+  },
+  "optionsOneModelFound": {
+    "message": "1件のモデルが見つかりました。"
+  },
+  "optionsModelsFound": {
+    "message": "$1件のモデルが見つかりました。"
+  },
+  "optionsTestingConnection": {
+    "message": "接続をテスト中…"
+  },
+  "optionsSaveFailed": {
+    "message": "設定を保存できませんでした（$1）。"
+  },
+  "popupStartingSelection": {
+    "message": "範囲選択を開始中…"
+  },
+  "popupStartingImagePicker": {
+    "message": "画像選択を開始中…"
+  },
+  "popupSourceLanguage": {
+    "message": "翻訳元の言語"
+  },
+  "popupTargetLanguage": {
+    "message": "翻訳先の言語"
+  },
+  "popupProvider": {
+    "message": "翻訳サービス"
+  },
+  "popupResultMode": {
+    "message": "表示モード"
+  },
+  "popupDisplayModeOverlay": {
+    "message": "オーバーレイ"
+  },
+  "popupDisplayModePanel": {
+    "message": "パネル"
+  },
+  "popupSelectArea": {
+    "message": "範囲を選択"
+  },
+  "popupPickImage": {
+    "message": "画像を選択"
+  },
+  "popupShortcutPrefix": {
+    "message": "ショートカット："
+  },
+  "popupShortcutSuffix": {
+    "message": "で範囲を選択"
+  },
+  "popupEditShortcut": {
+    "message": "キーボードショートカットを変更"
+  },
+  "popupShortcutNotSet": {
+    "message": "キーボードショートカットが未設定です。"
+  },
+  "popupSetShortcut": {
+    "message": "ショートカットを設定"
+  },
+  "popupRestrictedPage": {
+    "message": "このページでは拡張機能を使用できません。通常のウェブページでお試しください。"
+  },
+  "popupReloadPage": {
+    "message": "開始できませんでした。ページを再読み込みして、もう一度お試しください。"
+  },
+  "popupCouldNotStart": {
+    "message": "このページでScreen OCR Translatorを開始できませんでした。"
+  },
+  "popupCouldNotSaveSettings": {
+    "message": "設定を保存できませんでした。"
+  },
+  "popupLocalFilePermission": {
+    "message": "この拡張機能にはローカルファイルへのアクセス許可が必要です。アドオンの設定で「権限とデータ」を選択し、コンピューター上のローカルファイルへのアクセスを許可してから、このファイルを再読み込みしてください。"
+  },
+  "popupCouldNotOpenShortcutSettings": {
+    "message": "キーボードショートカットの設定を開けませんでした。"
+  },
+  "selectionDragArea": {
+    "message": "ドラッグして範囲を選択"
+  },
+  "selectionPressKeyToCancel": {
+    "message": "$1キーでキャンセル"
+  },
+  "imagePickerSelectImage": {
+    "message": "翻訳する画像をクリック"
+  },
+  "selectionResize": {
+    "message": "選択範囲のサイズを変更"
+  },
+  "selectionRunOcr": {
+    "message": "翻訳"
+  },
+  "languageTargetTitle": {
+    "message": "翻訳先の言語：$1"
+  },
+  "languageSourceTitle": {
+    "message": "翻訳元の言語：$1"
+  },
+  "languageSearchPlaceholder": {
+    "message": "検索…"
+  },
+  "languageSearchLabel": {
+    "message": "言語を検索"
+  },
+  "panelSelectNewRegion": {
+    "message": "新しい範囲を選択"
+  },
+  "panelResize": {
+    "message": "パネルのサイズを変更"
+  },
+  "panelShowInOverlay": {
+    "message": "オーバーレイで表示"
+  },
+  "panelDetectedLanguage": {
+    "message": "検出された言語：$1"
+  },
+  "panelLanguageNotDetected": {
+    "message": "言語を検出できませんでした"
+  },
+  "panelSourceLanguage": {
+    "message": "翻訳元の言語：$1"
+  },
+  "panelTranslationProvider": {
+    "message": "翻訳サービス：$1"
+  },
+  "panelTranslationHeading": {
+    "message": "翻訳"
+  },
+  "panelSourceText": {
+    "message": "原文"
+  },
+  "panelAlreadyInLanguage": {
+    "message": "テキストはすでに$1です。"
+  },
+  "panelAlreadyInTargetLanguage": {
+    "message": "テキストはすでに翻訳先の言語です。"
+  },
+  "overlayTranslationUnavailable": {
+    "message": "翻訳を利用できません"
+  },
+  "overlayAlreadyInTargetLanguage": {
+    "message": "テキストはすでに翻訳先の言語です"
+  },
+  "overlayShowTranslation": {
+    "message": "翻訳を重ねて表示"
+  },
+  "overlayHideTranslation": {
+    "message": "翻訳を非表示"
+  },
+  "overlayCopyAllOriginal": {
+    "message": "原文をコピー"
+  },
+  "overlayCopyAllTranslated": {
+    "message": "翻訳文をコピー"
+  },
+  "overlayReadAllOriginal": {
+    "message": "原文を読み上げ"
+  },
+  "overlayReadAllTranslated": {
+    "message": "翻訳文を読み上げ"
+  },
+  "overlayCopyAllText": {
+    "message": "テキストをコピー"
+  },
+  "overlayReadAllText": {
+    "message": "テキストを読み上げ"
+  },
+  "overlayShowInPanel": {
+    "message": "パネルで表示"
+  },
+  "overlayRecognizedAndTranslatedText": {
+    "message": "認識・翻訳されたテキスト"
+  },
+  "errorGoogleTranslateTimeout": {
+    "message": "Google翻訳が$1秒でタイムアウトしました。もう一度試すか、別の翻訳サービスに切り替えてください。"
+  },
+  "errorGoogleTranslateUnreachable": {
+    "message": "Google翻訳に接続できませんでした（$1）。インターネット接続を確認するか、別の翻訳サービスに切り替えてください。"
+  },
+  "errorGoogleTranslateRequest": {
+    "message": "Google翻訳へのリクエストが失敗しました（HTTP $1）。時間をおいて再試行するか、別の翻訳サービスに切り替えてください。"
+  },
+  "errorLlmEndpointNotConfigured": {
+    "message": "LLMのエンドポイントが設定されていません。拡張機能の設定ページでエンドポイントURLを設定してください（ローカルサーバーの例：http://localhost:8080/v1）。"
+  },
+  "errorLlmFixEndpoint": {
+    "message": "$1 拡張機能の設定ページでエンドポイントURLを修正してください。"
+  },
+  "errorLlmInvalidTranslationFormat": {
+    "message": "再試行後も、LLMから無効な形式の翻訳が返されました。"
+  },
+  "errorLlmTimeout": {
+    "message": "LLMが$1秒以内に応答しませんでした。モデルの処理に時間がかかっている可能性があります。タイムアウト時間を延ばして再試行するか、別の翻訳サービスに切り替えてください。"
+  },
+  "errorLlmUnreachable": {
+    "message": "LLMエンドポイントに接続できませんでした（$1）。設定を確認し、サーバーが起動していることを確認してください。"
+  },
+  "errorLlmRequest": {
+    "message": "LLMへのリクエストが失敗しました（HTTP $1）。"
+  },
+  "errorLlmUnexpectedResponse": {
+    "message": "LLMエンドポイントから予期しない応答が返されました。URLがOpenAI互換APIを指しているか確認してください（通常は末尾が/v1です）。"
+  },
+  "errorLlmEmptyResponse": {
+    "message": "LLMから空の応答が返されました。もう一度試すか、設定でモデル名を確認してください。"
+  },
+  "errorEndpointUnreachable": {
+    "message": "エンドポイントに接続できませんでした（$1）。"
+  },
+  "errorEndpointHttp": {
+    "message": "エンドポイントからHTTP $1が返されました。"
+  },
+  "errorEndpointNoModelList": {
+    "message": "エンドポイントからモデル一覧が返されませんでした。URLがOpenAI互換APIを指しているか確認してください（通常は末尾が/v1です）。"
+  },
+  "errorLlmInvalidAbsoluteUrl": {
+    "message": "LLMエンドポイントのURLが有効な絶対URLではありません（例：http://localhost:8080/v1）。"
+  },
+  "errorLlmHttpProtocol": {
+    "message": "LLMエンドポイントのURLはhttp://またはhttps://で始まる必要があります。"
+  },
+  "errorLlmNoQueryOrFragment": {
+    "message": "LLMエンドポイントのURLにクエリ文字列やフラグメントを含めることはできません。"
+  },
+  "errorCouldNotLoadImage": {
+    "message": "画像を読み込めませんでした（$1）。"
+  },
+  "errorSelectionOutsideVisibleArea": {
+    "message": "選択範囲が表示領域の外にあります。"
+  },
+  "errorCanvasContext": {
+    "message": "画像処理用のキャンバスを作成できませんでした。"
+  },
+  "errorEncodeCapturedImage": {
+    "message": "キャプチャした画像をエンコードできませんでした。"
+  },
+  "errorCapturedImageUnavailable": {
+    "message": "キャプチャした画像は利用できなくなりました。もう一度範囲を選択してください。"
+  },
+  "errorOcrWorkerCrashed": {
+    "message": "文字認識のバックグラウンド処理が異常終了しました。"
+  },
+  "errorRecognitionStoppedResponding": {
+    "message": "文字認識が応答しなくなりました。"
+  },
+  "errorOcrInsufficientMemory": {
+    "message": "メモリ不足のため文字認識に失敗しました。GPUメモリの空きを増やすか、設定でGPUアクセラレーションを無効にしてください。"
+  },
+  "errorOcrHostStoppedResponding": {
+    "message": "文字認識を実行するブラウザーのコンポーネントが応答しなくなりました。"
+  }
+}

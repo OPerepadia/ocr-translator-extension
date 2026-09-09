@@ -4,7 +4,7 @@
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "Select a screen region, extract text with OCR, and translate it.",
+    "message": "Extract and translate text from images or any selected area of a web page using local OCR.",
     "description": "Extension description"
   },
   "commandTranslateScreenRegion": {
@@ -20,7 +20,8 @@
     "message": "Google"
   },
   "providerLlm": {
-    "message": "LLM"
+    "message": "LLM",
+    "description": "Translation provider using a large language model (LLM)."
   },
   "commonSettings": {
     "message": "Settings"
@@ -29,7 +30,8 @@
     "message": "Close"
   },
   "commonDismiss": {
-    "message": "Dismiss"
+    "message": "Dismiss",
+    "description": "Button that hides a notice."
   },
   "commonMenu": {
     "message": "Menu"
@@ -56,31 +58,38 @@
     "message": "Stop speaking"
   },
   "commonUnknown": {
-    "message": "Unknown"
+    "message": "Unknown",
+    "description": "Shown when the source text's language could not be detected."
   },
   "commonAuto": {
-    "message": "Auto"
+    "message": "Auto",
+    "description": "Automatically detect the language of the text to recognize."
   },
   "commonNotSet": {
     "message": "(not set)"
   },
   "commonCurrentValue": {
-    "message": "$1 (current)"
+    "message": "$1 (current)",
+    "description": "$1 is the currently saved language code, absent from the available choices."
   },
   "commonAvailable": {
-    "message": "Available"
+    "message": "Available",
+    "description": "Hardware WebGPU acceleration is available."
   },
   "commonSoftwareOnly": {
-    "message": "Software only"
+    "message": "Software only",
+    "description": "WebGPU is available through software, without hardware acceleration."
   },
   "commonNotAvailable": {
-    "message": "Not available"
+    "message": "Not available",
+    "description": "WebGPU is unavailable."
   },
   "commonSaved": {
     "message": "Saved."
   },
   "commonConnected": {
-    "message": "Connected"
+    "message": "Connected",
+    "description": "The connection test to the LLM server succeeded."
   },
   "commonTranslationFailed": {
     "message": "Translation failed."
@@ -89,10 +98,12 @@
     "message": "No text was detected. Please check if the source language is set correctly or select \"Auto\"."
   },
   "statusLoadingImage": {
-    "message": "Loading…"
+    "message": "Loading…",
+    "description": "Progress message while loading the captured or selected image."
   },
   "statusInitializingOcr": {
-    "message": "Initializing…"
+    "message": "Initializing…",
+    "description": "Progress message while preparing the text recognition engine."
   },
   "statusRecognizingText": {
     "message": "Recognizing text…"
@@ -122,19 +133,22 @@
     "message": "No API key is required. Rate limits may apply."
   },
   "optionsLlmEndpoint": {
-    "message": "LLM endpoint"
+    "message": "LLM endpoint",
+    "description": "Settings for the server API used for LLM translation."
   },
   "optionsLlmEndpointHint": {
     "message": "Any server with an OpenAI-compatible API, such as llama.cpp, Ollama, LM Studio, OpenRouter, etc."
   },
   "optionsRemoveOriginHeader": {
-    "message": "Remove Origin header"
+    "message": "Remove Origin header",
+    "description": "Origin is the HTTP request header name; keep it unchanged."
   },
   "optionsRemoveOriginHeaderHint": {
     "message": "For Ollama only. Removes the Origin request header to prevent HTTP 403 Forbidden errors when requests are sent from the extension."
   },
   "optionsEndpointUrl": {
-    "message": "Endpoint URL"
+    "message": "Endpoint URL",
+    "description": "Base URL of the OpenAI-compatible API used for translation."
   },
   "optionsApiKey": {
     "message": "API key"
@@ -149,22 +163,27 @@
     "message": "Hide API key"
   },
   "optionsModel": {
-    "message": "Model"
+    "message": "Model",
+    "description": "Language model used for translation, not the OCR model."
   },
   "optionsFetchModels": {
-    "message": "Fetch models"
+    "message": "Fetch models",
+    "description": "Button that retrieves the server's list of model names; it does not download models."
   },
   "optionsModelNotFound": {
-    "message": "$1 (not found)"
+    "message": "$1 (not found)",
+    "description": "$1 is the saved model name, missing from the server's model list."
   },
   "optionsRequestTimeout": {
-    "message": "Request timeout"
+    "message": "Request timeout",
+    "description": "Maximum time to wait for a translation request."
   },
   "optionsSeconds": {
     "message": "seconds"
   },
   "optionsDisableModelThinking": {
-    "message": "Disable model thinking"
+    "message": "Disable model thinking",
+    "description": "Disable the model's extra reasoning step before it answers."
   },
   "optionsDisableModelThinkingHint": {
     "message": "Faster answers from reasoning models. Works with vLLM, llama.cpp and Ollama. WARNING: this setting is not supported by api.openai.com/v1 endpoint."
@@ -179,10 +198,12 @@
     "message": "Screen OCR Translator is open-source software licensed under the Mozilla Public License 2.0."
   },
   "optionsVersion": {
-    "message": "Version $1"
+    "message": "Version $1",
+    "description": "$1 is the extension version number."
   },
   "optionsDefaultSourceLanguage": {
-    "message": "OCR language"
+    "message": "OCR language",
+    "description": "Language of the text in the image, used for OCR."
   },
   "optionsDefaultSourceLanguageHint": {
     "message": "Select the language of the original text, or \"Auto\" to automatically detect the language (text recognition may take a little longer)."
@@ -200,13 +221,25 @@
     "message": "Skip the adjustment step and start recognition as soon as you release the mouse."
   },
   "optionsSee": {
-    "message": "See"
+    "message": "See",
+    "description": "Text before the optionsEnableWebGpuLink link: 'See how to enable WebGPU in your browser'."
   },
   "optionsEnableWebGpuLink": {
-    "message": "how to enable WebGPU in your browser"
+    "message": "how to enable WebGPU in your browser",
+    "description": "Link text following optionsSee ('See')."
   },
   "optionsDisplaySectionTitle": {
-    "message": "Display"
+    "message": "Display",
+    "description": "Settings for how recognition and translation results appear."
+  },
+  "optionsUiLanguage": {
+    "message": "Interface language"
+  },
+  "optionsUiLanguageAuto": {
+    "message": "Automatic"
+  },
+  "optionsUiLanguageHint": {
+    "message": "Choose the language used by the extension."
   },
   "optionsDefaultDisplayMode": {
     "message": "Default display mode"
@@ -221,13 +254,16 @@
     "message": "Where the translated text appears after capture."
   },
   "optionsDefaultOverlayMode": {
-    "message": "Initial overlay view"
+    "message": "Initial overlay view",
+    "description": "Whether a new overlay initially shows translated text or the original image."
   },
   "optionsOverlayModeTranslation": {
-    "message": "Translation"
+    "message": "Translation",
+    "description": "Show translated text over the captured image."
   },
   "optionsOverlayModeOriginal": {
-    "message": "Original"
+    "message": "Original",
+    "description": "Show the original captured image without translated text over it."
   },
   "optionsDefaultOverlayModeHint": {
     "message": "Choose the initial view for each new overlay"
@@ -236,7 +272,8 @@
     "message": "Set the endpoint URL first."
   },
   "optionsFetchingModels": {
-    "message": "Fetching…"
+    "message": "Fetching…",
+    "description": "Progress message while retrieving the server's model list."
   },
   "optionsNoModels": {
     "message": "The endpoint reported no models."
@@ -245,13 +282,15 @@
     "message": "1 model found."
   },
   "optionsModelsFound": {
-    "message": "$1 models found."
+    "message": "$1 models found.",
+    "description": "$1 is the number of models returned by the server; used for counts greater than one."
   },
   "optionsTestingConnection": {
     "message": "Testing connection…"
   },
   "optionsSaveFailed": {
-    "message": "Couldn't save settings ($1)."
+    "message": "Couldn't save settings ($1).",
+    "description": "$1 is the error detail explaining why settings could not be saved."
   },
   "popupStartingSelection": {
     "message": "Starting selection…"
@@ -260,10 +299,12 @@
     "message": "Starting image picker…"
   },
   "popupSourceLanguage": {
-    "message": "Source language"
+    "message": "Source language",
+    "description": "Language of the text in the image, used for OCR."
   },
   "popupTargetLanguage": {
-    "message": "Target language"
+    "message": "Target language",
+    "description": "Language to translate the recognized text into."
   },
   "popupProvider": {
     "message": "Translation provider"
@@ -272,22 +313,27 @@
     "message": "Display mode"
   },
   "popupDisplayModeOverlay": {
-    "message": "Overlay"
+    "message": "Overlay",
+    "description": "Display results over the selected area of the page."
   },
   "popupDisplayModePanel": {
-    "message": "Panel"
+    "message": "Panel",
+    "description": "Display results in a panel in the bottom-right corner."
   },
   "popupSelectArea": {
     "message": "Select area"
   },
   "popupPickImage": {
-    "message": "Pick image"
+    "message": "Pick image",
+    "description": "Choose an image on the current web page to recognize and translate."
   },
   "popupShortcutPrefix": {
-    "message": "Press"
+    "message": "Press",
+    "description": "Text before the keyboard shortcut: 'Press [shortcut] to select an area'."
   },
   "popupShortcutSuffix": {
-    "message": "to select an area"
+    "message": "to select an area",
+    "description": "Text after the keyboard shortcut: 'Press [shortcut] to select an area'."
   },
   "popupEditShortcut": {
     "message": "Edit keyboard shortcut"
@@ -320,7 +366,8 @@
     "message": "Drag to select an area"
   },
   "selectionPressKeyToCancel": {
-    "message": "Press $1 to cancel"
+    "message": "Press $1 to cancel",
+    "description": "$1 is the keyboard key used to cancel selection."
   },
   "imagePickerSelectImage": {
     "message": "Click an image to translate"
@@ -329,13 +376,16 @@
     "message": "Resize selection"
   },
   "selectionRunOcr": {
-    "message": "Translate"
+    "message": "Translate",
+    "description": "Button that starts text recognition and translation for the selected area."
   },
   "languageTargetTitle": {
-    "message": "Target language: $1"
+    "message": "Target language: $1",
+    "description": "Language selector tooltip. $1 is the language to translate into."
   },
   "languageSourceTitle": {
-    "message": "Source language: $1"
+    "message": "Source language: $1",
+    "description": "Language selector tooltip. $1 is the OCR source language or the automatic detection label."
   },
   "languageSearchPlaceholder": {
     "message": "Search…"
@@ -350,28 +400,35 @@
     "message": "Resize panel"
   },
   "panelShowInOverlay": {
-    "message": "Show in overlay"
+    "message": "Show in overlay",
+    "description": "Switch from result panel to overlay view."
   },
   "panelDetectedLanguage": {
-    "message": "Detected language: $1"
+    "message": "Detected language: $1",
+    "description": "$1 is the detected source language name."
   },
   "panelLanguageNotDetected": {
     "message": "Language not detected"
   },
   "panelSourceLanguage": {
-    "message": "Source language: $1"
+    "message": "Source language: $1",
+    "description": "OCR language selector tooltip. $1 is the language name."
   },
   "panelTranslationProvider": {
-    "message": "Translation provider: $1"
+    "message": "Translation provider: $1",
+    "description": "$1 is the translation provider's display name."
   },
   "panelTranslationHeading": {
-    "message": "Translation"
+    "message": "Translation",
+    "description": "Heading above the translated text."
   },
   "panelSourceText": {
-    "message": "Source text"
+    "message": "Source text",
+    "description": "Original text extracted from the image by OCR."
   },
   "panelAlreadyInLanguage": {
-    "message": "The text is already in $1."
+    "message": "The text is already in $1.",
+    "description": "$1 is the target language name."
   },
   "panelAlreadyInTargetLanguage": {
     "message": "The text is already in the target language."
@@ -386,58 +443,73 @@
     "message": "Show translation overlay"
   },
   "overlayHideTranslation": {
-    "message": "Hide translation overlay"
+    "message": "Hide translation overlay",
+    "description": "Show the original image in place of the translated text."
   },
   "overlayCopyAllOriginal": {
-    "message": "Copy original"
+    "message": "Copy original",
+    "description": "Copy all recognized source text to the clipboard."
   },
   "overlayCopyAllTranslated": {
-    "message": "Copy translation"
+    "message": "Copy translation",
+    "description": "Copy all translated text to the clipboard."
   },
   "overlayReadAllOriginal": {
-    "message": "Read original"
+    "message": "Read original",
+    "description": "Read all recognized source text aloud using text-to-speech."
   },
   "overlayReadAllTranslated": {
-    "message": "Read translation"
+    "message": "Read translation",
+    "description": "Read all translated text aloud using text-to-speech."
   },
   "overlayCopyAllText": {
-    "message": "Copy text"
+    "message": "Copy text",
+    "description": "Copy all recognized text when no translation is available."
   },
   "overlayReadAllText": {
-    "message": "Read text"
+    "message": "Read text",
+    "description": "Read all recognized text aloud when no translation is available."
   },
   "overlayShowInPanel": {
-    "message": "Show in panel"
+    "message": "Show in panel",
+    "description": "Switch from results over the selected area to the floating result panel."
   },
   "overlayRecognizedAndTranslatedText": {
     "message": "Recognized and translated text"
   },
   "errorGoogleTranslateTimeout": {
-    "message": "Google Translate timed out after $1s. Try again, or switch to another translation provider."
+    "message": "Google Translate timed out after $1s. Try again, or switch to another translation provider.",
+    "description": "$1 is the timeout duration in seconds."
   },
   "errorGoogleTranslateUnreachable": {
-    "message": "Couldn't reach Google Translate ($1). Check your internet connection, or switch to another translation provider."
+    "message": "Couldn't reach Google Translate ($1). Check your internet connection, or switch to another translation provider.",
+    "description": "$1 is the underlying connection error detail."
   },
   "errorGoogleTranslateRequest": {
-    "message": "Google Translate request failed (HTTP $1). Try again later, or switch to another translation provider."
+    "message": "Google Translate request failed (HTTP $1). Try again later, or switch to another translation provider.",
+    "description": "$1 is the HTTP status code."
   },
   "errorLlmEndpointNotConfigured": {
     "message": "The LLM provider has no endpoint configured. Set the endpoint URL (e.g. http://localhost:8080/v1 for a local server) on the extension's settings page."
   },
   "errorLlmFixEndpoint": {
-    "message": "$1 Fix the endpoint URL on the extension's settings page."
+    "message": "$1 Fix the endpoint URL on the extension's settings page.",
+    "description": "$1 is the URL validation error message."
   },
   "errorLlmInvalidTranslationFormat": {
     "message": "The LLM returned an invalid translation format after a retry."
   },
   "errorLlmTimeout": {
-    "message": "The LLM did not answer within $1s. The model may be slow — increase the request timeout and try again, or switch to another translation provider."
+    "message": "The LLM did not answer within $1s. The model may be slow — increase the request timeout and try again, or switch to another translation provider.",
+    "description": "$1 is the timeout duration in seconds."
   },
   "errorLlmUnreachable": {
-    "message": "Couldn't reach the LLM endpoint ($1). Please check your configuration and make sure the server is running."
+    "message": "Couldn't reach the LLM endpoint ($1). Please check your configuration and make sure the server is running.",
+    "description": "$1 is the underlying connection error detail."
   },
   "errorLlmRequest": {
-    "message": "LLM request failed (HTTP $1)."
+    "message": "LLM request failed (HTTP $1).",
+    "description": "$1 is the HTTP status code."
   },
   "errorLlmUnexpectedResponse": {
     "message": "The LLM endpoint returned an unexpected response. Check that the URL points to an OpenAI-compatible API (usually ending in /v1)."
@@ -446,10 +518,12 @@
     "message": "The LLM returned an empty response. Try again, or check the model name in settings."
   },
   "errorEndpointUnreachable": {
-    "message": "Couldn't reach the endpoint ($1)."
+    "message": "Couldn't reach the endpoint ($1).",
+    "description": "$1 is the underlying connection error detail."
   },
   "errorEndpointHttp": {
-    "message": "The endpoint returned HTTP $1."
+    "message": "The endpoint returned HTTP $1.",
+    "description": "$1 is the HTTP status code."
   },
   "errorEndpointNoModelList": {
     "message": "The endpoint didn't return a model list. Check that the URL points to an OpenAI-compatible API (usually ending in /v1)."
@@ -464,7 +538,8 @@
     "message": "The LLM endpoint URL must not contain a query string or fragment."
   },
   "errorCouldNotLoadImage": {
-    "message": "Could not load image ($1)."
+    "message": "Could not load image ($1).",
+    "description": "$1 is the underlying image loading error detail."
   },
   "errorSelectionOutsideVisibleArea": {
     "message": "Selection is outside the visible area."
@@ -479,7 +554,8 @@
     "message": "The captured image is no longer available. Please select the region again."
   },
   "errorOcrWorkerCrashed": {
-    "message": "The OCR worker crashed."
+    "message": "The OCR worker crashed.",
+    "description": "The background process running text recognition crashed."
   },
   "errorRecognitionStoppedResponding": {
     "message": "Text recognition stopped responding."
@@ -488,6 +564,7 @@
     "message": "OCR failed: Insufficient memory. Free up GPU memory or disable GPU acceleration in settings."
   },
   "errorOcrHostStoppedResponding": {
-    "message": "The OCR host stopped responding."
+    "message": "The OCR host stopped responding.",
+    "description": "The browser component hosting the OCR worker stopped responding."
   }
 }

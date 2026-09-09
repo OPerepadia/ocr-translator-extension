@@ -1,0 +1,497 @@
+{
+  "extensionName": {
+    "message": "Screen OCR Translator"
+  },
+  "extensionDescription": {
+    "message": "使用本地 OCR 识别并翻译图片或网页所选区域中的文字。"
+  },
+  "commandTranslateScreenRegion": {
+    "message": "翻译屏幕区域"
+  },
+  "contextTranslateScreenRegion": {
+    "message": "翻译屏幕区域…"
+  },
+  "contextTranslateImage": {
+    "message": "翻译此图片"
+  },
+  "providerGoogle": {
+    "message": "Google"
+  },
+  "providerLlm": {
+    "message": "LLM"
+  },
+  "commonSettings": {
+    "message": "设置"
+  },
+  "commonClose": {
+    "message": "关闭"
+  },
+  "commonDismiss": {
+    "message": "忽略"
+  },
+  "commonMenu": {
+    "message": "菜单"
+  },
+  "commonRetry": {
+    "message": "重试"
+  },
+  "commonCancel": {
+    "message": "取消"
+  },
+  "commonCopy": {
+    "message": "复制"
+  },
+  "commonTranslate": {
+    "message": "翻译"
+  },
+  "commonTranslateAgain": {
+    "message": "重新翻译"
+  },
+  "commonReadAloud": {
+    "message": "朗读"
+  },
+  "commonStopSpeaking": {
+    "message": "停止朗读"
+  },
+  "commonUnknown": {
+    "message": "未知"
+  },
+  "commonAuto": {
+    "message": "自动检测"
+  },
+  "commonNotSet": {
+    "message": "（未设置）"
+  },
+  "commonCurrentValue": {
+    "message": "$1（当前）"
+  },
+  "commonAvailable": {
+    "message": "可用"
+  },
+  "commonSoftwareOnly": {
+    "message": "仅软件加速"
+  },
+  "commonNotAvailable": {
+    "message": "不可用"
+  },
+  "commonSaved": {
+    "message": "已保存。"
+  },
+  "commonConnected": {
+    "message": "已连接"
+  },
+  "commonTranslationFailed": {
+    "message": "翻译失败。"
+  },
+  "commonNoTextDetected": {
+    "message": "未检测到文字。请检查源语言设置是否正确，或选择“自动检测”。"
+  },
+  "statusLoadingImage": {
+    "message": "正在加载…"
+  },
+  "statusInitializingOcr": {
+    "message": "正在初始化…"
+  },
+  "statusRecognizingText": {
+    "message": "正在识别文字…"
+  },
+  "statusTranslating": {
+    "message": "正在翻译…"
+  },
+  "optionsPageTitle": {
+    "message": "设置"
+  },
+  "optionsAboutSectionTitle": {
+    "message": "关于"
+  },
+  "optionsTranslationSectionTitle": {
+    "message": "翻译"
+  },
+  "optionsTargetLanguage": {
+    "message": "目标语言"
+  },
+  "optionsTranslationProvider": {
+    "message": "翻译服务"
+  },
+  "optionsGoogleProviderHint": {
+    "message": "无需 API 密钥，但可能受到速率限制。"
+  },
+  "optionsLlmEndpoint": {
+    "message": "LLM 端点"
+  },
+  "optionsLlmEndpointHint": {
+    "message": "支持任何提供 OpenAI 兼容 API 的服务器，例如 llama.cpp、Ollama、LM Studio 和 OpenRouter 等。"
+  },
+  "optionsRemoveOriginHeader": {
+    "message": "移除 Origin 标头"
+  },
+  "optionsRemoveOriginHeaderHint": {
+    "message": "仅适用于 Ollama。移除 Origin 请求标头，以避免扩展发送请求时出现 HTTP 403 Forbidden 错误。"
+  },
+  "optionsEndpointUrl": {
+    "message": "端点 URL"
+  },
+  "optionsApiKey": {
+    "message": "API 密钥"
+  },
+  "optionsOptional": {
+    "message": "可选"
+  },
+  "optionsShowApiKey": {
+    "message": "显示 API 密钥"
+  },
+  "optionsHideApiKey": {
+    "message": "隐藏 API 密钥"
+  },
+  "optionsModel": {
+    "message": "模型"
+  },
+  "optionsFetchModels": {
+    "message": "获取模型列表"
+  },
+  "optionsModelNotFound": {
+    "message": "$1（未找到）"
+  },
+  "optionsRequestTimeout": {
+    "message": "请求超时时间"
+  },
+  "optionsSeconds": {
+    "message": "秒"
+  },
+  "optionsDisableModelThinking": {
+    "message": "禁用模型思考"
+  },
+  "optionsDisableModelThinkingHint": {
+    "message": "加快推理模型的响应速度。适用于 vLLM、llama.cpp 和 Ollama。警告：api.openai.com/v1 端点不支持此设置。"
+  },
+  "optionsTestConnection": {
+    "message": "测试连接"
+  },
+  "optionsOcrSectionTitle": {
+    "message": "文字识别（OCR）"
+  },
+  "optionsOpenSourceNote": {
+    "message": "Screen OCR Translator 是一款根据 Mozilla Public License 2.0 许可证发布的开源软件。"
+  },
+  "optionsVersion": {
+    "message": "版本 $1"
+  },
+  "optionsDefaultSourceLanguage": {
+    "message": "识别语言"
+  },
+  "optionsDefaultSourceLanguageHint": {
+    "message": "选择要识别的语言。选择“自动检测”可自动识别语言，但可能需要更长时间。"
+  },
+  "optionsGpuAcceleration": {
+    "message": "GPU 加速（实验性）"
+  },
+  "optionsGpuHint": {
+    "message": "使用 WebGPU 加速文字识别。实际性能因浏览器、操作系统和硬件而异。WebGPU 不可用时将回退到 CPU。"
+  },
+  "optionsStartOcrImmediately": {
+    "message": "立即开始识别"
+  },
+  "optionsStartOcrImmediatelyHint": {
+    "message": "跳过选区调整，松开鼠标后立即开始识别。"
+  },
+  "optionsSee": {
+    "message": "查看"
+  },
+  "optionsEnableWebGpuLink": {
+    "message": "如何在浏览器中启用 WebGPU"
+  },
+  "optionsDisplaySectionTitle": {
+    "message": "显示"
+  },
+  "optionsUiLanguage": {
+    "message": "界面语言"
+  },
+  "optionsUiLanguageAuto": {
+    "message": "自动"
+  },
+  "optionsUiLanguageHint": {
+    "message": "选择扩展界面使用的语言。"
+  },
+  "optionsDefaultDisplayMode": {
+    "message": "默认显示模式"
+  },
+  "optionsDisplayModeOverlay": {
+    "message": "覆盖在所选区域上"
+  },
+  "optionsDisplayModePanel": {
+    "message": "显示在右下角面板中"
+  },
+  "optionsDisplayHint": {
+    "message": "选择识别完成后翻译结果的显示方式。"
+  },
+  "optionsDefaultOverlayMode": {
+    "message": "覆盖层默认内容"
+  },
+  "optionsOverlayModeTranslation": {
+    "message": "译文"
+  },
+  "optionsOverlayModeOriginal": {
+    "message": "原图"
+  },
+  "optionsDefaultOverlayModeHint": {
+    "message": "选择打开覆盖层时默认显示的内容。"
+  },
+  "optionsSetEndpointFirst": {
+    "message": "请先设置端点 URL。"
+  },
+  "optionsFetchingModels": {
+    "message": "正在获取…"
+  },
+  "optionsNoModels": {
+    "message": "端点未返回任何模型。"
+  },
+  "optionsOneModelFound": {
+    "message": "找到 1 个模型。"
+  },
+  "optionsModelsFound": {
+    "message": "找到 $1 个模型。"
+  },
+  "optionsTestingConnection": {
+    "message": "正在测试连接…"
+  },
+  "optionsSaveFailed": {
+    "message": "无法保存设置（$1）。"
+  },
+  "popupStartingSelection": {
+    "message": "正在开始选择…"
+  },
+  "popupStartingImagePicker": {
+    "message": "正在启动图片选择器…"
+  },
+  "popupSourceLanguage": {
+    "message": "源语言"
+  },
+  "popupTargetLanguage": {
+    "message": "目标语言"
+  },
+  "popupProvider": {
+    "message": "翻译服务"
+  },
+  "popupResultMode": {
+    "message": "显示模式"
+  },
+  "popupDisplayModeOverlay": {
+    "message": "覆盖层"
+  },
+  "popupDisplayModePanel": {
+    "message": "面板"
+  },
+  "popupSelectArea": {
+    "message": "选择区域"
+  },
+  "popupPickImage": {
+    "message": "选择图片"
+  },
+  "popupShortcutPrefix": {
+    "message": "按"
+  },
+  "popupShortcutSuffix": {
+    "message": "选择区域"
+  },
+  "popupEditShortcut": {
+    "message": "编辑键盘快捷键"
+  },
+  "popupShortcutNotSet": {
+    "message": "未设置键盘快捷键。"
+  },
+  "popupSetShortcut": {
+    "message": "设置快捷键"
+  },
+  "popupRestrictedPage": {
+    "message": "无法在此页面使用此扩展。请在普通网页上重试。"
+  },
+  "popupReloadPage": {
+    "message": "无法启动。请刷新页面后重试。"
+  },
+  "popupCouldNotStart": {
+    "message": "Screen OCR Translator 无法在此页面启动。"
+  },
+  "popupCouldNotSaveSettings": {
+    "message": "无法保存设置。"
+  },
+  "popupLocalFilePermission": {
+    "message": "此扩展需要访问本地文件的权限。请在附加组件设置中选择“权限和数据”，启用“访问您计算机上的本地文件”，然后重新加载此文件。"
+  },
+  "popupCouldNotOpenShortcutSettings": {
+    "message": "无法打开键盘快捷键设置。"
+  },
+  "selectionDragArea": {
+    "message": "拖动以选择区域"
+  },
+  "selectionPressKeyToCancel": {
+    "message": "按 $1 键取消"
+  },
+  "imagePickerSelectImage": {
+    "message": "点击要翻译的图片"
+  },
+  "selectionResize": {
+    "message": "调整所选区域大小"
+  },
+  "selectionRunOcr": {
+    "message": "翻译"
+  },
+  "languageTargetTitle": {
+    "message": "目标语言：$1"
+  },
+  "languageSourceTitle": {
+    "message": "源语言：$1"
+  },
+  "languageSearchPlaceholder": {
+    "message": "搜索…"
+  },
+  "languageSearchLabel": {
+    "message": "搜索语言"
+  },
+  "panelSelectNewRegion": {
+    "message": "选择新区域"
+  },
+  "panelResize": {
+    "message": "调整面板大小"
+  },
+  "panelShowInOverlay": {
+    "message": "在覆盖层中显示"
+  },
+  "panelDetectedLanguage": {
+    "message": "检测到的语言：$1"
+  },
+  "panelLanguageNotDetected": {
+    "message": "未检测到语言"
+  },
+  "panelSourceLanguage": {
+    "message": "源语言：$1"
+  },
+  "panelTranslationProvider": {
+    "message": "翻译服务：$1"
+  },
+  "panelTranslationHeading": {
+    "message": "译文"
+  },
+  "panelSourceText": {
+    "message": "原文"
+  },
+  "panelAlreadyInLanguage": {
+    "message": "文本已经是$1。"
+  },
+  "panelAlreadyInTargetLanguage": {
+    "message": "文本已经是目标语言。"
+  },
+  "overlayTranslationUnavailable": {
+    "message": "翻译不可用"
+  },
+  "overlayAlreadyInTargetLanguage": {
+    "message": "文本已经是目标语言"
+  },
+  "overlayShowTranslation": {
+    "message": "显示翻译覆盖层"
+  },
+  "overlayHideTranslation": {
+    "message": "隐藏翻译覆盖层"
+  },
+  "overlayCopyAllOriginal": {
+    "message": "复制原文"
+  },
+  "overlayCopyAllTranslated": {
+    "message": "复制译文"
+  },
+  "overlayReadAllOriginal": {
+    "message": "朗读原文"
+  },
+  "overlayReadAllTranslated": {
+    "message": "朗读译文"
+  },
+  "overlayCopyAllText": {
+    "message": "复制文字"
+  },
+  "overlayReadAllText": {
+    "message": "朗读文字"
+  },
+  "overlayShowInPanel": {
+    "message": "在面板中显示"
+  },
+  "overlayRecognizedAndTranslatedText": {
+    "message": "已识别并翻译的文字"
+  },
+  "errorGoogleTranslateTimeout": {
+    "message": "Google 翻译在 $1 秒后超时。请重试或切换到其他翻译服务。"
+  },
+  "errorGoogleTranslateUnreachable": {
+    "message": "无法连接 Google 翻译（$1）。请检查网络连接或切换到其他翻译服务。"
+  },
+  "errorGoogleTranslateRequest": {
+    "message": "Google 翻译请求失败（HTTP $1）。请稍后重试或切换到其他翻译服务。"
+  },
+  "errorLlmEndpointNotConfigured": {
+    "message": "尚未配置 LLM 服务的端点。请在扩展设置页面中设置端点 URL（本地服务器示例：http://localhost:8080/v1）。"
+  },
+  "errorLlmFixEndpoint": {
+    "message": "$1 请在扩展设置页面中修正端点 URL。"
+  },
+  "errorLlmInvalidTranslationFormat": {
+    "message": "重试后，LLM 仍返回了无效的翻译格式。"
+  },
+  "errorLlmTimeout": {
+    "message": "LLM 未在 $1 秒内响应。模型可能较慢，请增加请求超时时间后重试，或切换到其他翻译服务。"
+  },
+  "errorLlmUnreachable": {
+    "message": "无法连接 LLM 端点（$1）。请检查配置并确保服务器正在运行。"
+  },
+  "errorLlmRequest": {
+    "message": "LLM 请求失败（HTTP $1）。"
+  },
+  "errorLlmUnexpectedResponse": {
+    "message": "LLM 端点返回了意外响应。请检查 URL 是否指向 OpenAI 兼容 API（通常以 /v1 结尾）。"
+  },
+  "errorLlmEmptyResponse": {
+    "message": "LLM 返回了空响应。请重试或检查设置中的模型名称。"
+  },
+  "errorEndpointUnreachable": {
+    "message": "无法连接端点（$1）。"
+  },
+  "errorEndpointHttp": {
+    "message": "端点返回了 HTTP $1。"
+  },
+  "errorEndpointNoModelList": {
+    "message": "端点未返回模型列表。请检查 URL 是否指向 OpenAI 兼容 API（通常以 /v1 结尾）。"
+  },
+  "errorLlmInvalidAbsoluteUrl": {
+    "message": "LLM 端点 URL 不是有效的绝对 URL（例如 http://localhost:8080/v1）。"
+  },
+  "errorLlmHttpProtocol": {
+    "message": "LLM 端点 URL 必须以 http:// 或 https:// 开头。"
+  },
+  "errorLlmNoQueryOrFragment": {
+    "message": "LLM 端点 URL 不得包含查询字符串或片段。"
+  },
+  "errorCouldNotLoadImage": {
+    "message": "无法加载图片（$1）。"
+  },
+  "errorSelectionOutsideVisibleArea": {
+    "message": "所选区域位于可见范围之外。"
+  },
+  "errorCanvasContext": {
+    "message": "无法创建用于图片处理的画布。"
+  },
+  "errorEncodeCapturedImage": {
+    "message": "无法编码捕获的图片。"
+  },
+  "errorCapturedImageUnavailable": {
+    "message": "捕获的图片已不可用。请重新选择区域。"
+  },
+  "errorOcrWorkerCrashed": {
+    "message": "OCR 工作线程已崩溃。"
+  },
+  "errorRecognitionStoppedResponding": {
+    "message": "文字识别已停止响应。"
+  },
+  "errorOcrInsufficientMemory": {
+    "message": "OCR 失败：内存不足。请释放 GPU 内存或在设置中禁用 GPU 加速。"
+  },
+  "errorOcrHostStoppedResponding": {
+    "message": "OCR 宿主已停止响应。"
+  }
+}

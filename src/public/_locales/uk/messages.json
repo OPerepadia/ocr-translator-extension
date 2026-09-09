@@ -1,11 +1,9 @@
 {
   "extensionName": {
-    "message": "Screen OCR Translator",
-    "description": "Назва розширення"
+    "message": "Screen OCR Translator"
   },
   "extensionDescription": {
-    "message": "Розпізнавайте та перекладайте текст на зображеннях або в будь-якій частині вебсторінки.",
-    "description": "Опис розширення"
+    "message": "Розпізнавайте та перекладайте текст на зображеннях або в будь-якій частині вебсторінки."
   },
   "commandTranslateScreenRegion": {
     "message": "Перекласти ділянку екрана"
@@ -107,16 +105,13 @@
     "message": "Про розширення"
   },
   "optionsTranslationSectionTitle": {
-    "message": "Налаштування перекладу",
-    "description": "Заголовок розділу налаштувань перекладу"
+    "message": "Переклад"
   },
   "optionsTargetLanguage": {
-    "message": "Мова перекладу",
-    "description": "Підпис поля вибору мови перекладу"
+    "message": "Мова перекладу"
   },
   "optionsTranslationProvider": {
-    "message": "Сервіс перекладу",
-    "description": "Підпис поля вибору сервісу перекладу"
+    "message": "Сервіс перекладу"
   },
   "optionsGoogleProviderHint": {
     "message": "Ключ API не потрібен. Можуть діяти обмеження на кількість запитів."
@@ -207,6 +202,15 @@
   },
   "optionsDisplaySectionTitle": {
     "message": "Відображення"
+  },
+  "optionsUiLanguage": {
+    "message": "Мова інтерфейсу"
+  },
+  "optionsUiLanguageAuto": {
+    "message": "Автоматично"
+  },
+  "optionsUiLanguageHint": {
+    "message": "Виберіть мову інтерфейсу розширення."
   },
   "optionsDefaultDisplayMode": {
     "message": "Режим відображення за замовчуванням"
@@ -317,10 +321,10 @@
     "message": "Не вдалося відкрити налаштування комбінацій клавіш."
   },
   "selectionDragArea": {
-    "message": "Перетягніть, щоб вибрати ділянку"
+    "message": "Потягніть для вибору ділянки"
   },
   "selectionPressKeyToCancel": {
-    "message": "Натисніть $1, щоб скасувати"
+    "message": "Натисніть $1 для скасування"
   },
   "imagePickerSelectImage": {
     "message": "Натисніть зображення, щоб перекласти"
