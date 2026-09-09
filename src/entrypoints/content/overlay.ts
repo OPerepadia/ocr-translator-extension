@@ -584,6 +584,18 @@ function createOcrRecoveryToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "ocr-translate-overlay-toolbar";
 
+  const sourcePicker = mountControlPicker(
+    config
+      ? createOcrSourceLanguagePicker(config.controls, {
+          position: "auto",
+          compact: true,
+        })
+      : undefined,
+  );
+  if (sourcePicker) {
+    bar.append(sourcePicker);
+  }
+
   bar.append(
     iconButton(SELECT_REGION_ICON, t("panelSelectNewRegion"), () => {
       closeOverlay();
