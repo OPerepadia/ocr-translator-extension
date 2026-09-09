@@ -48,6 +48,20 @@ describe("OCR context menu", () => {
     });
   });
 
+  it("refreshes menu titles when the background starts", () => {
+    const update = vi.fn(async () => undefined);
+    const api = createContextMenuApi({ update });
+
+    startContextMenu(api);
+
+    expect(update).toHaveBeenCalledWith(START_SELECTION_MENU_ID, {
+      title: "Translate a screen region…",
+    });
+    expect(update).toHaveBeenCalledWith(TRANSLATE_IMAGE_MENU_ID, {
+      title: "Translate this image",
+    });
+  });
+
   it("starts region selection in the clicked tab", async () => {
     let onClicked: MenuClickListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
@@ -128,6 +142,7 @@ function createContextMenuApi(overrides: {
     contexts: Array<"page" | "image">;
     documentUrlPatterns?: string[];
   }) => string | number;
+  update?: (id: string, changes: { title: string }) => Promise<void>;
   sendMessage?: (
     tabId: number,
     message: RuntimeMessage,
@@ -140,6 +155,7 @@ function createContextMenuApi(overrides: {
     },
     contextMenus: {
       create: overrides.create ?? vi.fn(() => START_SELECTION_MENU_ID),
+      update: overrides.update ?? vi.fn(async () => undefined),
       onClicked: { addListener: overrides.onClicked ?? vi.fn() },
     },
     tabs: {

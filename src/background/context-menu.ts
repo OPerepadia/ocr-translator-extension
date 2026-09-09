@@ -6,6 +6,7 @@ export type ContextMenuApi = {
   };
   contextMenus?: {
     create: typeof browser.contextMenus.create;
+    update: typeof browser.contextMenus.update;
     onClicked: Pick<typeof browser.contextMenus.onClicked, "addListener">;
   };
   tabs: Pick<typeof browser.tabs, "sendMessage">;
@@ -39,6 +40,15 @@ export function startContextMenu(api: ContextMenuApi = browser): void {
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
   });
+
+  void Promise.allSettled([
+    contextMenus.update(START_SELECTION_MENU_ID, {
+      title: api.i18n.getMessage("contextTranslateScreenRegion"),
+    }),
+    contextMenus.update(TRANSLATE_IMAGE_MENU_ID, {
+      title: api.i18n.getMessage("contextTranslateImage"),
+    }),
+  ]);
 
   contextMenus.onClicked.addListener((info, tab) => {
     if (typeof tab?.id !== "number") {
