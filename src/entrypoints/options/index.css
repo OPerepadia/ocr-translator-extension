@@ -71,7 +71,13 @@ main {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
   gap: 28px;
-  align-items: start;
+  align-items: stretch;
+}
+
+.options-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .options-nav {
@@ -105,6 +111,14 @@ main {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+.sidebar-locale-field {
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+  padding: 0 10px 4px;
+  font-weight: 600;
+}
+
 .options-layout:not(:has(.settings-section:target))
   .options-nav
   a[href="#ocr"],
@@ -121,7 +135,10 @@ main {
 }
 
 .options-card {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 450px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--card);
@@ -129,6 +146,7 @@ main {
 }
 
 .options-form {
+  flex: 1;
   padding: 0 32px;
 }
 
@@ -648,13 +666,13 @@ select:focus-visible {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  border-top: 1px solid var(--border);
   padding: 16px 32px;
   color: var(--muted);
   font-size: 13px;
 }
 
 .options-footer [role="status"] {
+  min-height: 1.5em;
   margin: 0;
   color: var(--success);
 }
@@ -671,8 +689,13 @@ select:focus-visible {
     gap: 16px;
   }
 
+  .options-sidebar {
+    display: contents;
+  }
+
   .options-nav {
     position: static;
+    order: 1;
     overflow-x: auto;
   }
 
@@ -682,6 +705,17 @@ select:focus-visible {
 
   .options-nav a {
     white-space: nowrap;
+  }
+
+  .sidebar-locale-field {
+    order: 3;
+    width: min(200px, 100%);
+    margin: 0;
+    padding: 0;
+  }
+
+  .options-card {
+    order: 2;
   }
 }
 

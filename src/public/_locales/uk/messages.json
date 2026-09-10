@@ -209,9 +209,6 @@
   "optionsUiLanguageAuto": {
     "message": "Мова за замовчуванням"
   },
-  "optionsUiLanguageHint": {
-    "message": "Виберіть мову інтерфейсу."
-  },
   "optionsDefaultDisplayMode": {
     "message": "Режим відображення за замовчуванням"
   },

@@ -209,9 +209,6 @@
   "optionsUiLanguageAuto": {
     "message": "Язык по умолчанию"
   },
-  "optionsUiLanguageHint": {
-    "message": "Выберите язык интерфейса."
-  },
   "optionsDefaultDisplayMode": {
     "message": "Режим отображения по умолчанию"
   },

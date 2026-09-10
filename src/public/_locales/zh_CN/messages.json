@@ -209,9 +209,6 @@
   "optionsUiLanguageAuto": {
     "message": "默认语言"
   },
-  "optionsUiLanguageHint": {
-    "message": "选择界面语言。"
-  },
   "optionsDefaultDisplayMode": {
     "message": "默认显示模式"
   },

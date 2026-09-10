@@ -20,28 +20,42 @@
       </header>
 
       <div class="options-layout">
-        <nav class="options-nav">
-          <ul>
-            <li>
-              <a href="#ocr" data-i18n="optionsOcrSectionTitle"></a>
-            </li>
-            <li>
-              <a
-                href="#translation"
-                data-i18n="optionsTranslationSectionTitle"
-              ></a>
-            </li>
-            <li>
-              <a
-                href="#display-options"
-                data-i18n="optionsDisplaySectionTitle"
-              ></a>
-            </li>
-            <li>
-              <a href="#about" data-i18n="optionsAboutSectionTitle"></a>
-            </li>
-          </ul>
-        </nav>
+        <aside class="options-sidebar">
+          <nav class="options-nav">
+            <ul>
+              <li>
+                <a href="#ocr" data-i18n="optionsOcrSectionTitle"></a>
+              </li>
+              <li>
+                <a
+                  href="#translation"
+                  data-i18n="optionsTranslationSectionTitle"
+                ></a>
+              </li>
+              <li>
+                <a
+                  href="#display-options"
+                  data-i18n="optionsDisplaySectionTitle"
+                ></a>
+              </li>
+              <li>
+                <a href="#about" data-i18n="optionsAboutSectionTitle"></a>
+              </li>
+            </ul>
+          </nav>
+
+          <label class="sidebar-locale-field">
+            <span data-i18n="optionsUiLanguage"></span>
+            <select name="uiLocale">
+              <option value="auto" data-i18n="optionsUiLanguageAuto"></option>
+              <option value="en" lang="en">English</option>
+              <option value="ja" lang="ja">日本語</option>
+              <option value="zh_CN" lang="zh-CN">简体中文</option>
+              <option value="ru" lang="ru">Русский</option>
+              <option value="uk" lang="uk">Українська</option>
+            </select>
+          </label>
+        </aside>
 
         <div class="options-card">
           <form class="options-form">
@@ -269,18 +283,6 @@
                 class="section-title"
                 data-i18n="optionsDisplaySectionTitle"
               ></h2>
-              <label class="field settings-select-field">
-                <span data-i18n="optionsUiLanguage"></span>
-                <select name="uiLocale">
-                  <option value="auto" data-i18n="optionsUiLanguageAuto"></option>
-                  <option value="en" lang="en">English</option>
-                  <option value="ja" lang="ja">日本語</option>
-                  <option value="zh_CN" lang="zh-CN">简体中文</option>
-                  <option value="ru" lang="ru">Русский</option>
-                  <option value="uk" lang="uk">Українська</option>
-                </select>
-                <span class="field-hint" data-i18n="optionsUiLanguageHint"></span>
-              </label>
               <label class="field settings-select-field">
                 <span data-i18n="optionsDefaultDisplayMode"></span>
                 <select name="displayMode">

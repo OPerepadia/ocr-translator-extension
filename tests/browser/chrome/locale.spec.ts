@@ -33,9 +33,27 @@ test("changes UI locale across settings, popup and refreshed content without los
     const options = await context.newPage();
     await options.goto(`${extensionUrl}/options.html#display-options`);
     await expect(options.locator("h1")).toHaveText(uk.optionsPageTitle.message);
-    const localeSelect = options.locator('select[name="uiLocale"]');
+    const localeSelect = options.locator(
+      '.options-sidebar select[name="uiLocale"]',
+    );
+    await expect(
+      options.locator('.sidebar-locale-field > [data-i18n="optionsUiLanguage"]'),
+    ).toHaveText(uk.optionsUiLanguage.message);
+    await expect(localeSelect).toBeVisible();
+    await expect(
+      options.locator('form select[name="uiLocale"]'),
+    ).toHaveCount(0);
     await expect(localeSelect).toHaveValue("uk");
     await expect(localeSelect.locator("option")).toHaveCount(6);
+
+    await options.setViewportSize({ width: 700, height: 800 });
+    const cardBox = await options.locator(".options-card").boundingBox();
+    const localeBox = await options
+      .locator(".sidebar-locale-field")
+      .boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(localeBox).not.toBeNull();
+    expect(localeBox!.y).toBeGreaterThanOrEqual(cardBox!.y + cardBox!.height);
 
     const content = await context.newPage();
     await content.route("https://locale.example/**", (route) => route.fulfill({
@@ -72,7 +90,9 @@ test("changes UI locale across settings, popup and refreshed content without los
       options.evaluate(() => (window as unknown as { releaseSave: () => void }).releaseSave()),
     ]);
     await expect(options.locator("h1")).toHaveText(en.optionsPageTitle.message);
-    await expect(options.locator('[data-i18n="optionsUiLanguageHint"]')).toHaveText(en.optionsUiLanguageHint.message);
+    await expect(
+      options.locator('.sidebar-locale-field > [data-i18n="optionsUiLanguage"]'),
+    ).toHaveText(en.optionsUiLanguage.message);
     await expect(options.locator('select[name="displayMode"]')).toHaveValue("panel");
     await expect(options.locator("html")).toHaveAttribute("lang", "en");
     expect(await worker.evaluate(async () => (await chrome.storage.local.get("settings")).settings)).toEqual(settings);

@@ -62,6 +62,7 @@ async function initOptions(): Promise<void> {
 
   async function changeUiLocale(): Promise<void> {
     elements.form.inert = true;
+    elements.uiLocaleSelect.disabled = true;
     try {
       await pendingSave;
       await setUiLocale(normalizeUiLocale(elements.uiLocaleSelect.value));
@@ -69,6 +70,7 @@ async function initOptions(): Promise<void> {
     } catch (error) {
       pendingSave = Promise.resolve();
       elements.uiLocaleSelect.value = locale;
+      elements.uiLocaleSelect.disabled = false;
       elements.form.inert = false;
       showSaveError(error);
     }

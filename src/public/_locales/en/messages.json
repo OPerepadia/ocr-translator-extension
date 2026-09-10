@@ -238,9 +238,6 @@
   "optionsUiLanguageAuto": {
     "message": "Default language"
   },
-  "optionsUiLanguageHint": {
-    "message": "Choose the interface language."
-  },
   "optionsDefaultDisplayMode": {
     "message": "Default display mode"
   },

@@ -209,9 +209,6 @@
   "optionsUiLanguageAuto": {
     "message": "既定の言語"
   },
-  "optionsUiLanguageHint": {
-    "message": "表示言語を選択します。"
-  },
   "optionsDefaultDisplayMode": {
     "message": "既定の表示モード"
   },
