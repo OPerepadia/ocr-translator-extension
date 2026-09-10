@@ -132,6 +132,12 @@ npm test
 npm run typecheck
 ```
 
+## Localization
+
+Translations are stored in `src/public/_locales/<locale>/messages.json`.
+
+Some locales were initially machine-translated and may need improvement. Contributions and corrections from native speakers are welcome.
+
 ## License
 
 Screen OCR Translator is licensed under the [Mozilla Public License 2.0](LICENSE).
