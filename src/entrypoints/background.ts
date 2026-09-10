@@ -2,6 +2,7 @@ import { captureVisibleArea, loadImage } from "@/background/capture";
 import { createCaptureStore } from "@/background/capture-store";
 import { startKeyboardCommand } from "@/background/command";
 import { startContextMenu } from "@/background/context-menu";
+import { startBackgroundLocalization } from "@/background/localization";
 import {
   canHostWorker,
   createOffscreenWorker,
@@ -33,19 +34,23 @@ export default defineBackground(() => {
   // registered synchronously here, before any await, so the first event after
   // the page wakes up is not missed.
   const settingsRepository = createSettingsRepository();
+  const localeReady = startBackgroundLocalization();
 
   startKeyboardCommand();
-  startContextMenu();
-  startRouter({
-    settingsRepository,
-    captureStore: createCaptureStore(),
-    captureVisibleArea,
-    loadImage,
-    createOcrProvider,
-    createTranslationProvider,
-    detectLanguage,
-    speakText,
-  });
+  startContextMenu(browser, localeReady);
+  startRouter(
+    {
+      settingsRepository,
+      captureStore: createCaptureStore(),
+      captureVisibleArea,
+      loadImage,
+      createOcrProvider,
+      createTranslationProvider,
+      detectLanguage,
+      speakText,
+    },
+    localeReady,
+  );
 });
 
 // Cache the OCR provider so its worker and loaded models survive across

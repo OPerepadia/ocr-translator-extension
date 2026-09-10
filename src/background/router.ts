@@ -52,8 +52,12 @@ export interface RouterDependencies {
   speakText(text: string, lang: LangCode): Promise<string[]>;
 }
 
-export function startRouter(dependencies: RouterDependencies): void {
-  onRequest((message, sender) => {
+export function startRouter(
+  dependencies: RouterDependencies,
+  localeReady: Promise<unknown> = Promise.resolve(),
+): void {
+  onRequest(async (message, sender) => {
+    await localeReady;
     const messageSender = sender as
       | { tab?: { id?: number }; frameId?: number; url?: string }
       | undefined;

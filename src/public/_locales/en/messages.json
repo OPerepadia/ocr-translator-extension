@@ -233,13 +233,13 @@
     "description": "Settings for how recognition and translation results appear."
   },
   "optionsUiLanguage": {
-    "message": "Interface language"
+    "message": "UI language"
   },
   "optionsUiLanguageAuto": {
-    "message": "Automatic"
+    "message": "Default language"
   },
   "optionsUiLanguageHint": {
-    "message": "Choose the language used by the extension."
+    "message": "Choose the interface language."
   },
   "optionsDefaultDisplayMode": {
     "message": "Default display mode"

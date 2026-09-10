@@ -5,6 +5,9 @@ import {
   getDefaultOverlayMode,
   getDisplayMode,
   getStartOcrImmediately,
+  getUiLocale,
+  setUiLocale,
+  UI_LOCALES,
   setDisplayMode,
   setDefaultOverlayMode,
 } from "./storage";
@@ -24,6 +27,33 @@ function stubStorage(values: Record<string, unknown>): void {
 }
 
 describe("storage defaults", () => {
+  it.each([undefined, null, "auto", "unsupported", {}, 42])(
+    "uses the browser locale for %j",
+    async (uiLocale) => {
+      stubStorage({ uiLocale });
+      await expect(getUiLocale()).resolves.toBe("auto");
+    },
+  );
+
+  it.each(UI_LOCALES)("reads the %s UI locale", async (uiLocale) => {
+    stubStorage({ uiLocale });
+    await expect(getUiLocale()).resolves.toBe(uiLocale);
+  });
+
+  it("writes only the UI locale key", async () => {
+    const set = vi.fn(async () => {});
+    vi.stubGlobal("browser", { storage: { local: { set } } });
+    await setUiLocale("ja");
+    expect(set).toHaveBeenCalledWith({ uiLocale: "ja" });
+  });
+
+  it("uses the browser locale when storage cannot be read", async () => {
+    vi.stubGlobal("browser", {
+      storage: { local: { get: vi.fn().mockRejectedValue(new Error("Unavailable")) } },
+    });
+    await expect(getUiLocale()).resolves.toBe("auto");
+  });
+
   it("uses overlay when no display mode is saved", async () => {
     stubStorage({});
     await expect(getDisplayMode()).resolves.toBe("overlay");

@@ -1,4 +1,5 @@
 import { browser } from "wxt/browser";
+import { t } from "../shared/i18n";
 
 export type ContextMenuApi = {
   runtime: {
@@ -10,7 +11,6 @@ export type ContextMenuApi = {
     onClicked: Pick<typeof browser.contextMenus.onClicked, "addListener">;
   };
   tabs: Pick<typeof browser.tabs, "sendMessage">;
-  i18n: Pick<typeof browser.i18n, "getMessage">;
 };
 
 export const START_SELECTION_MENU_ID = "select-region-for-ocr";
@@ -20,35 +20,32 @@ export const TRANSLATE_IMAGE_MENU_ID = "translate-image";
 // privileged internal pages (about:, chrome://) where sendMessage would fail.
 const CONTENT_SCRIPT_PATTERNS = ["http://*/*", "https://*/*", "file:///*"];
 
-export function startContextMenu(api: ContextMenuApi = browser): void {
+export function startContextMenu(
+  api: ContextMenuApi = browser,
+  localeReady: Promise<unknown> = Promise.resolve(),
+): void {
   const contextMenus = api.contextMenus;
   if (!contextMenus) {
     return;
   }
 
-  api.runtime.onInstalled.addListener(() => {
+  api.runtime.onInstalled.addListener(async () => {
+    await localeReady;
     contextMenus.create({
       id: START_SELECTION_MENU_ID,
-      title: api.i18n.getMessage("contextTranslateScreenRegion"),
+      title: t("contextTranslateScreenRegion"),
       contexts: ["page"],
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
     contextMenus.create({
       id: TRANSLATE_IMAGE_MENU_ID,
-      title: api.i18n.getMessage("contextTranslateImage"),
+      title: t("contextTranslateImage"),
       contexts: ["image"],
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
   });
 
-  void Promise.allSettled([
-    contextMenus.update(START_SELECTION_MENU_ID, {
-      title: api.i18n.getMessage("contextTranslateScreenRegion"),
-    }),
-    contextMenus.update(TRANSLATE_IMAGE_MENU_ID, {
-      title: api.i18n.getMessage("contextTranslateImage"),
-    }),
-  ]);
+  void localeReady.then(() => updateContextMenuTitles(api));
 
   contextMenus.onClicked.addListener((info, tab) => {
     if (typeof tab?.id !== "number") {
@@ -80,4 +77,18 @@ export function startContextMenu(api: ContextMenuApi = browser): void {
         ),
       );
   });
+}
+
+export async function updateContextMenuTitles(
+  api: Pick<ContextMenuApi, "contextMenus"> = browser,
+): Promise<void> {
+  if (!api.contextMenus) return;
+  await Promise.allSettled([
+    api.contextMenus.update(START_SELECTION_MENU_ID, {
+      title: t("contextTranslateScreenRegion"),
+    }),
+    api.contextMenus.update(TRANSLATE_IMAGE_MENU_ID, {
+      title: t("contextTranslateImage"),
+    }),
+  ]);
 }

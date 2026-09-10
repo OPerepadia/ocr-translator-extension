@@ -9,6 +9,7 @@ import {
 } from "@/shared/activation";
 import { browser } from "wxt/browser";
 import {
+  initializeI18n,
   localizeMarkedElements,
   t,
   translationProviderLabel,
@@ -34,10 +35,11 @@ const settingsRepository = createSettingsRepository();
 let currentSettings: Settings;
 let pendingSave: Promise<void> = Promise.resolve();
 
-localizeMarkedElements();
 void initPopup();
 
 async function initPopup(): Promise<void> {
+  await initializeI18n();
+  localizeMarkedElements();
   const elements = getPopupElements();
   elements.openSettings.innerHTML = SETTINGS_ICON;
   elements.pickImage.insertAdjacentHTML("afterbegin", PICK_IMAGE_ICON);

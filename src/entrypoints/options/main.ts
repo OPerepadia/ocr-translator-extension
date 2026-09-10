@@ -21,8 +21,11 @@ import {
   setDisplayMode,
   setDefaultOverlayMode,
   setStartOcrImmediately,
+  setUiLocale,
+  normalizeUiLocale,
 } from "@/shared/storage";
 import {
+  initializeI18n,
   localizeMarkedElements,
   t,
   translationProviderLabel,
@@ -43,13 +46,33 @@ const TRANSLATION_PROVIDER_SECTIONS: Partial<
 const settingsRepository = createSettingsRepository();
 const app = getOptionsRoot();
 let statusTimeout: number | undefined;
+let pendingSave: Promise<void> = Promise.resolve();
 
-localizeMarkedElements();
 void initOptions();
 
 async function initOptions(): Promise<void> {
+  const locale = await initializeI18n();
+  localizeMarkedElements();
   const settings = await settingsRepository.get();
   const elements = getOptionsElements();
+  elements.uiLocaleSelect.value = locale;
+  elements.uiLocaleSelect.addEventListener("change", () => {
+    void changeUiLocale();
+  });
+
+  async function changeUiLocale(): Promise<void> {
+    elements.form.inert = true;
+    try {
+      await pendingSave;
+      await setUiLocale(normalizeUiLocale(elements.uiLocaleSelect.value));
+      location.reload();
+    } catch (error) {
+      pendingSave = Promise.resolve();
+      elements.uiLocaleSelect.value = locale;
+      elements.form.inert = false;
+      showSaveError(error);
+    }
+  }
 
   elements.versionText.textContent = t(
     "optionsVersion",
@@ -121,8 +144,10 @@ async function initOptions(): Promise<void> {
   // Display mode lives under its own storage key, separate from Settings.
   elements.displayModeSelect.value = await getDisplayMode();
   elements.displayModeSelect.addEventListener("change", () => {
-    setDisplayMode(
-      elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",
+    queueSave(() =>
+      setDisplayMode(
+        elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",
+      ),
     ).then(
       () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
@@ -130,10 +155,12 @@ async function initOptions(): Promise<void> {
   });
   elements.defaultOverlayModeSelect.value = await getDefaultOverlayMode();
   elements.defaultOverlayModeSelect.addEventListener("change", () => {
-    setDefaultOverlayMode(
-      elements.defaultOverlayModeSelect.value === "original"
-        ? "original"
-        : "translation",
+    queueSave(() =>
+      setDefaultOverlayMode(
+        elements.defaultOverlayModeSelect.value === "original"
+          ? "original"
+          : "translation",
+      ),
     ).then(
       () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
@@ -141,7 +168,9 @@ async function initOptions(): Promise<void> {
   });
   elements.startOcrImmediatelyInput.checked = await getStartOcrImmediately();
   elements.startOcrImmediatelyInput.addEventListener("change", () => {
-    setStartOcrImmediately(elements.startOcrImmediatelyInput.checked).then(
+    queueSave(() =>
+      setStartOcrImmediately(elements.startOcrImmediatelyInput.checked),
+    ).then(
       () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
     );
@@ -184,20 +213,22 @@ async function initOptions(): Promise<void> {
   const saveSettings = async (): Promise<void> => {
     const formData = new FormData(elements.form);
     try {
-      const latestSettings = await settingsRepository.get();
-      const nextSettings: Settings = {
-        ocr: {
-          providerId: latestSettings.ocr.providerId,
-          sourceLang: String(formData.get("sourceLang") ?? "auto"),
-          backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
-        },
-        translation: {
-          providerId: String(formData.get("translationProvider") ?? "google"),
-          targetLang: String(formData.get("targetLang") ?? "en"),
-          llm: readLlmSettings(formData),
-        },
-      };
-      await settingsRepository.set(nextSettings);
+      await queueSave(async () => {
+        const latestSettings = await settingsRepository.get();
+        const nextSettings: Settings = {
+          ocr: {
+            providerId: latestSettings.ocr.providerId,
+            sourceLang: String(formData.get("sourceLang") ?? "auto"),
+            backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
+          },
+          translation: {
+            providerId: String(formData.get("translationProvider") ?? "google"),
+            targetLang: String(formData.get("targetLang") ?? "en"),
+            llm: readLlmSettings(formData),
+          },
+        };
+        await settingsRepository.set(nextSettings);
+      });
       showStatus(t("commonSaved"));
     } catch (error) {
       showSaveError(error);
@@ -240,6 +271,11 @@ async function initOptions(): Promise<void> {
   elements.llmTestConnectionButton.addEventListener("click", () => {
     void testConnection(elements);
   });
+}
+
+function queueSave(save: () => Promise<void>): Promise<void> {
+  pendingSave = pendingSave.catch(() => {}).then(save);
+  return pendingSave;
 }
 
 function mountSearchableLanguageSelect(args: {
@@ -551,6 +587,7 @@ function getOptionsElements(): {
   sourceLangSelect: HTMLSelectElement;
   targetLangSelect: HTMLSelectElement;
   displayModeSelect: HTMLSelectElement;
+  uiLocaleSelect: HTMLSelectElement;
   defaultOverlayModeSelect: HTMLSelectElement;
   startOcrImmediatelyInput: HTMLInputElement;
   ocrWebGpuInput: HTMLInputElement;
@@ -586,6 +623,9 @@ function getOptionsElements(): {
   );
   const displayModeSelect = app.querySelector<HTMLSelectElement>(
     "select[name='displayMode']",
+  );
+  const uiLocaleSelect = app.querySelector<HTMLSelectElement>(
+    "select[name='uiLocale']",
   );
   const defaultOverlayModeSelect = app.querySelector<HTMLSelectElement>(
     "select[name='defaultOverlayMode']",
@@ -638,6 +678,7 @@ function getOptionsElements(): {
     !sourceLangSelect ||
     !targetLangSelect ||
     !displayModeSelect ||
+    !uiLocaleSelect ||
     !defaultOverlayModeSelect ||
     !startOcrImmediatelyInput ||
     !ocrWebGpuInput ||
@@ -668,6 +709,7 @@ function getOptionsElements(): {
     sourceLangSelect,
     targetLangSelect,
     displayModeSelect,
+    uiLocaleSelect,
     defaultOverlayModeSelect,
     startOcrImmediatelyInput,
     ocrWebGpuInput,

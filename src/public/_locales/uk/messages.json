@@ -207,10 +207,10 @@
     "message": "Мова інтерфейсу"
   },
   "optionsUiLanguageAuto": {
-    "message": "Автоматично"
+    "message": "Мова за замовчуванням"
   },
   "optionsUiLanguageHint": {
-    "message": "Виберіть мову інтерфейсу розширення."
+    "message": "Виберіть мову інтерфейсу."
   },
   "optionsDefaultDisplayMode": {
     "message": "Режим відображення за замовчуванням"

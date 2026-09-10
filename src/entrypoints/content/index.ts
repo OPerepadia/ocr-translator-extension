@@ -28,6 +28,7 @@ import { sendRequest } from "@/shared/runtime-messaging";
 import { LatestRequestRunner } from "./latest-request";
 import type { ContentControls } from "./content-controls";
 import {
+  initializeI18n,
   t,
   translationProviderLabel,
   uiDirection,
@@ -136,10 +137,12 @@ export default defineContentScript({
   cssInjectionMode: "ui",
   async main(ctx) {
     setNavigationContext(ctx);
+    const localeReady = initializeI18n();
 
     let uiPromise: ReturnType<typeof createShadowRootUi> | undefined;
     const ensureUi = async (): Promise<void> => {
       try {
+        await localeReady;
         const ui = await (uiPromise ??= createShadowRootUi(ctx, {
           name: "ocr-translate-ui",
           position: "inline",

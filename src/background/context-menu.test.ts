@@ -20,7 +20,7 @@ describe("OCR context menu", () => {
     expect(() => startContextMenu(api)).not.toThrow();
   });
 
-  it("creates a menu item when the extension is installed", () => {
+  it("creates a menu item when the extension is installed", async () => {
     let onInstalled: (() => void) | undefined;
     const create = vi.fn(() => START_SELECTION_MENU_ID);
     const api = createContextMenuApi({
@@ -32,6 +32,7 @@ describe("OCR context menu", () => {
 
     startContextMenu(api);
     onInstalled?.();
+    await Promise.resolve();
 
     const documentUrlPatterns = ["http://*/*", "https://*/*", "file:///*"];
     expect(create).toHaveBeenCalledWith({
@@ -48,12 +49,13 @@ describe("OCR context menu", () => {
     });
   });
 
-  it("refreshes menu titles when the background starts", () => {
+  it("refreshes menu titles when the background starts", async () => {
     const update = vi.fn(async () => undefined);
     const api = createContextMenuApi({ update });
 
     startContextMenu(api);
 
+    await Promise.resolve();
     expect(update).toHaveBeenCalledWith(START_SELECTION_MENU_ID, {
       title: "Translate a screen region…",
     });
@@ -160,12 +162,6 @@ function createContextMenuApi(overrides: {
     },
     tabs: {
       sendMessage: overrides.sendMessage ?? vi.fn(async () => undefined),
-    },
-    i18n: {
-      getMessage: (key: string) =>
-        key === "contextTranslateImage"
-          ? "Translate this image"
-          : "Translate a screen region…",
     },
   } as ContextMenuApi;
 }

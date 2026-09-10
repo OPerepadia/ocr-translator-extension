@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { applyUiLocale, t, uiLanguage } from "./i18n";
+import { UI_LOCALES } from "./storage";
 
 type MessageCatalog = Record<string, { message: string }>;
 
@@ -16,6 +18,8 @@ const english = loadCatalog("en");
 const translations = readdirSync(localesRoot, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && entry.name !== "en")
   .map((entry) => ({ locale: entry.name, messages: loadCatalog(entry.name) }));
+
+afterEach(() => applyUiLocale("auto"));
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -55,6 +59,36 @@ function referencedKeys(): Set<string> {
 }
 
 describe("localization catalogs", () => {
+  it.each(UI_LOCALES)("contains no duplicate message keys in %s", (locale) => {
+    const source = readFileSync(join(localesRoot, locale, "messages.json"), "utf8");
+    const keys = [...source.matchAll(/^  "([^"]+)":/gm)].map((match) => match[1]);
+    expect(keys.length).toBe(new Set(keys).size);
+  });
+
+  it("offers every packaged locale", () => {
+    expect([...UI_LOCALES].sort()).toEqual(
+      ["en", ...translations.map(({ locale }) => locale)].sort(),
+    );
+  });
+
+  it.each(UI_LOCALES)("uses the selected %s catalog", (locale) => {
+    applyUiLocale(locale);
+    expect(t("optionsPageTitle")).toBe(loadCatalog(locale).optionsPageTitle.message);
+    expect(uiLanguage()).toBe(locale.replace("_", "-"));
+  });
+
+  it("uses only supported positional substitutions", () => {
+    const unsupported = [{ locale: "en", messages: english }, ...translations]
+      .flatMap(({ locale, messages }) =>
+        Object.entries(messages)
+          .filter(([, entry]) =>
+            "placeholders" in entry || /\$/.test(entry.message.replace(/\$[1-9](?!\d)/g, "")),
+          )
+          .map(([key]) => `${locale}:${key}`),
+      );
+    expect(unsupported).toEqual([]);
+  });
+
   it("defines every referenced message in English", () => {
     const missing = [...referencedKeys()].filter((key) => !english[key]);
     expect(missing).toEqual([]);

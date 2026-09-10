@@ -207,10 +207,10 @@
     "message": "界面语言"
   },
   "optionsUiLanguageAuto": {
-    "message": "自动"
+    "message": "默认语言"
   },
   "optionsUiLanguageHint": {
-    "message": "选择扩展界面使用的语言。"
+    "message": "选择界面语言。"
   },
   "optionsDefaultDisplayMode": {
     "message": "默认显示模式"

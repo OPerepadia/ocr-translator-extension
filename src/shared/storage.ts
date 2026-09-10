@@ -3,6 +3,26 @@ import type { OverlayMode, Settings } from "./types";
 
 const SETTINGS_KEY = "settings";
 
+export const UI_LOCALES = ["en", "ja", "zh_CN", "ru", "uk"] as const;
+export type UiLocale = "auto" | (typeof UI_LOCALES)[number];
+
+export function normalizeUiLocale(value: unknown): UiLocale {
+  return UI_LOCALES.find((locale) => locale === value) ?? "auto";
+}
+
+export async function getUiLocale(): Promise<UiLocale> {
+  try {
+    const values = await browser.storage.local.get("uiLocale");
+    return normalizeUiLocale(values.uiLocale);
+  } catch {
+    return "auto";
+  }
+}
+
+export async function setUiLocale(locale: UiLocale): Promise<void> {
+  await browser.storage.local.set({ uiLocale: locale });
+}
+
 // How a finished result is shown on the page: the bottom-right panel, or boxes
 // drawn over the selected region. Kept under its own storage key (like the
 // panel size) rather than in Settings, since it's a UI presentation preference

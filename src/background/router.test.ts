@@ -53,6 +53,30 @@ describe("background router", () => {
     captureStore = createCaptureStore({ factory: new IDBFactory() });
   });
 
+  it("registers immediately and waits for localization before handling requests", async () => {
+    let listener: MessageListener | undefined;
+    let resolveLocale!: () => void;
+    const localeReady = new Promise<void>((resolve) => { resolveLocale = resolve; });
+    const sendMessage = vi.fn(async () => undefined);
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: (next: MessageListener) => { listener = next; },
+        },
+      },
+      tabs: { sendMessage },
+    });
+    startRouter({} as RouterDependencies, localeReady);
+    expect(listener).toBeDefined();
+    const response = invoke(listener, { type: "START_SELECTION" }, { tab: { id: 7 } });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sendMessage).not.toHaveBeenCalled();
+    resolveLocale();
+    await response;
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it("navigates an open options tab to the requested section", async () => {
     let listener: MessageListener | undefined;
     const updateTab = vi.fn(async () => ({}));

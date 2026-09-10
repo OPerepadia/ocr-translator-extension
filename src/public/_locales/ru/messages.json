@@ -207,10 +207,10 @@
     "message": "Язык интерфейса"
   },
   "optionsUiLanguageAuto": {
-    "message": "Автоматически"
+    "message": "Язык по умолчанию"
   },
   "optionsUiLanguageHint": {
-    "message": "Выберите язык интерфейса расширения."
+    "message": "Выберите язык интерфейса."
   },
   "optionsDefaultDisplayMode": {
     "message": "Режим отображения по умолчанию"

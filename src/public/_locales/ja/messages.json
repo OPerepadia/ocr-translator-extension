@@ -204,13 +204,13 @@
     "message": "表示"
   },
   "optionsUiLanguage": {
-    "message": "表示言語"
+    "message": "UI の言語"
   },
   "optionsUiLanguageAuto": {
-    "message": "自動"
+    "message": "既定の言語"
   },
   "optionsUiLanguageHint": {
-    "message": "拡張機能で使用する言語を選択します。"
+    "message": "表示言語を選択します。"
   },
   "optionsDefaultDisplayMode": {
     "message": "既定の表示モード"
