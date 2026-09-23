@@ -2,7 +2,7 @@ import {
   COMMON_OCR_SOURCE_LANGUAGES,
   TRANSLATION_PROVIDERS,
 } from "@/providers/catalog";
-import { COMMON_TARGET_LANGUAGES } from "@/providers/translation/target-languages";
+import { translationTargetLanguages } from "@/providers/translation/target-languages";
 import {
   isActivationPageSupported,
   isContentScriptUnavailableError,
@@ -67,7 +67,7 @@ async function initPopup(): Promise<void> {
     );
     fillLanguageSelect(
       elements.targetLanguage,
-      COMMON_TARGET_LANGUAGES,
+      translationTargetLanguages(settings.translation.providerId),
       settings.translation.targetLang,
     );
     fillProviderSelect(
@@ -77,6 +77,11 @@ async function initPopup(): Promise<void> {
     elements.displayMode.value = displayMode;
 
     elements.controls.addEventListener("change", () => {
+      fillLanguageSelect(
+        elements.targetLanguage,
+        translationTargetLanguages(elements.translationProvider.value),
+        elements.targetLanguage.value,
+      );
       currentSettings = {
         ...currentSettings,
         ocr: {

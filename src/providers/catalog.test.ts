@@ -12,9 +12,10 @@ import {
 } from "./catalog";
 
 describe("translation providers", () => {
-  it("offers Google and LLM translation", () => {
+  it("offers Google, DeepL and LLM translation", () => {
     expect(TRANSLATION_PROVIDERS.map(({ id }) => id)).toEqual([
       "google",
+      "deepl",
       "openai",
     ]);
   });

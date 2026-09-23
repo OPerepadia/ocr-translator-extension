@@ -135,7 +135,7 @@ function createTranslationProvider(
 }
 
 // Fields a provider reads at construction; targetLang is a per-request input.
-// The llm endpoint settings are included so editing them in options replaces
+// Provider settings are included so editing them in options replaces
 // the cached provider instead of serving one built with the old values.
 function translationProviderCacheKey(
   settings: Settings["translation"],
@@ -143,6 +143,7 @@ function translationProviderCacheKey(
   return JSON.stringify({
     providerId: settings.providerId,
     llm: settings.llm,
+    deepl: settings.deepl,
   });
 }
 

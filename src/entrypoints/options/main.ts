@@ -7,7 +7,7 @@ import {
   fetchAvailableModels,
   testLlmConnection,
 } from "@/providers/translation/openai";
-import { COMMON_TARGET_LANGUAGES } from "@/providers/translation/target-languages";
+import { translationTargetLanguages } from "@/providers/translation/target-languages";
 import {
   createLanguagePill,
   languageName,
@@ -38,9 +38,10 @@ import "./index.css";
 
 // The extra settings section each translation provider needs on this page.
 const TRANSLATION_PROVIDER_SECTIONS: Partial<
-  Record<string, "llm">
+  Record<string, "llm" | "deepl">
 > = {
   openai: "llm",
+  deepl: "deepl",
 };
 
 const settingsRepository = createSettingsRepository();
@@ -99,8 +100,11 @@ async function initOptions(): Promise<void> {
   fillTargetLanguageSelect(
     elements.targetLangSelect,
     settings.translation.targetLang,
+    settings.translation.providerId,
   );
 
+  elements.deeplApiKeyInput.value = settings.translation.deepl?.apiKey ?? "";
+  elements.deeplPlanSelect.value = settings.translation.deepl?.plan ?? "free";
   elements.llmBaseUrlInput.value = settings.translation.llm?.baseUrl ?? "";
   elements.llmRemoveOriginHeaderInput.checked =
     settings.translation.llm?.removeOriginHeader === true;
@@ -185,6 +189,7 @@ async function initOptions(): Promise<void> {
     elements.googleProviderNote.hidden =
       elements.translationProviderSelect.value !== "google";
     elements.llmSettings.hidden = section !== "llm";
+    elements.deeplSettings.hidden = section !== "deepl";
   };
 
   // Flag URL paste mistakes while the user is still on this page, instead of
@@ -227,6 +232,10 @@ async function initOptions(): Promise<void> {
             providerId: String(formData.get("translationProvider") ?? "google"),
             targetLang: String(formData.get("targetLang") ?? "en"),
             llm: readLlmSettings(formData),
+            deepl: {
+              apiKey: String(formData.get("deeplApiKey") ?? "").trim() || undefined,
+              plan: formData.get("deeplPlan") === "pro" ? "pro" : "free",
+            },
           },
         };
         await settingsRepository.set(nextSettings);
@@ -238,6 +247,12 @@ async function initOptions(): Promise<void> {
   };
 
   elements.translationProviderSelect.addEventListener("change", () => {
+    fillTargetLanguageSelect(
+      elements.targetLangSelect,
+      elements.targetLangSelect.value,
+      elements.translationProviderSelect.value,
+    );
+    refreshTargetPicker();
     void saveSettings();
   });
 
@@ -250,11 +265,13 @@ async function initOptions(): Promise<void> {
     title: (name) => t("languageSourceTitle", name),
     onChange: () => void saveSettings(),
   });
-  mountSearchableLanguageSelect({
+  const refreshTargetPicker = mountSearchableLanguageSelect({
     select: elements.targetLangSelect,
     onChange: () => void saveSettings(),
   });
   for (const input of [
+    elements.deeplApiKeyInput,
+    elements.deeplPlanSelect,
     elements.ocrWebGpuInput,
     elements.llmBaseUrlInput,
     elements.llmRemoveOriginHeaderInput,
@@ -285,10 +302,9 @@ function mountSearchableLanguageSelect(args: {
   specialEntries?: Array<{ code: string; name: string }>;
   title?: (name: string) => string;
   onChange(): void;
-}): void {
+}): () => void {
   const { select } = args;
   select.hidden = true;
-  const languages = Array.from(select.options, (option) => option.value);
   let current: LanguagePill | undefined;
 
   const mount = (): void => {
@@ -296,7 +312,7 @@ function mountSearchableLanguageSelect(args: {
     previous?.dispose();
     const pill = createLanguagePill({
       target: select.value,
-      languages,
+      languages: Array.from(select.options, (option) => option.value),
       specialEntries: args.specialEntries,
       title: args.title,
       onChange: (code) => {
@@ -314,6 +330,7 @@ function mountSearchableLanguageSelect(args: {
   };
 
   mount();
+  return mount;
 }
 
 // Ask the endpoint for its model list and turn the model dropdown into real
@@ -503,10 +520,12 @@ function fillSourceLanguageSelect(
 function fillTargetLanguageSelect(
   select: HTMLSelectElement,
   selectedLang: string,
+  providerId: string,
 ): void {
+  select.replaceChildren();
   let hasSelectedLanguage = false;
 
-  for (const language of getTargetLanguages()) {
+  for (const language of getTargetLanguages(providerId)) {
     const option = document.createElement("option");
     option.value = language.code;
     option.textContent = `${language.name} (${language.code})`;
@@ -524,12 +543,14 @@ function fillTargetLanguageSelect(
   }
 }
 
-function getTargetLanguages(): Array<{ code: string; name: string }> {
+function getTargetLanguages(
+  providerId: string,
+): Array<{ code: string; name: string }> {
   const languages = new Map<string, string>();
   const displayNames = new Intl.DisplayNames([uiLanguage()], {
     type: "language",
   });
-  for (const code of COMMON_TARGET_LANGUAGES) {
+  for (const code of translationTargetLanguages(providerId)) {
     languages.set(code, languages.get(code) ?? displayNames.of(code) ?? code);
   }
 
@@ -595,6 +616,9 @@ function getOptionsElements(): {
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
   ocrWebGpuStatus: HTMLElement;
+  deeplSettings: HTMLFieldSetElement;
+  deeplApiKeyInput: HTMLInputElement;
+  deeplPlanSelect: HTMLSelectElement;
   llmSettings: HTMLFieldSetElement;
   llmBaseUrlInput: HTMLInputElement;
   llmRemoveOriginHeaderInput: HTMLInputElement;
@@ -640,6 +664,13 @@ function getOptionsElements(): {
   );
   const ocrWebGpuNote = app.querySelector<HTMLElement>(".ocr-webgpu-note");
   const ocrWebGpuStatus = app.querySelector<HTMLElement>(".ocr-webgpu-status");
+  const deeplSettings = app.querySelector<HTMLFieldSetElement>(".deepl-settings");
+  const deeplApiKeyInput = app.querySelector<HTMLInputElement>(
+    "input[name='deeplApiKey']",
+  );
+  const deeplPlanSelect = app.querySelector<HTMLSelectElement>(
+    "select[name='deeplPlan']",
+  );
   const llmSettings = app.querySelector<HTMLFieldSetElement>(".llm-settings");
   const llmBaseUrlInput = app.querySelector<HTMLInputElement>(
     "input[name='llmBaseUrl']",
@@ -686,6 +717,9 @@ function getOptionsElements(): {
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
     !ocrWebGpuStatus ||
+    !deeplSettings ||
+    !deeplApiKeyInput ||
+    !deeplPlanSelect ||
     !llmSettings ||
     !llmBaseUrlInput ||
     !llmRemoveOriginHeaderInput ||
@@ -717,6 +751,9 @@ function getOptionsElements(): {
     ocrWebGpuInput,
     ocrWebGpuNote,
     ocrWebGpuStatus,
+    deeplSettings,
+    deeplApiKeyInput,
+    deeplPlanSelect,
     llmSettings,
     llmBaseUrlInput,
     llmRemoveOriginHeaderInput,

@@ -138,6 +138,10 @@ export const TRANSLATION_PROVIDERS = [
     kind: "remote",
   },
   {
+    id: "deepl",
+    kind: "remote",
+  },
+  {
     id: "openai",
     kind: "remote",
   },

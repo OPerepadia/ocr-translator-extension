@@ -88,6 +88,8 @@ export function translationProviderLabel(id: string): string {
   switch (id) {
     case "google":
       return t("providerGoogle");
+    case "deepl":
+      return t("providerDeepL");
     case "openai":
       return t("providerLlm");
     default:

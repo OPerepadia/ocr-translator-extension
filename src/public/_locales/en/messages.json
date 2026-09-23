@@ -566,5 +566,44 @@
   "errorOcrHostStoppedResponding": {
     "message": "The OCR host stopped responding.",
     "description": "The browser component hosting the OCR worker stopped responding."
+  },
+  "providerDeepL": {
+    "message": "DeepL"
+  },
+  "optionsDeepLHint": {
+    "message": "You need to provide your own DeepL API key."
+  },
+  "optionsGetApiKey": {
+    "message": "Get an API key"
+  },
+  "optionsDeepLPlan": {
+    "message": "API plan"
+  },
+  "errorDeepLKeyRequired": {
+    "message": "Add your DeepL API key in settings."
+  },
+  "errorDeepLTooLarge": {
+    "message": "This text exceeds the DeepL request limit. Select a smaller area."
+  },
+  "errorDeepLAuth": {
+    "message": "DeepL rejected the API key. Check your key and selected API plan in settings."
+  },
+  "errorDeepLQuota": {
+    "message": "DeepL translation quota exceeded. Check your account usage or limits."
+  },
+  "errorDeepLRateLimit": {
+    "message": "Too many requests. Please try again shortly."
+  },
+  "errorDeepLRequest": {
+    "message": "DeepL request failed (HTTP $1)."
+  },
+  "errorDeepLResponse": {
+    "message": "DeepL returned an invalid translation response."
+  },
+  "errorDeepLTimeout": {
+    "message": "DeepL translation timed out. Try again."
+  },
+  "errorDeepLUnreachable": {
+    "message": "Could not connect to DeepL. Check your connection and try again."
   }
 }

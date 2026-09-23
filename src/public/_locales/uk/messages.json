@@ -493,5 +493,44 @@
   },
   "errorOcrHostStoppedResponding": {
     "message": "OCR-служба не відповідає."
+  },
+  "providerDeepL": {
+    "message": "DeepL"
+  },
+  "optionsDeepLHint": {
+    "message": "Додайте власний ключ API DeepL."
+  },
+  "optionsGetApiKey": {
+    "message": "Отримати ключ DeepL API"
+  },
+  "optionsDeepLPlan": {
+    "message": "Тарифний план API"
+  },
+  "errorDeepLKeyRequired": {
+    "message": "Додайте ключ DeepL API у налаштуваннях."
+  },
+  "errorDeepLTooLarge": {
+    "message": "Текст перевищує ліміт запиту DeepL. Виберіть меншу область."
+  },
+  "errorDeepLAuth": {
+    "message": "DeepL відхилив ключ API. Перевірте ключ і вибраний тариф API у налаштуваннях."
+  },
+  "errorDeepLQuota": {
+    "message": "Квоту перекладу DeepL вичерпано. Перевірте використання або ліміти облікового запису."
+  },
+  "errorDeepLRateLimit": {
+    "message": "Забагато запитів до DeepL. Спробуйте трохи пізніше."
+  },
+  "errorDeepLRequest": {
+    "message": "Помилка запиту DeepL (HTTP $1)."
+  },
+  "errorDeepLResponse": {
+    "message": "DeepL повернув некоректну відповідь перекладу."
+  },
+  "errorDeepLTimeout": {
+    "message": "Час очікування перекладу DeepL минув. Спробуйте ще раз."
+  },
+  "errorDeepLUnreachable": {
+    "message": "Не вдалося підключитися до DeepL. Перевірте з’єднання та спробуйте ще раз."
   }
 }

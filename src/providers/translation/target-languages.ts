@@ -82,3 +82,15 @@ export const COMMON_TARGET_LANGUAGES: readonly LangCode[] = [
   "cy",
   "zu",
 ];
+
+// Languages supported by DeepL, plus its regional target variants.
+export const DEEPL_TARGET_LANGUAGES: readonly LangCode[] = [
+  ...COMMON_TARGET_LANGUAGES.filter(
+    (code) => !["am", "kn", "km", "lo", "si", "so"].includes(code),
+  ),
+  "en-US", "en-GB", "pt-BR", "pt-PT",
+];
+
+export function translationTargetLanguages(providerId: string): readonly LangCode[] {
+  return providerId === "deepl" ? DEEPL_TARGET_LANGUAGES : COMMON_TARGET_LANGUAGES;
+}

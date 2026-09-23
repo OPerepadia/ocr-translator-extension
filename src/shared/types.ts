@@ -106,6 +106,10 @@ export interface Settings {
   translation: {
     providerId: string;
     targetLang: LangCode;
+    deepl?: {
+      apiKey?: string;
+      plan: "free" | "pro";
+    };
     /** OpenAI-compatible endpoint settings, read by the "openai" provider. */
     llm?: {
       baseUrl?: string;

@@ -493,5 +493,44 @@
   },
   "errorOcrHostStoppedResponding": {
     "message": "OCR 宿主已停止响应。"
+  },
+  "providerDeepL": {
+    "message": "DeepL"
+  },
+  "optionsDeepLHint": {
+    "message": "请输入您自己的 DeepL API 密钥。"
+  },
+  "optionsGetApiKey": {
+    "message": "获取 API 密钥"
+  },
+  "optionsDeepLPlan": {
+    "message": "API 套餐"
+  },
+  "errorDeepLKeyRequired": {
+    "message": "请在设置中添加 DeepL API 密钥。"
+  },
+  "errorDeepLTooLarge": {
+    "message": "文本超出 DeepL 请求限制。请选择较小的区域。"
+  },
+  "errorDeepLAuth": {
+    "message": "DeepL 拒绝了 API 密钥。请在设置中检查密钥及所选 API 套餐。"
+  },
+  "errorDeepLQuota": {
+    "message": "DeepL 翻译配额已用尽。请检查账户用量或限额。"
+  },
+  "errorDeepLRateLimit": {
+    "message": "DeepL 请求过多。请稍后重试。"
+  },
+  "errorDeepLRequest": {
+    "message": "DeepL 请求失败（HTTP $1）。"
+  },
+  "errorDeepLResponse": {
+    "message": "DeepL 返回了无效的翻译响应。"
+  },
+  "errorDeepLTimeout": {
+    "message": "DeepL 翻译超时。请重试。"
+  },
+  "errorDeepLUnreachable": {
+    "message": "无法连接到 DeepL。请检查网络连接后重试。"
   }
 }

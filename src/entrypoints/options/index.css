@@ -407,7 +407,8 @@ select:focus-visible {
 
 /* LLM endpoint card */
 
-.llm-settings {
+.llm-settings,
+.deepl-settings {
   display: grid;
   gap: 14px;
   margin: 8px 0 0;
@@ -417,7 +418,8 @@ select:focus-visible {
   background: var(--card);
 }
 
-.llm-settings[hidden] {
+.llm-settings[hidden],
+.deepl-settings[hidden] {
   display: none;
 }
 

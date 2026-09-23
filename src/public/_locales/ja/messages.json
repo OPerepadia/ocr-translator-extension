@@ -493,5 +493,44 @@
   },
   "errorOcrHostStoppedResponding": {
     "message": "文字認識を実行するブラウザーのコンポーネントが応答しなくなりました。"
+  },
+  "providerDeepL": {
+    "message": "DeepL"
+  },
+  "optionsDeepLHint": {
+    "message": "ご自身のDeepL APIキーを入力してください。"
+  },
+  "optionsGetApiKey": {
+    "message": "APIキーを取得"
+  },
+  "optionsDeepLPlan": {
+    "message": "APIプラン"
+  },
+  "errorDeepLKeyRequired": {
+    "message": "設定でDeepL APIキーを入力してください。"
+  },
+  "errorDeepLTooLarge": {
+    "message": "テキストがDeepLのリクエスト上限を超えています。範囲を小さくしてください。"
+  },
+  "errorDeepLAuth": {
+    "message": "DeepLがAPIキーを拒否しました。設定でキーと選択したAPIプランを確認してください。"
+  },
+  "errorDeepLQuota": {
+    "message": "DeepLの翻訳上限に達しました。アカウントの使用量や上限を確認してください。"
+  },
+  "errorDeepLRateLimit": {
+    "message": "DeepLへのリクエストが多すぎます。しばらくしてから再試行してください。"
+  },
+  "errorDeepLRequest": {
+    "message": "DeepLリクエストが失敗しました（HTTP $1）。"
+  },
+  "errorDeepLResponse": {
+    "message": "DeepLから無効な翻訳応答が返されました。"
+  },
+  "errorDeepLTimeout": {
+    "message": "DeepLの翻訳がタイムアウトしました。再試行してください。"
+  },
+  "errorDeepLUnreachable": {
+    "message": "DeepLに接続できませんでした。接続を確認して再試行してください。"
   }
 }

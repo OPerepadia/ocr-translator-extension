@@ -122,6 +122,30 @@
                 </label>
               </div>
 
+              <fieldset class="deepl-settings" hidden>
+                <legend class="llm-card-title" data-i18n="providerDeepL"></legend>
+                <p class="llm-card-subtitle">
+                  <span data-i18n="optionsDeepLHint"></span>
+                  <a
+                    href="https://www.deepl.com/your-account/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    data-i18n="optionsGetApiKey"
+                  ></a>
+                </p>
+                <label class="field">
+                  <span data-i18n="optionsDeepLPlan"></span>
+                  <select name="deeplPlan">
+                    <option value="free">API Free</option>
+                    <option value="pro">API Pro</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span data-i18n="optionsApiKey"></span>
+                  <input name="deeplApiKey" type="password" autocomplete="off" spellcheck="false" />
+                </label>
+              </fieldset>
+
               <fieldset class="llm-settings" hidden>
                 <legend class="llm-card-title">
                   <svg
