@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: September 15, 2026
+Last updated: September 23, 2026
 
 Screen OCR Translator handles only the data needed to provide the features
 described below and collect optional uninstall feedback.
@@ -13,16 +13,15 @@ use user data for advertising.
   OCR engine and are not uploaded. Up to eight recent captures may be stored
   locally for overlays and re-recognition. Captures expire after 30 minutes
   and are deleted the next time the extension performs its local cleanup.
-- **Recognized text.** Recognized text may be transmitted to Google Translate
-  or, if selected by the user, to the OpenAI-compatible translation service
-  configured by the user.
+- **Recognized text.** Recognized text is sent to the translation service
+selected by the user.
 - **Text-to-speech text.** Text is sent to Google text-to-speech only when the
   user requests read-aloud.
-- **Settings and authentication information.** Preferences and an optional LLM
-  API key are stored in the browser's local extension storage. The API key is
-  sent only to the endpoint configured by the user when that provider is used.
+- **Settings and authentication information.** Preferences and API keys are stored
+in the browser's local extension storage. Each API key is sent only to its selected
+provider's endpoint when that provider is used.
 
-Google and any user-configured service process data under their own privacy
+Google, DeepL, and any user-configured service process data under their own privacy
 policies. The extension developer does not receive this data.
 
 ## Retention and deletion

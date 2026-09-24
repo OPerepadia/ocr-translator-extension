@@ -6,7 +6,7 @@
   <a href="https://github.com/OPerepadia/ocr-translator-extension/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue.svg" alt="MPL-2.0 license"></a>
 </p>
 
-Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, then displays the translation in an overlay or in a panel. It uses Google Translate by default, or you can connect it to your own LLM endpoint.
+Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, then displays the translation in an overlay or in a panel. It uses Google Translate by default, or you can use DeepL with your own API key or connect your own LLM endpoint.
 
 <div style="display: flex; align-items: center; gap: 10px;">
   <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"><img src="media/firefox-badge.png" alt="Get the Firefox add-on" width="172" height="60"></a>
@@ -20,7 +20,10 @@ Browser extension that uses local OCR to extract text from images, comics, scans
 - Run OCR locally in your browser using bundled [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
 - Recognize multilingual text with automatic script detection. See [supported languages](#text-recognition).
 - Group text lines using speech-bubble and free-text regions detected by a [local layout model](docs/LAYOUT-GROUPING.md).
-- Translate recognized text with Google Translate (no API key required) or an OpenAI-compatible LLM endpoint (local or remote).
+- Support for several translation providers:
+    - Google Translate (no API key is required)
+    - DeepL (requires your own [DeepL API key](https://www.deepl.com/your-account/keys))
+    - OpenAI-compatible LLM endpoint (local or remote).
 - Copy or listen to the original and translated text, or view them side by side.
 
 ## Usage
@@ -58,7 +61,7 @@ When the source language is set to Auto, a local classifier detects the script a
 
 ### Translation
 
-Recognized text can be translated into any language supported by Google Translate, or any language supported by your configured LLM endpoint.
+Recognized text can be translated into any language supported by your chosen translation provider.
 
 If Ollama returns HTTP 403, enable **Remove Origin header** in the LLM endpoint settings.
 
