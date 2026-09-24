@@ -2,7 +2,10 @@ import {
   COMMON_OCR_SOURCE_LANGUAGES,
   TRANSLATION_PROVIDERS,
 } from "@/providers/catalog";
-import { translationTargetLanguages } from "@/providers/translation/target-languages";
+import {
+  resolveTargetLanguage,
+  translationTargetLanguages,
+} from "@/providers/translation/target-languages";
 import {
   isActivationPageSupported,
   isContentScriptUnavailableError,
@@ -77,10 +80,13 @@ async function initPopup(): Promise<void> {
     elements.displayMode.value = displayMode;
 
     elements.controls.addEventListener("change", () => {
+      const supportedLanguages = translationTargetLanguages(
+        elements.translationProvider.value,
+      );
       fillLanguageSelect(
         elements.targetLanguage,
-        translationTargetLanguages(elements.translationProvider.value),
-        elements.targetLanguage.value,
+        supportedLanguages,
+        resolveTargetLanguage(elements.targetLanguage.value, supportedLanguages),
       );
       currentSettings = {
         ...currentSettings,
