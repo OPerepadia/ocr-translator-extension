@@ -94,3 +94,26 @@ export const DEEPL_TARGET_LANGUAGES: readonly LangCode[] = [
 export function translationTargetLanguages(providerId: string): readonly LangCode[] {
   return providerId === "deepl" ? DEEPL_TARGET_LANGUAGES : COMMON_TARGET_LANGUAGES;
 }
+
+export function resolveTargetLanguage(
+  selected: LangCode,
+  supported: readonly LangCode[],
+): LangCode {
+  if (supported.includes(selected)) return selected;
+
+  const equivalent: Record<string, string> = {
+    "zh-CN": "zh-Hans",
+    "zh-SG": "zh-Hans",
+    "zh-TW": "zh-Hant",
+    "zh-HK": "zh-Hant",
+    "zh-MO": "zh-Hant",
+  };
+  const base = selected.split("-")[0];
+  const candidates = [equivalent[selected], base];
+  if (base === "en") candidates.push("en-US", "en-GB");
+  if (base === "pt") candidates.push("pt-PT", "pt-BR");
+  const mapped = candidates.find((code) => code && supported.includes(code));
+  if (mapped) return mapped;
+
+  return supported.find((code) => code === "en" || code === "en-US" || code === "en-GB") ?? "en";
+}

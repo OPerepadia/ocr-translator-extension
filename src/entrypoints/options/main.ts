@@ -7,7 +7,7 @@ import {
   fetchAvailableModels,
   testLlmConnection,
 } from "@/providers/translation/openai";
-import { translationTargetLanguages } from "@/providers/translation/target-languages";
+import { resolveTargetLanguage, translationTargetLanguages } from "@/providers/translation/target-languages";
 import {
   createLanguagePill,
   languageName,
@@ -247,10 +247,14 @@ async function initOptions(): Promise<void> {
   };
 
   elements.translationProviderSelect.addEventListener("change", () => {
+    const providerId = elements.translationProviderSelect.value;
     fillTargetLanguageSelect(
       elements.targetLangSelect,
-      elements.targetLangSelect.value,
-      elements.translationProviderSelect.value,
+      resolveTargetLanguage(
+        elements.targetLangSelect.value,
+        translationTargetLanguages(providerId),
+      ),
+      providerId,
     );
     refreshTargetPicker();
     void saveSettings();

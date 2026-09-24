@@ -1,5 +1,6 @@
 import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
+import { resolveTargetLanguage, translationTargetLanguages } from "../providers/translation/target-languages";
 import { browser } from "wxt/browser";
 import {
   isRuntimeMessage,
@@ -537,9 +538,7 @@ async function handleRetranslateRequest(
 }
 
 // Switches the active translation provider (picked in the panel), saves it as the
-// new default, and re-translates the already-recognized text with it. The target
-// language is kept; if the new provider can't handle the pair, translateText
-// reports it via translationStatus so the UI can prompt the next step.
+// new default, and re-translates the already-recognized text with it.
 async function handleSwitchProviderRequest(
   dependencies: RouterDependencies,
   message: {
@@ -556,15 +555,19 @@ async function handleSwitchProviderRequest(
     ...settings.translation,
     providerId: message.providerId,
   };
-  if (message.providerId !== settings.translation.providerId) {
+  const translationProvider =
+    dependencies.createTranslationProvider(nextTranslation);
+  nextTranslation.targetLang = resolveTargetLanguage(
+    nextTranslation.targetLang,
+    translationProvider.listTargetLanguages?.() ?? translationTargetLanguages(message.providerId),
+  );
+  if (message.providerId !== settings.translation.providerId ||
+      nextTranslation.targetLang !== settings.translation.targetLang) {
     await dependencies.settingsRepository.set({
       ...settings,
       translation: nextTranslation,
     });
   }
-
-  const translationProvider =
-    dependencies.createTranslationProvider(nextTranslation);
   const { translation, translationStatus } = await translateText({
     text: message.text,
     translationProvider,

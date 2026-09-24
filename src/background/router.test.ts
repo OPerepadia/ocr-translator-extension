@@ -503,6 +503,55 @@ describe("background router", () => {
     );
   });
 
+  it.each([
+    ["en-US", "en"],
+    ["am", "en"],
+  ])("resolves %s when switching providers", async (targetLang, expected) => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: { addListener: vi.fn((next: MessageListener) => { listener = next; }) },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+    const translate = vi.fn(async (input: { targetLang: string }) => ({
+      text: "Translated",
+      targetLang: input.targetLang,
+    }));
+    let settings = {
+      ocr: { providerId: "test", sourceLang: "auto" },
+      translation: { providerId: "google", targetLang },
+    };
+
+    startRouter({
+      captureStore,
+      settingsRepository: {
+        get: async () => settings,
+        set: async (next: typeof settings) => { settings = next; },
+      },
+      createTranslationProvider: () => ({
+        id: "deepl",
+        listTargetLanguages: () => ["en", "fr"],
+        translate,
+      }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    await invoke(listener, {
+      type: "SWITCH_PROVIDER_REQUEST",
+      requestId: "switch-provider",
+      providerId: "deepl",
+      text: "Sample",
+    }, { tab: { id: 31 }, frameId: 0 });
+
+    expect(settings.translation).toEqual({ providerId: "deepl", targetLang: expected });
+    expect(translate).toHaveBeenCalledWith(
+      { text: "Sample", sourceLang: "auto", targetLang: expected },
+      expect.any(AbortSignal),
+    );
+  });
+
   it("does not apply a language change to a newer capture", async () => {
     let listener: MessageListener | undefined;
     vi.stubGlobal("browser", {
