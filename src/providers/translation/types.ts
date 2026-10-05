@@ -32,6 +32,10 @@ export interface TranslationInput {
   sourceLang?: LangCode | "auto";
   targetLang: LangCode;
   format?: "plain" | "html";
+  /** Source-language text that came just before `text`, such as the previous
+   * subtitles. Providers that can use it to resolve what `text` means do so,
+   * and none of them translate it. */
+  context?: string[];
 }
 
 export interface TranslationResult extends PipelineTranslationResult {}

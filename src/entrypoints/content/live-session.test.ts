@@ -4,9 +4,11 @@ import type {
   LiveTranslationResponse,
 } from "@/shared/messages";
 import {
+  CONTEXT_GAP_MS,
   EMPTY_READS_BEFORE_CLEAR,
   IDLE_INTERVAL_MS,
   LiveSession,
+  MAX_CONTEXT_LINES,
   MAX_FAILED_READS,
   READ_INTERVAL_MS,
   RETRY_INTERVAL_MS,
@@ -51,8 +53,11 @@ function setup(options: { visible?: boolean } = {}) {
     return reply ?? read("");
   });
   const translate = vi.fn(
-    async (_requestId: string, text: string): Promise<LiveTranslationResponse> =>
-      translated(`[uk] ${text}`),
+    async (
+      _requestId: string,
+      text: string,
+      _context: string[],
+    ): Promise<LiveTranslationResponse> => translated(`[uk] ${text}`),
   );
   const cancel = vi.fn();
 
@@ -95,7 +100,7 @@ describe("LiveSession", () => {
       status: "running",
       line: { original: "Good morning.", translation: "[uk] Good morning.", state: "ready" },
     });
-    expect(t.translate).toHaveBeenCalledWith(expect.any(String), "Good morning.");
+    expect(t.translate).toHaveBeenCalledWith(expect.any(String), "Good morning.", []);
   });
 
   it("shows the original while the translation is on its way", async () => {
@@ -186,18 +191,19 @@ describe("LiveSession", () => {
     t.session.stop();
   });
 
-  it("shows a line seen before without asking again", async () => {
+  it("shows a line that comes straight back without asking again", async () => {
     const t = setup();
     t.replies.push(
       read("First line here"),
-      read("A different line"),
+      read(""),
+      read(""),
       read("First line here"),
     );
 
     t.session.start();
-    await advance(READ_INTERVAL_MS * 2);
+    await advance(READ_INTERVAL_MS * 3);
 
-    expect(t.translate).toHaveBeenCalledTimes(2);
+    expect(t.translate).toHaveBeenCalledOnce();
     expect(t.last()?.line).toEqual({
       original: "First line here",
       translation: "[uk] First line here",
@@ -206,21 +212,152 @@ describe("LiveSession", () => {
     t.session.stop();
   });
 
-  it("ignores cached lines once the target language changes", async () => {
+  it("translates a repeated line again when other lines came before it", async () => {
     const t = setup();
     t.replies.push(
-      read("First line here"),
-      read("A different line"),
-      read("First line here"),
+      read("Yes, of course."),
+      read("Are you sure about that?"),
+      read("Yes, of course."),
     );
-    t.translate
-      .mockResolvedValueOnce(translated("eins", "de"))
-      .mockResolvedValueOnce(translated("zwei", "fr"));
 
     t.session.start();
     await advance(READ_INTERVAL_MS * 2);
 
-    expect(t.translate).toHaveBeenCalledTimes(3);
+    expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
+      ["Yes, of course.", []],
+      ["Are you sure about that?", ["Yes, of course."]],
+      ["Yes, of course.", ["Yes, of course.", "Are you sure about that?"]],
+    ]);
+    t.session.stop();
+  });
+
+  it("ignores cached lines once the target language changes", async () => {
+    const t = setup();
+    // Two lines alternating until the same line follows the same lines again.
+    t.replies.push(
+      read("First line here"),
+      read("Second line here"),
+      read("First line here"),
+      read("Second line here"),
+      read("First line here"),
+      read("Second line here"),
+    );
+    t.translate.mockImplementation(async (_id, text) =>
+      translated(`[x] ${text}`, t.translate.mock.calls.length >= 5 ? "fr" : "de"),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 5);
+
+    // The sixth line would come from the cache, were it not in another language.
+    expect(t.translate).toHaveBeenCalledTimes(6);
+    t.session.stop();
+  });
+
+  it("serves a cached line when the same lines came before it", async () => {
+    const t = setup();
+    t.replies.push(
+      read("First line here"),
+      read("Second line here"),
+      read("First line here"),
+      read("Second line here"),
+      read("First line here"),
+      read("Second line here"),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 5);
+
+    expect(t.translate).toHaveBeenCalledTimes(5);
+    expect(t.last()?.line?.state).toBe("ready");
+    t.session.stop();
+  });
+
+  it("gives each line the lines shown just before it as context", async () => {
+    const t = setup();
+    t.replies.push(
+      read("I was going to tell you"),
+      read("that I am leaving"),
+      read("and not coming back."),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 2);
+
+    expect(t.translate.mock.calls.map(([, , context]) => context)).toEqual([
+      [],
+      ["I was going to tell you"],
+      ["I was going to tell you", "that I am leaving"],
+    ]);
+    t.session.stop();
+  });
+
+  it("limits the context to the last few lines", async () => {
+    const t = setup();
+    const lines = ["Line one here", "Line two here", "Line three here", "Line four here", "Line five here"];
+    t.replies.push(...lines.map((line) => read(line)));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * lines.length);
+
+    expect(MAX_CONTEXT_LINES).toBe(3);
+    expect(t.translate.mock.calls.at(-1)?.[2]).toEqual(lines.slice(1, 4));
+    t.session.stop();
+  });
+
+  it("does not add a line to the context for every read of it", async () => {
+    const t = setup();
+    t.replies.push(
+      read("The first line"),
+      read("The first line"),
+      read("The first line"),
+      read("The second line"),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 3);
+
+    expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
+      ["The first line", []],
+      ["The second line", ["The first line"]],
+    ]);
+    t.session.stop();
+  });
+
+  it("leaves out lines from before a long pause", async () => {
+    const t = setup();
+    const pause = Math.ceil(CONTEXT_GAP_MS / READ_INTERVAL_MS) + 2;
+    t.replies.push(
+      read("The first line"),
+      ...Array.from({ length: pause }, () => read("")),
+      read("The second line"),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * (pause + 1));
+
+    expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
+      ["The first line", []],
+      ["The second line", []],
+    ]);
+    t.session.stop();
+  });
+
+  it("keeps a line's context when it comes back after the screen cleared", async () => {
+    const t = setup();
+    t.replies.push(
+      read("The first line"),
+      read("The second line"),
+      read(""),
+      read(""),
+      read("The second line"),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 4);
+
+    expect(t.translate).toHaveBeenCalledTimes(2);
+    expect(t.last()?.line?.translation).toBe("[uk] The second line");
     t.session.stop();
   });
 
@@ -482,6 +619,26 @@ describe("LiveSession", () => {
     await advance(READ_INTERVAL_MS * 2);
     expect(t.translate).toHaveBeenCalledTimes(2);
     expect(t.last()?.line?.state).toBe("ready");
+    t.session.stop();
+  });
+
+  it("translates a failed line again with the context it had", async () => {
+    const t = setup();
+    t.replies.push(read("The first line"), read("The second line"));
+    t.translate
+      .mockResolvedValueOnce(translated("[uk] The first line"))
+      .mockResolvedValueOnce({
+        translationStatus: { state: "failed", reason: "HTTP 429", targetLang: "uk" },
+      });
+
+    t.session.start();
+    await advance(RETRY_TRANSLATION_MS + READ_INTERVAL_MS * 2);
+
+    expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
+      ["The first line", []],
+      ["The second line", ["The first line"]],
+      ["The second line", ["The first line"]],
+    ]);
     t.session.stop();
   });
 

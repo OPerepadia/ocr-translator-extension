@@ -252,6 +252,65 @@ describe("createOpenAiTranslationProvider", () => {
     });
   });
 
+  it("sends the context as its own field and tells the model not to translate it", async () => {
+    const { fetchImpl, requests } = llmFetchMock((segments) =>
+      translationReply(segments.map((s) => `T:${s}`)),
+    );
+    const provider = createOpenAiTranslationProvider({ llm, fetchImpl });
+
+    const result = await provider.translate({
+      text: "that I am leaving",
+      sourceLang: "en",
+      targetLang: "uk",
+      context: ["I was going to tell you", "  ", "and I hope"],
+    });
+
+    // Only the segment comes back as the translation.
+    expect(result.text).toBe("T:that I am leaving");
+    const [request] = requests;
+    expect(JSON.parse(request.body.messages[1].content)).toEqual({
+      context: ["I was going to tell you", "and I hope"],
+      segments: [{ id: 0, text: "that I am leaving" }],
+    });
+    expect(request.body.messages[0].content).toContain('"context"');
+    expect(request.body.messages[0].content).toContain("never translate or return it");
+  });
+
+  it("does not mention context when there is none", async () => {
+    const { fetchImpl, requests } = llmFetchMock((segments) =>
+      translationReply(segments),
+    );
+    const provider = createOpenAiTranslationProvider({ llm, fetchImpl });
+
+    await provider.translate({ text: "hello", targetLang: "uk", context: [] });
+    await provider.translate({ text: "hello", targetLang: "uk", context: ["  "] });
+
+    for (const { body } of requests) {
+      expect(JSON.parse(body.messages[1].content)).not.toHaveProperty("context");
+      expect(body.messages[0].content).not.toContain('"context"');
+    }
+  });
+
+  it("keeps the context when it asks the model to correct a reply", async () => {
+    const { fetchImpl, requests } = llmFetchMock((segments, requestIndex) =>
+      requestIndex === 0
+        ? "not json"
+        : translationReply(segments.map((segment) => `T:${segment}`)),
+    );
+    const provider = createOpenAiTranslationProvider({ llm, fetchImpl });
+
+    await provider.translate({
+      text: "that I am leaving",
+      targetLang: "uk",
+      context: ["I was going to tell you"],
+    });
+
+    expect(requests).toHaveLength(2);
+    expect(JSON.parse(requests[1].body.messages[1].content)).toMatchObject({
+      context: ["I was going to tell you"],
+    });
+  });
+
   it("leaves thinking alone when the user re-enabled it", async () => {
     const { fetchImpl, requests } = llmFetchMock((segments) =>
       translationReply(segments),

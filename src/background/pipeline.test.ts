@@ -4,7 +4,7 @@ import {
   RemoteTranslationError,
   type TranslationProvider,
 } from "../providers/translation/types";
-import { runPipeline } from "./pipeline";
+import { runPipeline, translateText } from "./pipeline";
 
 describe("runPipeline", () => {
   it("passes recognized text and language to the translation provider", async () => {
@@ -278,6 +278,36 @@ describe("runPipeline", () => {
         text: "Bonjour",
         sourceLang: "fr",
         targetLang: "en",
+      },
+    ]);
+  });
+});
+
+describe("translateText", () => {
+  it("passes the context on to the provider", async () => {
+    const calls: unknown[] = [];
+    const translationProvider: TranslationProvider = {
+      id: "translation-test",
+      async translate(input) {
+        calls.push(input);
+        return { text: "Hi", targetLang: input.targetLang };
+      },
+    };
+
+    await translateText({
+      text: "that I am leaving",
+      translationProvider,
+      sourceLang: "en",
+      targetLang: "uk",
+      context: ["I was going to tell you"],
+    });
+
+    expect(calls).toEqual([
+      {
+        text: "that I am leaving",
+        sourceLang: "en",
+        targetLang: "uk",
+        context: ["I was going to tell you"],
       },
     ]);
   });

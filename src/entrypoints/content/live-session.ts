@@ -32,7 +32,12 @@ export interface LiveState {
 export interface LiveSessionDeps {
   /** Capture the region and read its text. */
   readFrame(requestId: string): Promise<LiveFrameResponse>;
-  translate(requestId: string, text: string): Promise<LiveTranslationResponse>;
+  /** `context` holds the lines shown just before `text`, oldest first. */
+  translate(
+    requestId: string,
+    text: string,
+    context: string[],
+  ): Promise<LiveTranslationResponse>;
   /** Abandon a request that is still running. */
   cancel(requestId: string): void;
   createId(): string;
@@ -58,10 +63,24 @@ export const EMPTY_READS_BEFORE_CLEAR = 2;
 // A line whose translation failed is translated again no sooner than this.
 export const RETRY_TRANSLATION_MS = 5000;
 export const TRANSLATION_CACHE_SIZE = 100;
+// How many earlier lines go along with a line as context.
+export const MAX_CONTEXT_LINES = 3;
+// Lines further apart than this belong to different scenes, so an earlier one
+// is no help in translating the next.
+export const CONTEXT_GAP_MS = 5000;
 
 interface CachedTranslation {
   translation: string;
   targetLang?: string;
+}
+
+/** A line that has been on screen, kept to give the lines after it context. */
+interface ShownLine {
+  text: string;
+  firstSeenAt: number;
+  lastSeenAt: number;
+  /** The lines before it that it was translated with. */
+  context: string[];
 }
 
 /**
@@ -88,6 +107,8 @@ export class LiveSession {
   private translationRequestId: string | undefined;
   private wakeUp: (() => void) | undefined;
   private readonly cache = new Map<string, CachedTranslation>();
+  // The last of these is the line on screen, or the last one that was.
+  private readonly history: ShownLine[] = [];
 
   constructor(private readonly deps: LiveSessionDeps) {}
 
@@ -235,17 +256,20 @@ export class LiveSession {
       this.showLine(text);
       return;
     }
+    const shown = this.history[this.history.length - 1];
+    shown.lastSeenAt = this.deps.now();
     if (
       line.state === "failed" &&
       this.deps.now() - this.translationFailedAt >= RETRY_TRANSLATION_MS
     ) {
       this.update({ line: { original: line.original, state: "pending" } });
-      this.translateLine(line.original);
+      this.translateLine(line.original, shown.context);
     }
   }
 
   private showLine(text: string): void {
-    const cached = this.cache.get(comparisonKey(text));
+    const shown = this.recordShown(text);
+    const cached = this.cache.get(cacheKey(text, shown.context));
     if (cached && cached.targetLang === this.targetLang) {
       this.cancelTranslation();
       this.update({
@@ -254,21 +278,64 @@ export class LiveSession {
       return;
     }
     this.update({ line: { original: text, state: "pending" } });
-    this.translateLine(text);
+    this.translateLine(text, shown.context);
   }
 
-  private translateLine(text: string): void {
+  /** Records `text` as the line on screen and returns its entry. A line that
+   * comes straight back after the screen cleared is the same entry, so it keeps
+   * the context it was first translated with. */
+  private recordShown(text: string): ShownLine {
+    const now = this.deps.now();
+    const last = this.history[this.history.length - 1];
+    if (last && isSameLine(last.text, text)) {
+      last.lastSeenAt = now;
+      return last;
+    }
+
+    const shown: ShownLine = {
+      text,
+      firstSeenAt: now,
+      lastSeenAt: now,
+      context: this.contextBefore(now),
+    };
+    this.history.push(shown);
+    if (this.history.length > MAX_CONTEXT_LINES + 1) {
+      this.history.shift();
+    }
+    return shown;
+  }
+
+  /** The recent lines that run on into a line first seen at `time`. */
+  private contextBefore(time: number): string[] {
+    const context: string[] = [];
+    let next = time;
+    for (
+      let index = this.history.length - 1;
+      index >= 0 && context.length < MAX_CONTEXT_LINES;
+      index -= 1
+    ) {
+      const earlier = this.history[index];
+      if (next - earlier.lastSeenAt > CONTEXT_GAP_MS) {
+        break;
+      }
+      context.unshift(earlier.text);
+      next = earlier.firstSeenAt;
+    }
+    return context;
+  }
+
+  private translateLine(text: string, context: string[]): void {
     this.cancelTranslation();
     const requestId = this.deps.createId();
     this.translationRequestId = requestId;
     const isCurrentRequest = (): boolean =>
       this.translationRequestId === requestId;
 
-    this.deps.translate(requestId, text).then(
+    this.deps.translate(requestId, text, context).then(
       (response) => {
         if (isCurrentRequest()) {
           this.translationRequestId = undefined;
-          this.applyTranslation(text, response);
+          this.applyTranslation(text, context, response);
         }
       },
       (error: unknown) => {
@@ -285,6 +352,7 @@ export class LiveSession {
 
   private applyTranslation(
     text: string,
+    context: string[],
     { translation, translationStatus }: LiveTranslationResponse,
   ): void {
     const targetLang = translation?.targetLang ?? translationStatus.targetLang;
@@ -293,7 +361,10 @@ export class LiveSession {
     }
 
     if (translation) {
-      this.remember(text, { translation: translation.text, targetLang });
+      this.cacheTranslation(text, context, {
+        translation: translation.text,
+        targetLang,
+      });
       this.update({
         line: { original: text, translation: translation.text, state: "ready" },
       });
@@ -309,8 +380,12 @@ export class LiveSession {
     this.update({ line: { original: text, state: "failed", error } });
   }
 
-  private remember(text: string, entry: CachedTranslation): void {
-    const key = comparisonKey(text);
+  private cacheTranslation(
+    text: string,
+    context: string[],
+    entry: CachedTranslation,
+  ): void {
+    const key = cacheKey(text, context);
     this.cache.delete(key);
     this.cache.set(key, entry);
     if (this.cache.size > TRANSLATION_CACHE_SIZE) {
@@ -354,4 +429,10 @@ export class LiveSession {
       this.wakeUp = done;
     });
   }
+}
+
+// The same words can translate differently after different lines, so a cached
+// translation only applies where the lines before it match too.
+function cacheKey(text: string, context: string[]): string {
+  return [...context, text].map(comparisonKey).join("\n");
 }

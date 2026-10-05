@@ -483,11 +483,12 @@ function startLive(rect: Rect): void {
         viewport: { width: window.innerWidth, height: window.innerHeight },
         mask: panel.getMask(),
       }),
-    translate: (requestId, text) =>
+    translate: (requestId, text, context) =>
       sendRequest<LiveTranslationResponse>({
         type: "LIVE_TRANSLATE_REQUEST",
         requestId,
         text,
+        context,
       }),
     cancel: (requestId) => {
       void sendRequest({ type: "CANCEL_REQUEST", requestId }).catch(() => {});

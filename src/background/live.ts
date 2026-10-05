@@ -129,6 +129,7 @@ export async function handleLiveTranslateRequest(
     ),
     sourceLang: resolveTranslationSourceLanguage(settings.ocr.sourceLang),
     targetLang: settings.translation.targetLang,
+    context: message.context,
     detectLanguage: dependencies.detectLanguage,
     signal,
   });

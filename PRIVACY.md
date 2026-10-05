@@ -17,7 +17,8 @@ use user data for advertising.
   discards it.
 - **Recognized text.** Recognized text is sent to the translation service
 selected by the user. During live translation, the text found in the selected
-region is sent each time it changes, until live translation is stopped.
+region is sent each time it changes, until live translation is stopped. An
+LLM endpoint also receives the few lines before it, as context.
 - **Text-to-speech text.** Text is sent to Google text-to-speech only when the
   user requests read-aloud.
 - **Settings and authentication information.** Preferences and API keys are stored

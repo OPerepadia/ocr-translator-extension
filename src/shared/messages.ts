@@ -141,13 +141,15 @@ export type RuntimeMessage =
       viewport: Viewport;
       mask: Rect[];
     }
-  // Content -> background: translate text the live loop read. Unlike
-  // RETRANSLATE_REQUEST it leaves the saved settings alone. The response
-  // resolves to a LiveTranslationResponse.
+  // Content -> background: translate text the live loop read. `context` holds
+  // the lines shown just before it, so a sentence split over several subtitles
+  // can be translated as one. Unlike RETRANSLATE_REQUEST it leaves the saved
+  // settings alone. The response resolves to a LiveTranslationResponse.
   | {
       type: "LIVE_TRANSLATE_REQUEST";
       requestId: string;
       text: string;
+      context: string[];
     }
   // Content -> background: live translation ended; forget its last frame.
   | {

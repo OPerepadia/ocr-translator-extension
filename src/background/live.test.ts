@@ -300,11 +300,12 @@ describe("createLiveSessions", () => {
 });
 
 describe("handleLiveTranslateRequest", () => {
-  const message = {
+  const message: Extract<RuntimeMessage, { type: "LIVE_TRANSLATE_REQUEST" }> = {
     type: "LIVE_TRANSLATE_REQUEST",
     requestId: "request-2",
     text: "Good evening",
-  } as const;
+    context: [],
+  };
 
   it("translates into the saved target language", async () => {
     const { dependencies, translate } = setup({
@@ -320,6 +321,24 @@ describe("handleLiveTranslateRequest", () => {
     expect(response.translationStatus).toEqual({ state: "ok" });
     expect(translate).toHaveBeenCalledWith(
       expect.objectContaining({ text: "Good evening", targetLang: "de" }),
+      expect.anything(),
+    );
+  });
+
+  it("hands the lines shown before it to the provider as context", async () => {
+    const { dependencies, translate } = setup({});
+
+    await handleLiveTranslateRequest(
+      dependencies,
+      { ...message, context: ["Good morning.", "Is it still early?"] },
+      signal(),
+    );
+
+    expect(translate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Good evening",
+        context: ["Good morning.", "Is it still early?"],
+      }),
       expect.anything(),
     );
   });

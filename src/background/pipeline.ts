@@ -71,6 +71,8 @@ export async function translateText(args: {
   translationProvider: TranslationProvider;
   sourceLang?: LangCode | "auto";
   targetLang: LangCode;
+  /** Text that came just before `text`, for providers that can use it. */
+  context?: string[];
   detectLanguage?: (text: string) => Promise<LangCode | undefined>;
   onStatus?: (status: PipelineStatus) => void;
   signal?: AbortSignal;
@@ -102,6 +104,7 @@ export async function translateText(args: {
         text: args.text,
         sourceLang,
         targetLang: args.targetLang,
+        context: args.context,
       },
       args.signal,
     );

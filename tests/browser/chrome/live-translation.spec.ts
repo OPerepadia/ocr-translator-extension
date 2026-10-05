@@ -56,20 +56,29 @@ interface TranslationServer {
   port: number;
   /** Every text the extension asked to translate. */
   requests: string[];
+  /** The context that went with each of them. */
+  contexts: string[][];
   close(): void;
 }
 
 async function startTranslationServer(): Promise<TranslationServer> {
   const requests: string[] = [];
+  const contexts: string[][] = [];
   const server = createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
     request.on("end", () => {
       const payload = JSON.parse(body) as { messages: Array<{ content: string }> };
-      const { segments } = JSON.parse(payload.messages.at(-1)!.content) as {
+      const { segments, context = [] } = JSON.parse(
+        payload.messages.at(-1)!.content,
+      ) as {
         segments: Array<{ id: number; text: string }>;
+        context?: string[];
       };
-      requests.push(...segments.map((segment) => segment.text));
+      for (const segment of segments) {
+        requests.push(segment.text);
+        contexts.push(context);
+      }
       const translations = segments.map(({ id, text }) => ({
         id,
         text: `[uk] ${text}`,
@@ -87,7 +96,7 @@ async function startTranslationServer(): Promise<TranslationServer> {
   if (!address || typeof address === "string") {
     throw new Error("The translation server did not start.");
   }
-  return { port: address.port, requests, close: () => server.close() };
+  return { port: address.port, requests, contexts, close: () => server.close() };
 }
 
 interface Session {
@@ -215,6 +224,14 @@ test("translates the subtitles in a region and reuses earlier translations", asy
     await showSubtitle(page);
     await expect(translation(page)).toHaveText("", { timeout: 10_000 });
 
+    // The same line coming straight back is not translated again.
+    await showSubtitle(page, "The weather is nice today.");
+    await expect(translation(page)).toHaveText("[uk] The weather is nice today.", {
+      timeout: 10_000,
+    });
+    await showSubtitle(page);
+    await expect(translation(page)).toHaveText("", { timeout: 10_000 });
+
     await showSubtitle(
       page,
       "We should walk to the market",
@@ -225,18 +242,12 @@ test("translates the subtitles in a region and reuses earlier translations", asy
       { timeout: 10_000 },
     );
 
-    await showSubtitle(page);
-    await expect(translation(page)).toHaveText("", { timeout: 10_000 });
-    await showSubtitle(page, "The weather is nice today.");
-    await expect(translation(page)).toHaveText("[uk] The weather is nice today.", {
-      timeout: 10_000,
-    });
-
-    // The first line came back without another request.
     expect(server.requests).toEqual([
       "The weather is nice today.",
       "We should walk to the market before it starts to rain.",
     ]);
+    // The second line was translated knowing what came before it.
+    expect(server.contexts).toEqual([[], ["The weather is nice today."]]);
   } finally {
     await session.context.close();
     server.close();
