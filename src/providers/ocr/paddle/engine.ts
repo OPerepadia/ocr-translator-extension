@@ -26,7 +26,7 @@ import {
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
 import type { InitRequest, WorkerModelConfig } from "./protocol";
-import { RegionGrouper } from "./region-grouper";
+import { groupAsSingleRegion, RegionGrouper } from "./region-grouper";
 import {
   ScriptClassifier,
   type ScriptPrediction,
@@ -63,6 +63,11 @@ interface Manifest {
 export type EngineOptions = Omit<InitRequest, "type" | "id" | "debug"> & {
   debug?: boolean;
 };
+
+export interface RecognizeOptions {
+  /** "single" reads the lines as one paragraph, without the layout model. */
+  grouping?: "layout" | "single";
+}
 
 interface LoadedRecognizer {
   candidate: WorkerModelConfig;
@@ -186,6 +191,7 @@ export class PaddleEngine {
     sourceLang: string | undefined,
     isCancelled: () => boolean,
     onProgress?: (line: number, lineCount: number) => void,
+    options: RecognizeOptions = {},
   ): Promise<PipelineOcrResult> {
     const startedAt = now();
     const bitmap = await createImageBitmap(blob);
@@ -228,15 +234,15 @@ export class PaddleEngine {
 
       const script = this.modelOptions.get(recognized.modelId)?.script;
       throwIfCancelled(isCancelled);
+      const single = options.grouping === "single";
       const groupingStartedAt = now();
-      const grouping = await this.regionGrouper.group(
-        sourceImageData,
-        recognized.lines,
-      );
+      const grouping = single
+        ? groupAsSingleRegion(recognized.lines)
+        : await this.regionGrouper.group(sourceImageData, recognized.lines);
       throwIfCancelled(isCancelled);
       if (this.debug) {
         console.log(
-          `${LOG_PREFIX} region grouping produced ${grouping.groups.length} group(s) from ${grouping.regionCount} region(s) in ${elapsed(groupingStartedAt)} (model=${this.regionGrouper.metadata.id}, threshold=${this.regionGrouper.metadata.confidenceThreshold}, matched=${grouping.matchedLineCount}/${recognized.lines.length})`,
+          `${LOG_PREFIX} region grouping produced ${grouping.groups.length} group(s) from ${grouping.regionCount} region(s) in ${elapsed(groupingStartedAt)} (${single ? "single region" : `model=${this.regionGrouper.metadata.id}, threshold=${this.regionGrouper.metadata.confidenceThreshold}`}, matched=${grouping.matchedLineCount}/${recognized.lines.length})`,
         );
       }
       const result = assembleGroupedResult(grouping.groups, {
@@ -246,16 +252,18 @@ export class PaddleEngine {
       result.providerMeta = {
         ...(result.providerMeta as Record<string, unknown>),
         modelId: recognized.modelId,
-        grouping: {
-          modelId: this.regionGrouper.metadata.id,
-          backend: this.regionGrouper.metadata.backend,
-          confidenceThreshold:
-            this.regionGrouper.metadata.confidenceThreshold,
-          nmsIouThreshold: this.regionGrouper.metadata.nmsIouThreshold,
-          regionCount: grouping.regionCount,
-          matchedLineCount: grouping.matchedLineCount,
-          groupCount: grouping.groups.length,
-        },
+        grouping: single
+          ? { modelId: "single-region", groupCount: grouping.groups.length }
+          : {
+              modelId: this.regionGrouper.metadata.id,
+              backend: this.regionGrouper.metadata.backend,
+              confidenceThreshold:
+                this.regionGrouper.metadata.confidenceThreshold,
+              nmsIouThreshold: this.regionGrouper.metadata.nmsIouThreshold,
+              regionCount: grouping.regionCount,
+              matchedLineCount: grouping.matchedLineCount,
+              groupCount: grouping.groups.length,
+            },
         ...(autoRecognition
           ? {
               autoSelection: autoRecognition.autoSelection,

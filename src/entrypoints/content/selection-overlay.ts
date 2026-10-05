@@ -19,6 +19,15 @@ export type SelectionResult =
   | { kind: "area"; rect: Rect }
   | { kind: "image"; image: HTMLImageElement };
 
+export interface SelectionOptions {
+  /** Let a click on an image pick it whole. On by default. */
+  pickImages?: boolean;
+  /** Replaces the instruction shown on the overlay. */
+  hint?: string;
+  /** Replaces the label of the button that confirms an adjusted selection. */
+  confirmLabel?: string;
+}
+
 const MIN_SIZE = 30;
 // How far a press on an image may move and still count as a click.
 const CLICK_TOLERANCE = 4;
@@ -53,7 +62,9 @@ export function cancelSelectionOverlay(): void {
 export function startSelectionOverlay(
   container: HTMLElement,
   adjustSelection = true,
+  options: SelectionOptions = {},
 ): Promise<SelectionResult | null> {
+  const pickImages = options.pickImages ?? true;
   return new Promise((resolve) => {
     releaseSelectionDim();
 
@@ -72,7 +83,10 @@ export function startSelectionOverlay(
 
     const hint = document.createElement("div");
     hint.className = "ocr-translate-selection-hint";
-    hint.append(t("selectionDragArea"), document.createElement("br"));
+    hint.append(
+      options.hint ?? t("selectionDragArea"),
+      document.createElement("br"),
+    );
     const hintSub = document.createElement("span");
     hintSub.className = "ocr-translate-selection-hint-sub";
     const keyMarker = "__KEY__";
@@ -115,7 +129,7 @@ export function startSelectionOverlay(
     const runButton = document.createElement("button");
     runButton.type = "button";
     runButton.className = "ocr-translate-selection-run";
-    runButton.textContent = t("selectionRunOcr");
+    runButton.textContent = options.confirmLabel ?? t("selectionRunOcr");
 
     const cancelButton = document.createElement("button");
     cancelButton.type = "button";
@@ -338,7 +352,7 @@ export function startSelectionOverlay(
 
     // Outline the image under the pointer while nothing is being drawn.
     function updateImageHover(): void {
-      if (dragState || currentRect) {
+      if (!pickImages || dragState || currentRect) {
         return;
       }
       hoveredImage = lastPointer

@@ -27,12 +27,16 @@ import {
 } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
 import {
+  LIVE_ICON,
   PICK_IMAGE_ICON,
   SETTINGS_ICON,
 } from "@/entrypoints/content/icons";
 import { languageName } from "@/entrypoints/content/language-picker";
 import { createRequestId } from "@/shared/request-id";
-import { getStartSelectionShortcut } from "@/shared/shortcut";
+import {
+  getStartLiveSelectionShortcut,
+  getStartSelectionShortcut,
+} from "@/shared/shortcut";
 import "./style.css";
 
 const settingsRepository = createSettingsRepository();
@@ -47,6 +51,7 @@ async function initPopup(): Promise<void> {
   const elements = getPopupElements();
   elements.openSettings.innerHTML = SETTINGS_ICON;
   elements.pickImage.insertAdjacentHTML("afterbegin", PICK_IMAGE_ICON);
+  elements.liveTranslate.insertAdjacentHTML("afterbegin", LIVE_ICON);
   elements.openSettings.addEventListener("click", () => {
     void openSettings(elements);
   });
@@ -107,8 +112,12 @@ async function initPopup(): Promise<void> {
     elements.pickImage.addEventListener("click", () => {
       void startPageAction(elements, "START_IMAGE_PICKER");
     });
+    elements.liveTranslate.addEventListener("click", () => {
+      void startPageAction(elements, "START_LIVE_SELECTION");
+    });
     elements.selectArea.disabled = false;
     elements.pickImage.disabled = false;
+    elements.liveTranslate.disabled = false;
 
     if (
       typeof activeTab?.id !== "number" ||
@@ -129,15 +138,23 @@ async function initPopup(): Promise<void> {
 }
 
 async function showShortcutHint(elements: PopupElements): Promise<void> {
-  try {
-    const shortcut = await getStartSelectionShortcut();
-    if (shortcut) {
-      elements.shortcutKey.textContent = shortcut;
-      elements.shortcutKey.hidden = false;
-    }
-  } catch {
-    elements.shortcutKey.hidden = true;
-  }
+  const hints = [
+    [elements.shortcutKey, getStartSelectionShortcut],
+    [elements.liveShortcutKey, getStartLiveSelectionShortcut],
+  ] as const;
+  await Promise.all(
+    hints.map(async ([key, getShortcut]) => {
+      try {
+        const shortcut = await getShortcut();
+        if (shortcut) {
+          key.textContent = shortcut;
+          key.hidden = false;
+        }
+      } catch {
+        key.hidden = true;
+      }
+    }),
+  );
 }
 
 function fillLanguageSelect(
@@ -207,18 +224,19 @@ function queuePopupSave(elements: PopupElements): void {
 
 async function startPageAction(
   elements: PopupElements,
-  type: "START_SELECTION" | "START_IMAGE_PICKER",
+  type: "START_SELECTION" | "START_LIVE_SELECTION" | "START_IMAGE_PICKER",
 ): Promise<void> {
   elements.selectArea.disabled = true;
   elements.pickImage.disabled = true;
+  elements.liveTranslate.disabled = true;
   elements.openSettings.disabled = true;
   elements.controls.disabled = true;
   showMessage(
     elements,
     t(
-      type === "START_SELECTION"
-        ? "popupStartingSelection"
-        : "popupStartingImagePicker",
+      type === "START_IMAGE_PICKER"
+        ? "popupStartingImagePicker"
+        : "popupStartingSelection",
     ),
     false,
   );
@@ -228,6 +246,7 @@ async function startPageAction(
   } catch {
     elements.selectArea.disabled = false;
     elements.pickImage.disabled = false;
+    elements.liveTranslate.disabled = false;
     elements.openSettings.disabled = false;
     elements.controls.disabled = false;
     showSettingsSaveError();
@@ -281,6 +300,7 @@ async function startPageAction(
     console.error("[Screen OCR Translator] Failed to start popup action", error);
     elements.selectArea.disabled = false;
     elements.pickImage.disabled = false;
+    elements.liveTranslate.disabled = false;
     elements.openSettings.disabled = false;
     elements.controls.disabled = false;
     showMessage(elements, t("popupCouldNotStart"));
@@ -290,9 +310,11 @@ async function startPageAction(
 async function openSettings(elements: PopupElements): Promise<void> {
   const selectAreaWasDisabled = elements.selectArea.disabled;
   const pickImageWasDisabled = elements.pickImage.disabled;
+  const liveTranslateWasDisabled = elements.liveTranslate.disabled;
   elements.openSettings.disabled = true;
   elements.selectArea.disabled = true;
   elements.pickImage.disabled = true;
+  elements.liveTranslate.disabled = true;
   elements.controls.disabled = true;
   try {
     await pendingSave;
@@ -300,6 +322,7 @@ async function openSettings(elements: PopupElements): Promise<void> {
     elements.openSettings.disabled = false;
     elements.selectArea.disabled = selectAreaWasDisabled;
     elements.pickImage.disabled = pickImageWasDisabled;
+    elements.liveTranslate.disabled = liveTranslateWasDisabled;
     elements.controls.disabled = false;
     showSettingsSaveError();
     return;
@@ -329,6 +352,7 @@ function clearSaveError(): void {
 function disableSelection(elements: PopupElements, message: string): void {
   elements.selectArea.disabled = true;
   elements.pickImage.disabled = true;
+  elements.liveTranslate.disabled = true;
   elements.openSettings.disabled = false;
   elements.controls.disabled = false;
   showMessage(elements, message);
@@ -359,8 +383,10 @@ interface PopupElements {
   openSettings: HTMLButtonElement;
   selectArea: HTMLButtonElement;
   pickImage: HTMLButtonElement;
+  liveTranslate: HTMLButtonElement;
   message: HTMLParagraphElement;
   shortcutKey: HTMLElement;
+  liveShortcutKey: HTMLElement;
 }
 
 function getPopupElements(): PopupElements {
@@ -376,8 +402,10 @@ function getPopupElements(): PopupElements {
     openSettings: requiredElement("open-settings", HTMLButtonElement),
     selectArea: requiredElement("select-area", HTMLButtonElement),
     pickImage: requiredElement("pick-image", HTMLButtonElement),
+    liveTranslate: requiredElement("live-translate", HTMLButtonElement),
     message: requiredElement("message", HTMLParagraphElement),
     shortcutKey: requiredElement("shortcut-key", HTMLElement),
+    liveShortcutKey: requiredElement("live-shortcut-key", HTMLElement),
   };
 }
 

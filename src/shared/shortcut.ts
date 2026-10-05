@@ -1,11 +1,22 @@
 import { browser } from "wxt/browser";
-import { START_SELECTION_COMMAND } from "./commands";
+import {
+  START_LIVE_SELECTION_COMMAND,
+  START_SELECTION_COMMAND,
+} from "./commands";
 
-export async function getStartSelectionShortcut(): Promise<string | undefined> {
+export function getStartSelectionShortcut(): Promise<string | undefined> {
+  return getCommandShortcut(START_SELECTION_COMMAND);
+}
+
+export function getStartLiveSelectionShortcut(): Promise<string | undefined> {
+  return getCommandShortcut(START_LIVE_SELECTION_COMMAND);
+}
+
+async function getCommandShortcut(
+  command: string,
+): Promise<string | undefined> {
   const commands = await browser.commands.getAll();
-  const shortcut = commands.find(
-    ({ name }) => name === START_SELECTION_COMMAND,
-  )?.shortcut;
+  const shortcut = commands.find(({ name }) => name === command)?.shortcut;
   return shortcut
     ? shortcut
         .split("+")

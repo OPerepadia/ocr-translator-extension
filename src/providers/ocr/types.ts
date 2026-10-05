@@ -28,6 +28,10 @@ export interface OcrProvider {
 export interface OcrInput {
   image: Blob | ImageData;
   sourceLang?: LangCode | "auto";
+  /** "single" reads all lines as one paragraph and skips layout analysis,
+   * which is faster for a strip of text such as subtitles. Defaults to
+   * "layout". */
+  grouping?: "layout" | "single";
 }
 
 export interface OcrResult extends PipelineOcrResult {}

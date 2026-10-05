@@ -1,0 +1,318 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { test } from "node:test";
+import { chromium, firefox } from "@playwright/test";
+import { transformWithOxc } from "vite";
+
+const contentDir = new URL("../../../src/entrypoints/content/", import.meta.url);
+const css = await readFile(new URL("style.css", contentDir), "utf8");
+
+// The content modules are compiled into one script. Their imports are dropped,
+// so each test lists the files it needs, in dependency order.
+async function compile(files, name) {
+  const sources = await Promise.all(
+    files.map((file) => readFile(new URL(file, contentDir), "utf8")),
+  );
+  const { code } = await transformWithOxc(
+    ["const t = (key: string) => key;", ...sources]
+      .join("\n")
+      .replace(/^import[\s\S]*?from\s+["'][^"']+["'];\n/gm, ""),
+    `${name}.ts`,
+  );
+  return code;
+}
+
+const panelCode = await compile(["icons.ts", "live-layout.ts", "live-panel.ts"], "live-panel");
+const selectionCode = await compile(["image-picker.ts", "selection-overlay.ts"], "selection");
+const modalCode = await compile(["modal-ui.ts"], "modal-ui");
+
+const svg =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E";
+
+// The UI lives in a shadow root, with the extension's stylesheet.
+const uiSetup = `
+  const host = document.createElement("div");
+  document.body.append(host);
+  const shadow = host.attachShadow({ mode: "open" });
+  const style = document.createElement("style");
+  style.textContent = ${JSON.stringify(css)};
+  const container = document.createElement("div");
+  shadow.append(style, container);
+  window.settle = () =>
+    Promise.all(
+      shadow
+        .getAnimations()
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished),
+    );
+`;
+
+async function withPage(browserType, name, viewport, run) {
+  const browser = await browserType.launch({
+    headless: true,
+    executablePath: process.env[`${name.toUpperCase()}_TEST_EXECUTABLE`],
+  });
+  try {
+    const page = await browser.newPage({ viewport });
+    await run(page);
+  } finally {
+    await browser.close();
+  }
+}
+
+const box = (page, selector) => page.locator(selector).boundingBox();
+
+// The panel fades in, scaling slightly. Measure it once that is over; looping
+// animations such as the status dot never end, so they are left out.
+const settle = (page) => page.evaluate(() => window.settle());
+
+function overlaps(a, b) {
+  return (
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height
+  );
+}
+
+for (const [name, browserType] of Object.entries({ chromium, firefox })) {
+  test(`${name}: the live panel sits beside its region and shows each state`, async () => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`<body style="margin:0"></body>`);
+      await page.addScriptTag({
+        type: "module",
+        content: `${panelCode}
+          ${uiSetup}
+          window.calls = [];
+          window.show = (region) => {
+            window.panel?.dispose();
+            window.panel = showLivePanel(container, region, {
+              onPause: () => calls.push("pause"),
+              onResume: () => calls.push("resume"),
+              onSelectNewRegion: () => calls.push("select"),
+              onRetry: () => calls.push("retry"),
+              onClose: () => calls.push("close"),
+            });
+          };
+          window.pageClicks = 0;
+          document.addEventListener("click", () => window.pageClicks++);
+          document.addEventListener("dblclick", () => window.pageClicks++);
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.show));
+      const show = (region) => page.evaluate((region) => window.show(region), region);
+      const render = (state) => page.evaluate((state) => window.panel.render(state), state);
+      const text = (selector) => page.locator(selector).textContent();
+      const frame = ".ocr-translate-live-region";
+      const panel = ".ocr-translate-live";
+
+      // Below the region, outside the frame drawn around it.
+      const region = { x: 100, y: 100, width: 600, height: 80 };
+      await show(region);
+      await settle(page);
+      assert.equal(overlaps(await box(page, panel), await box(page, frame)), false);
+      assert.ok((await box(page, panel)).y >= 180 + 12);
+      assert.deepEqual(await page.evaluate(() => window.panel.getMask()), []);
+      // The frame stays clear of the pixels that are read.
+      assert.deepEqual(await box(page, frame), { x: 96, y: 96, width: 608, height: 88 });
+
+      // Above a region at the bottom edge.
+      await show({ x: 100, y: 500, width: 600, height: 70 });
+      const above = await box(page, panel);
+      assert.ok(above.y + above.height <= 500 - 12 + 1);
+
+      await show(region);
+      await render({
+        status: "running",
+        line: { original: "Hello there", translation: "Bonjour", state: "ready" },
+      });
+      assert.equal(await text(".ocr-translate-live-translation"), "Bonjour");
+      assert.equal(await text(".ocr-translate-live-original"), "");
+
+      await page.locator(".ocr-translate-live-actions button").nth(0).click();
+      assert.equal(await text(".ocr-translate-live-original"), "Hello there");
+
+      await render({ status: "running", line: { original: "Hello there", state: "pending" } });
+      assert.equal(await text(".ocr-translate-live-translation"), "Hello there");
+      assert.equal(await text(".ocr-translate-live-note"), "statusTranslating");
+
+      await render({
+        status: "running",
+        line: { original: "Hello there", state: "failed", error: "HTTP 429" },
+      });
+      assert.equal(await text(".ocr-translate-live-note"), "HTTP 429");
+
+      await render({ status: "running" });
+      assert.equal(await text(".ocr-translate-live-note"), "liveWaitingForText");
+
+      // Pause becomes resume while paused.
+      await page.locator(".ocr-translate-live-actions button").nth(1).click();
+      await render({ status: "paused" });
+      assert.equal(await text(".ocr-translate-live-note"), "livePaused");
+      await page.locator(".ocr-translate-live-actions button").nth(1).click();
+
+      await render({ status: "error", error: "worker crashed" });
+      assert.equal(await text(".ocr-translate-live-note"), "worker crashed");
+      assert.equal(await page.locator(".ocr-translate-live-actions button").nth(1).isDisabled(), true);
+      await page.locator(".ocr-translate-live-retry").click();
+
+      await page.locator(".ocr-translate-live-actions button").nth(2).click();
+      await page.locator(".ocr-translate-live-actions button").nth(3).click();
+      assert.deepEqual(await page.evaluate(() => window.calls), [
+        "pause",
+        "resume",
+        "retry",
+        "select",
+        "close",
+      ]);
+
+      // Clicks on the panel do not reach the page, where a video player would
+      // treat them as play, pause or full screen.
+      await page.locator(".ocr-translate-live-title").dblclick();
+      assert.equal(await page.evaluate(() => window.pageClicks), 0);
+    });
+  });
+
+  test(`${name}: the live panel masks the part of the region it covers`, async () => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`<body style="margin:0"></body>`);
+      await page.addScriptTag({
+        type: "module",
+        content: `${panelCode}
+          ${uiSetup}
+          window.panel = showLivePanel(container, { x: 10, y: 10, width: 780, height: 580 }, {
+            onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
+          });
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.panel));
+      await settle(page);
+      const panel = await box(page, ".ocr-translate-live");
+      const [mask] = await page.evaluate(() => window.panel.getMask());
+
+      // No room beside a region this large, so the panel covers part of it.
+      assert.ok(mask);
+      assert.ok(mask.x <= panel.x && mask.y <= panel.y);
+      assert.ok(mask.x + mask.width >= panel.x + panel.width);
+      assert.ok(mask.y + mask.height >= panel.y + panel.height);
+
+      // Dragging it moves the panel and the mask with it.
+      const grip = { x: panel.x + 60, y: panel.y + 14 };
+      await page.mouse.move(grip.x, grip.y);
+      await page.mouse.down();
+      await page.mouse.move(grip.x + 120, grip.y - 150, { steps: 5 });
+      await page.mouse.up();
+      const moved = await box(page, ".ocr-translate-live");
+      const where = JSON.stringify({ panel, moved });
+      assert.ok(Math.abs(moved.x - (panel.x + 120)) <= 1, where);
+      assert.ok(Math.abs(moved.y - (panel.y - 150)) <= 1, where);
+      const [movedMask] = await page.evaluate(() => window.panel.getMask());
+      assert.ok(movedMask.x <= moved.x && movedMask.y <= moved.y);
+
+      // It cannot be dragged out of the viewport.
+      await page.mouse.move(moved.x + 60, moved.y + 14);
+      await page.mouse.down();
+      await page.mouse.move(-500, -500, { steps: 5 });
+      await page.mouse.up();
+      const clamped = await box(page, ".ocr-translate-live");
+      assert.ok(clamped.x >= 0 && clamped.y >= 0);
+    });
+  });
+
+  test(`${name}: live selection ignores images and uses its own labels`, async () => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`
+        <body style="margin:0">
+          <img src="${svg}" style="position:absolute; left:100px; top:150px; width:300px; height:200px">
+        </body>
+      `);
+      await page.addScriptTag({
+        type: "module",
+        content: `${selectionCode}
+          ${uiSetup}
+          window.start = () => {
+            window.selection = "pending";
+            startSelectionOverlay(container, true, {
+              pickImages: false,
+              hint: "LIVE HINT",
+              confirmLabel: "LIVE START",
+            }).then((result) => { window.selection = result; });
+          };
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.start));
+      await page.evaluate(() => window.start());
+      await page.locator(".ocr-translate-selection-overlay").waitFor();
+
+      assert.match(await page.locator(".ocr-translate-selection-hint").textContent(), /^LIVE HINT/);
+
+      // Over the image: no image highlight, and a click does not pick it.
+      await page.mouse.move(250, 250);
+      assert.equal(await page.locator(".ocr-translate-image-picker-frame").isHidden(), true);
+      await page.mouse.down();
+      await page.mouse.move(380, 330, { steps: 5 });
+      await page.mouse.up();
+
+      const confirm = page.locator(".ocr-translate-selection-run");
+      assert.equal(await confirm.textContent(), "LIVE START");
+      await confirm.click();
+      await page.waitForFunction(() => window.selection !== "pending");
+      const selection = await page.evaluate(() => window.selection);
+      assert.equal(selection.kind, "area");
+      assert.deepEqual(selection.rect, { x: 250, y: 250, width: 130, height: 80 });
+    });
+  });
+
+  test(`${name}: the UI follows a full screen container and returns afterwards`, async (context) => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`
+        <body style="margin:0">
+          <div id="stage" style="position:absolute; left:50px; top:50px; width:400px; height:300px; background:#468">
+            <video id="video" style="width:100%; height:100%"></video>
+          </div>
+          <button id="fullscreen-stage" onclick="document.getElementById('stage').requestFullscreen()">stage</button>
+          <button id="fullscreen-video" onclick="document.getElementById('video').requestFullscreen()">video</button>
+        </body>
+      `);
+      await page.addScriptTag({
+        type: "module",
+        content: `${modalCode}
+          ${uiSetup}
+          // A small spot at the centre, so the buttons stay clickable.
+          const marker = document.createElement("div");
+          marker.style.cssText =
+            "position:fixed; left:370px; top:270px; width:60px; height:60px; background:#f0f";
+          container.append(marker);
+          window.stop = watchFullscreen(host);
+          window.parentOf = () => host.parentElement.id || host.parentElement.tagName;
+          window.uiIsOnTop = () => document.elementFromPoint(400, 300) === host;
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.stop));
+      const parent = () => page.evaluate(() => window.parentOf());
+      const onTop = () => page.evaluate(() => window.uiIsOnTop());
+
+      await page.click("#fullscreen-stage");
+      try {
+        await page.waitForFunction(() => document.fullscreenElement?.id === "stage", null, { timeout: 5000 });
+      } catch {
+        context.skip(`${name} does not enter full screen in this environment`);
+        return;
+      }
+      // The move happens when the page's fullscreenchange event fires.
+      await page.waitForFunction(() => window.parentOf() === "stage");
+      assert.equal(await onTop(), true);
+
+      await page.evaluate(() => document.exitFullscreen());
+      await page.waitForFunction(() => !document.fullscreenElement);
+      await page.waitForFunction(() => window.parentOf() === "BODY");
+      assert.equal(await onTop(), true);
+
+      // A video draws only its own picture, so the UI stays where it was.
+      await page.click("#fullscreen-video");
+      await page.waitForFunction(() => document.fullscreenElement?.id === "video");
+      await page.waitForTimeout(300);
+      assert.equal(await parent(), "BODY");
+    });
+  });
+}

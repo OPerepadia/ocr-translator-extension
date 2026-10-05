@@ -1,5 +1,8 @@
 import { browser } from "wxt/browser";
-import { START_SELECTION_COMMAND } from "../shared/commands";
+import {
+  START_LIVE_SELECTION_COMMAND,
+  START_SELECTION_COMMAND,
+} from "../shared/commands";
 
 export type CommandApi = {
   commands?: {
@@ -8,9 +11,17 @@ export type CommandApi = {
   tabs: Pick<typeof browser.tabs, "query" | "sendMessage">;
 };
 
+const COMMAND_MESSAGES = {
+  [START_SELECTION_COMMAND]: "START_SELECTION",
+  [START_LIVE_SELECTION_COMMAND]: "START_LIVE_SELECTION",
+} as const;
+
 export function startKeyboardCommand(api: CommandApi = browser): void {
   api.commands?.onCommand?.addListener((command) => {
-    if (command !== START_SELECTION_COMMAND) {
+    const type = Object.hasOwn(COMMAND_MESSAGES, command)
+      ? COMMAND_MESSAGES[command as keyof typeof COMMAND_MESSAGES]
+      : undefined;
+    if (!type) {
       return;
     }
 
@@ -20,11 +31,7 @@ export function startKeyboardCommand(api: CommandApi = browser): void {
         if (typeof tab?.id !== "number") {
           return;
         }
-        return api.tabs.sendMessage(
-          tab.id,
-          { type: "START_SELECTION" },
-          { frameId: 0 },
-        );
+        return api.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
       })
       .catch((error) =>
         console.error(

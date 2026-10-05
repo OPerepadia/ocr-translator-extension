@@ -1782,8 +1782,186 @@
   box-shadow: var(--ocr-focus-halo);
 }
 
+/* Live translation */
+
+/* Both pieces sit outside the monitored region, never over it: the region is
+   read off the screen, so anything drawn on it would be read back. */
+.ocr-translate-live-region {
+  position: fixed;
+  z-index: 2147483646;
+  box-sizing: border-box;
+  border: 2px solid var(--ocr-marker);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
+  pointer-events: none;
+}
+
+.ocr-translate-live-region[data-status="paused"] {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.ocr-translate-live-region[data-status="error"] {
+  border-color: var(--ocr-danger);
+}
+
+.ocr-translate-live {
+  position: fixed;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ocr-line);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-panel-bg);
+  color: var(--ocr-ink);
+  box-shadow: var(--ocr-shadow-float);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-body);
+  line-height: var(--ocr-leading-body);
+  backdrop-filter: blur(18px);
+  animation: ocr-translate-loading-in var(--ocr-duration) var(--ocr-ease-out)
+    both;
+}
+
+.ocr-translate-live-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 3px 4px 3px 12px;
+  border-bottom: 1px solid var(--ocr-line);
+  background: var(--ocr-topbar-bg);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ocr-translate-live-topbar.is-dragging {
+  cursor: grabbing;
+}
+
+.ocr-translate-live-status {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ocr-success);
+}
+
+.ocr-translate-live[data-status="starting"] .ocr-translate-live-status {
+  background: var(--ocr-accent);
+  animation: ocr-translate-live-pulse 1.2s ease-in-out infinite;
+}
+
+.ocr-translate-live[data-status="paused"] .ocr-translate-live-status {
+  background: var(--ocr-ink-subtle);
+}
+
+.ocr-translate-live[data-status="error"] .ocr-translate-live-status {
+  background: var(--ocr-danger);
+}
+
+@keyframes ocr-translate-live-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.ocr-translate-live-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ocr-ink);
+  font-size: var(--ocr-size-sm);
+  font-weight: 700;
+  letter-spacing: var(--ocr-tracking-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocr-translate-live-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.ocr-translate-live-actions .ocr-translate-popup-icon-button {
+  width: 28px;
+  height: 28px;
+}
+
+.ocr-translate-live-actions .ocr-translate-popup-icon-button[aria-pressed="true"] {
+  color: var(--ocr-accent-text);
+  background: var(--ocr-accent-fill);
+}
+
+.ocr-translate-live-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ocr-translate-live-translation {
+  margin: 0;
+  color: var(--ocr-ink-strong);
+  font-size: 17px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.ocr-translate-live-translation.is-pending {
+  color: var(--ocr-ink-muted);
+}
+
+.ocr-translate-live-original {
+  margin: 0;
+  color: var(--ocr-ink-muted);
+  font-size: var(--ocr-size-sm);
+  line-height: var(--ocr-leading-ui);
+  overflow-wrap: anywhere;
+}
+
+.ocr-translate-live-translation:empty,
+.ocr-translate-live-original:empty,
+.ocr-translate-live-note:empty {
+  display: none;
+}
+
+.ocr-translate-live-note {
+  margin: 0;
+  color: var(--ocr-ink-subtle);
+  font-size: var(--ocr-size-xs);
+  line-height: var(--ocr-leading-ui);
+}
+
+.ocr-translate-live-note.is-error {
+  color: var(--ocr-danger);
+}
+
+.ocr-translate-live-retry {
+  align-self: flex-start;
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: var(--ocr-size-sm);
+}
+
+.ocr-translate-live-retry[hidden] {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ocr-translate-popup,
+  .ocr-translate-live,
+  .ocr-translate-live-status,
   .ocr-translate-overlay-status.is-loading,
   .ocr-translate-overlay-toolbar,
   .ocr-translate-overlay-toolbar.is-closing,

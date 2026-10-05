@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RecognizedLine } from "./assemble";
 import {
   decodeTextRegions,
+  groupAsSingleRegion,
   groupLinesByRegions,
   imageToNchw,
   suppressOverlaps,
@@ -140,5 +141,34 @@ describe("text-region grouping", () => {
       [nested],
     ]);
     expect(result.matchedLineCount).toBe(3);
+  });
+});
+
+describe("single-region grouping", () => {
+  it("keeps every readable line in one group", () => {
+    const top = line(0, 0);
+    const bottom = line(0, 40);
+    const result = groupAsSingleRegion([top, bottom]);
+
+    expect(result.groups).toEqual([[top, bottom]]);
+    expect(result.regionCount).toBe(0);
+  });
+
+  it("drops empty and low-confidence lines", () => {
+    const kept = line(0, 0);
+    const result = groupAsSingleRegion([
+      kept,
+      { ...line(0, 40), text: "   " },
+      { ...line(0, 80), confidence: 0.1 },
+    ]);
+
+    expect(result.groups).toEqual([[kept]]);
+  });
+
+  it("returns no group when nothing is readable", () => {
+    expect(groupAsSingleRegion([]).groups).toEqual([]);
+    expect(
+      groupAsSingleRegion([{ ...line(0, 0), confidence: 0.1 }]).groups,
+    ).toEqual([]);
   });
 });

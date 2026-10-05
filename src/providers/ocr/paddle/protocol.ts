@@ -34,6 +34,8 @@ export interface RecognizeRequest {
   id: number;
   image: Blob;
   sourceLang?: string;
+  /** "single" skips the layout model and reads the lines as one paragraph. */
+  grouping?: "layout" | "single";
 }
 
 export interface CancelRequest {

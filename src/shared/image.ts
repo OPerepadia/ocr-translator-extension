@@ -13,19 +13,26 @@ export async function dataUrlToImageBitmap(
   return createImageBitmap(blob);
 }
 
+/** A crop rect rounded to whole pixels, at least one pixel in each direction. */
+export function roundCropRect(source: Rect): Rect {
+  return {
+    x: Math.max(0, Math.round(source.x)),
+    y: Math.max(0, Math.round(source.y)),
+    width: Math.max(1, Math.round(source.width)),
+    height: Math.max(1, Math.round(source.height)),
+  };
+}
+
 /**
- * Crop a region (in source/device pixels) out of a bitmap and return it as a
- * PNG Blob. Uses OffscreenCanvas so it runs without a DOM, which keeps this
- * usable from workers and MV3 service workers.
+ * Draw a region (in source/device pixels) of a bitmap onto a canvas of its own
+ * size. Uses OffscreenCanvas so it runs without a DOM, which keeps this usable
+ * from workers and MV3 service workers.
  */
-export async function cropBitmapToBlob(
+export function cropBitmapToCanvas(
   bitmap: ImageBitmap,
   source: Rect,
-): Promise<Blob> {
-  const sourceX = Math.max(0, Math.round(source.x));
-  const sourceY = Math.max(0, Math.round(source.y));
-  const width = Math.max(1, Math.round(source.width));
-  const height = Math.max(1, Math.round(source.height));
+): OffscreenCanvas {
+  const { x, y, width, height } = roundCropRect(source);
 
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext("2d");
@@ -34,19 +41,18 @@ export async function cropBitmapToBlob(
     throw new Error(t("errorCanvasContext"));
   }
 
-  context.drawImage(
-    bitmap,
-    sourceX,
-    sourceY,
-    width,
-    height,
-    0,
-    0,
-    width,
-    height,
-  );
+  context.drawImage(bitmap, x, y, width, height, 0, 0, width, height);
+  return canvas;
+}
 
-  return canvas.convertToBlob({ type: "image/png" });
+/** Crop a region (in source/device pixels) out of a bitmap as a PNG Blob. */
+export async function cropBitmapToBlob(
+  bitmap: ImageBitmap,
+  source: Rect,
+): Promise<Blob> {
+  return cropBitmapToCanvas(bitmap, source).convertToBlob({
+    type: "image/png",
+  });
 }
 
 // Device pixels per CSS pixel of the region a snapshot is encoded at. The

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { START_SELECTION_COMMAND } from "../shared/commands";
+import {
+  START_LIVE_SELECTION_COMMAND,
+  START_SELECTION_COMMAND,
+} from "../shared/commands";
 import { startKeyboardCommand, type CommandApi } from "./command";
 
 describe("keyboard command", () => {
@@ -43,6 +46,35 @@ describe("keyboard command", () => {
     });
   });
 
+  it("starts live selection in the top frame of the active tab", async () => {
+    let onCommand: ((command: string) => void) | undefined;
+    const sendMessage = vi.fn(async () => undefined);
+    const api = {
+      commands: {
+        onCommand: {
+          addListener: (listener: (command: string) => void) => {
+            onCommand = listener;
+          },
+        },
+      },
+      tabs: {
+        query: vi.fn(async () => [{ id: 7 }]),
+        sendMessage,
+      },
+    } as unknown as CommandApi;
+
+    startKeyboardCommand(api);
+    onCommand?.(START_LIVE_SELECTION_COMMAND);
+
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        7,
+        { type: "START_LIVE_SELECTION" },
+        { frameId: 0 },
+      );
+    });
+  });
+
   it("ignores other commands and tabs without an id", async () => {
     let onCommand: ((command: string) => void) | undefined;
     const sendMessage = vi.fn(async () => undefined);
@@ -60,6 +92,7 @@ describe("keyboard command", () => {
 
     startKeyboardCommand(api);
     onCommand?.("another-command");
+    onCommand?.("toString");
     expect(query).not.toHaveBeenCalled();
 
     onCommand?.(START_SELECTION_COMMAND);

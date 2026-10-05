@@ -87,6 +87,17 @@ describe("createPaddleOcrProvider", () => {
     await expect(promise).resolves.toMatchObject({ text: "hello" });
   });
 
+  it("forwards the grouping mode to the worker", async () => {
+    const fake = new FakeWorker();
+    const provider = makeProvider(fake);
+
+    void provider.recognize({ image: new Blob(["img"]), grouping: "single" });
+    await tick();
+
+    const [recognize] = fake.ofType("recognize");
+    expect(recognize.grouping).toBe("single");
+  });
+
   it("reports initializing when recognize starts while preload is still loading", async () => {
     const fake = new FakeWorker();
     fake.deferInit = true;

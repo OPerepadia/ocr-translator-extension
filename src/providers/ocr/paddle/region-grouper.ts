@@ -32,6 +32,19 @@ const NESTED_REGION_CONTAINMENT_THRESHOLD = 0.9;
 const NESTED_REGION_MIN_AREA_RATIO = 2;
 const NESTED_REGION_COUNT_THRESHOLD = 2;
 
+/** Treat every readable line as one region, without running the layout model.
+ * For a strip that holds a single block of text, such as subtitles. */
+export function groupAsSingleRegion(
+  lines: RecognizedLine[],
+): RegionGroupingResult {
+  const eligible = filterRecognizedLines(lines);
+  return {
+    groups: eligible.length > 0 ? [eligible] : [],
+    regionCount: 0,
+    matchedLineCount: 0,
+  };
+}
+
 export class RegionGrouper {
   private constructor(
     private readonly manifest: RegionManifest,
@@ -64,11 +77,8 @@ export class RegionGrouper {
     lines: RecognizedLine[],
   ): Promise<RegionGroupingResult> {
     const eligible = filterRecognizedLines(lines);
-    if (eligible.length === 0) {
-      return { groups: [], regionCount: 0, matchedLineCount: 0 };
-    }
-    if (eligible.length === 1) {
-      return { groups: [eligible], regionCount: 0, matchedLineCount: 0 };
+    if (eligible.length <= 1) {
+      return groupAsSingleRegion(eligible);
     }
     if (!source) {
       throw new Error("Text-region grouping requires source image pixels.");

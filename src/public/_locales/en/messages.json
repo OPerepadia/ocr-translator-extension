@@ -10,8 +10,14 @@
   "commandTranslateScreenRegion": {
     "message": "Translate a screen region"
   },
+  "commandTranslateScreenRegionLive": {
+    "message": "Translate a screen region live"
+  },
   "contextTranslateScreenRegion": {
     "message": "Translate a screen region…"
+  },
+  "contextTranslateScreenRegionLive": {
+    "message": "Translate a screen region live…"
   },
   "contextTranslateImage": {
     "message": "Translate this image"
@@ -345,6 +351,10 @@
     "message": "Pick image",
     "description": "Choose an image on the current web page to recognize and translate."
   },
+  "popupLiveTranslation": {
+    "message": "Live translation",
+    "description": "Button that translates a chosen screen region continuously, for example video subtitles."
+  },
   "popupRestrictedPage": {
     "message": "This browser page is restricted, so the extension can't access it. Try it on a regular web page."
   },
@@ -363,6 +373,10 @@
   "selectionDragArea": {
     "message": "Drag to select an area or click an image"
   },
+  "liveSelectionHint": {
+    "message": "Drag over the text to translate it live",
+    "description": "Hint shown while choosing the screen region to translate live."
+  },
   "selectionPressKeyToCancel": {
     "message": "Press $1 to cancel",
     "description": "$1 is the keyboard key used to cancel selection."
@@ -376,6 +390,10 @@
   "selectionRunOcr": {
     "message": "Translate",
     "description": "Button that starts text recognition and translation for the selected area."
+  },
+  "liveSelectionStart": {
+    "message": "Start",
+    "description": "Button that starts live translation of the selected area."
   },
   "languageTargetTitle": {
     "message": "Target language: $1",
@@ -430,6 +448,30 @@
   },
   "panelAlreadyInTargetLanguage": {
     "message": "The text is already in the target language."
+  },
+  "liveWaitingForText": {
+    "message": "Waiting for text…",
+    "description": "Shown in the live translation panel while the selected region contains no text."
+  },
+  "livePaused": {
+    "message": "Paused",
+    "description": "Status shown in the live translation panel while it is paused."
+  },
+  "livePause": {
+    "message": "Pause",
+    "description": "Button that pauses live translation."
+  },
+  "liveResume": {
+    "message": "Resume",
+    "description": "Button that resumes live translation."
+  },
+  "liveShowOriginal": {
+    "message": "Show original text",
+    "description": "Button that shows the recognized text below the translation."
+  },
+  "liveHideOriginal": {
+    "message": "Hide original text",
+    "description": "Button that hides the recognized text below the translation."
   },
   "overlayMoveToolbar": {
     "message": "Move toolbar"

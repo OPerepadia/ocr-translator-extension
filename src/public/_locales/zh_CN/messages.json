@@ -8,8 +8,14 @@
   "commandTranslateScreenRegion": {
     "message": "翻译屏幕区域"
   },
+  "commandTranslateScreenRegionLive": {
+    "message": "实时翻译屏幕区域"
+  },
   "contextTranslateScreenRegion": {
     "message": "翻译屏幕区域…"
+  },
+  "contextTranslateScreenRegionLive": {
+    "message": "实时翻译屏幕区域…"
   },
   "contextTranslateImage": {
     "message": "翻译此图片"
@@ -305,6 +311,9 @@
   "popupPickImage": {
     "message": "选择图片"
   },
+  "popupLiveTranslation": {
+    "message": "实时翻译"
+  },
   "popupRestrictedPage": {
     "message": "无法在此页面使用此扩展。请在普通网页上重试。"
   },
@@ -323,6 +332,9 @@
   "selectionDragArea": {
     "message": "拖动以选择区域，或点击图片"
   },
+  "liveSelectionHint": {
+    "message": "拖动以选择要实时翻译的区域"
+  },
   "selectionPressKeyToCancel": {
     "message": "按 $1 键取消"
   },
@@ -334,6 +346,9 @@
   },
   "selectionRunOcr": {
     "message": "翻译"
+  },
+  "liveSelectionStart": {
+    "message": "开始"
   },
   "languageTargetTitle": {
     "message": "目标语言：$1"
@@ -379,6 +394,24 @@
   },
   "panelAlreadyInTargetLanguage": {
     "message": "文本已经是目标语言。"
+  },
+  "liveWaitingForText": {
+    "message": "正在等待文字…"
+  },
+  "livePaused": {
+    "message": "已暂停"
+  },
+  "livePause": {
+    "message": "暂停"
+  },
+  "liveResume": {
+    "message": "继续"
+  },
+  "liveShowOriginal": {
+    "message": "显示原文"
+  },
+  "liveHideOriginal": {
+    "message": "隐藏原文"
   },
   "overlayMoveToolbar": {
     "message": "移动工具栏"

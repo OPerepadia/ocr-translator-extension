@@ -5,6 +5,8 @@ import {
 } from "@/shared/messages";
 import type {
   CaptureSnapshotResponse,
+  LiveFrameResponse,
+  LiveTranslationResponse,
   OcrImageSource,
   OcrSourceLanguagesResponse,
   TranslationProvidersResponse,
@@ -64,12 +66,14 @@ import {
   startSelectionOverlay,
 } from "./selection-overlay";
 import { closeRegionOutline, showRegionOutline } from "./region-outline";
+import { LiveSession } from "./live-session";
+import { showLivePanel, type LivePanel } from "./live-panel";
 import {
   setNavigationContext,
   startNavigationWatch,
 } from "./navigation-watch";
 import { getRenderedImageRect } from "./overlay-layout";
-import { getUiAnchor, watchUiModal } from "./modal-ui";
+import { getUiAnchor, watchFullscreen, watchUiModal } from "./modal-ui";
 import { languageName } from "./language-picker";
 import {
   cancelImagePickerOverlay,
@@ -102,6 +106,16 @@ let activeImagePickerSessionId: string | undefined;
 let activeView: "panel" | "overlay" = "panel";
 let displayMode: DisplayMode = "panel";
 let activePipelineStage: PipelineStatus["stage"] | undefined;
+// The running live translation, if any. It reads the screen on its own, so
+// nothing else may draw over its region while it runs.
+let live:
+  | {
+      session: LiveSession;
+      panel: LivePanel;
+      sessionId: string;
+      stopWatchingVisibility: () => void;
+    }
+  | undefined;
 
 const contentControls: ContentControls = {
   targetLanguages: [],
@@ -142,6 +156,7 @@ export default defineContentScript({
 
     let uiPromise: ReturnType<typeof createShadowRootUi> | undefined;
     let stopModalWatch: (() => void) | undefined;
+    let stopFullscreenWatch: (() => void) | undefined;
     const ensureUi = async (): Promise<void> => {
       try {
         await localeReady;
@@ -154,6 +169,8 @@ export default defineContentScript({
           onMount: (container, _shadow, host) => {
             stopModalWatch?.();
             stopModalWatch = watchUiModal(host, container, closePageUi);
+            stopFullscreenWatch?.();
+            stopFullscreenWatch = watchFullscreen(host);
             container.lang = uiLanguage();
             container.dir = uiDirection();
             uiRoot = container;
@@ -244,11 +261,19 @@ export default defineContentScript({
         withUi(() => void runSelectionFlow());
         return undefined;
       }
+      if (isRuntimeMessage(message, "START_LIVE_SELECTION")) {
+        endActiveImagePickerSession();
+        closePopup();
+        closeOverlay();
+        withUi(() => void runLiveSelectionFlow());
+        return undefined;
+      }
       if (
         isRuntimeMessage(message, "START_IMAGE_PICKER") &&
         typeof message.sessionId === "string"
       ) {
         activeImagePickerSessionId = message.sessionId;
+        stopLive();
         cancelSelectionOverlay();
         closePopup();
         closeOverlay();
@@ -267,6 +292,7 @@ export default defineContentScript({
         return undefined;
       }
       if (isRuntimeMessage(message, "START_IMAGE_TRANSLATION")) {
+        stopLive();
         cancelSelectionOverlay();
         endActiveImagePickerSession();
         closePopup();
@@ -305,7 +331,9 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener(handleRuntimeMessage);
     ctx.onInvalidated(() => {
       stopModalWatch?.();
+      stopFullscreenWatch?.();
       selectionGeneration += 1;
+      stopLive();
       requestRunner.dispose();
       cancelSelectionOverlay();
       clearActiveImagePickerSession();
@@ -323,6 +351,7 @@ export default defineContentScript({
 // Navigation and modal dismissal invalidate the content behind the capture.
 function closePageUi(): void {
   selectionGeneration += 1;
+  stopLive();
   cancelActiveRequest();
   cancelSelectionOverlay();
   cleanupImagePickerOnNavigation(
@@ -351,6 +380,7 @@ async function runSelectionFlow(): Promise<void> {
     return;
   }
   const generation = ++selectionGeneration;
+  stopLive();
   cancelSelectionOverlay();
   closeRegionOutline();
   startNavigationWatch(closePageUi);
@@ -379,6 +409,145 @@ async function runSelectionFlow(): Promise<void> {
       height: window.innerHeight,
     },
   });
+}
+
+// Pick a region and translate it continuously. Starting again while live
+// translation runs picks a new region; the old one keeps going only if the
+// selection is cancelled.
+async function runLiveSelectionFlow(): Promise<void> {
+  if (!uiRoot) {
+    return;
+  }
+  const generation = ++selectionGeneration;
+  cancelSelectionOverlay();
+  closeRegionOutline();
+  startNavigationWatch(closePageUi);
+  void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
+
+  // The selection dim would otherwise be read as part of the region.
+  const interrupted = live;
+  const wasPaused = interrupted?.session.current.status === "paused";
+  interrupted?.session.pause();
+
+  const adjustSelection = await getAdjustSelection();
+  const selection =
+    generation === selectionGeneration
+      ? await startSelectionOverlay(uiRoot, adjustSelection, {
+          pickImages: false,
+          hint: t("liveSelectionHint"),
+          confirmLabel: t("liveSelectionStart"),
+        })
+      : null;
+
+  if (generation !== selectionGeneration) {
+    return;
+  }
+  if (selection?.kind === "area") {
+    startLive(selection.rect);
+  } else if (interrupted && live === interrupted && !wasPaused) {
+    interrupted.session.resume();
+  }
+}
+
+function startLive(rect: Rect): void {
+  if (!uiRoot) {
+    return;
+  }
+  stopLive();
+  // The result views are drawn on the page, so they would be read as well.
+  cancelActiveRequest();
+  closePopup({ notify: false });
+  closeOverlay();
+  closeRegionOutline();
+  clearCaptureSnapshot();
+  releaseSelectionDim();
+  lastResult = undefined;
+  lastRect = undefined;
+  pendingText = "";
+
+  const sessionId = createRequestId();
+  const panel = showLivePanel(uiRoot, rect, {
+    onPause: () => session.pause(),
+    onResume: () => session.resume(),
+    onRetry: () => session.retry(),
+    onSelectNewRegion: () => void runLiveSelectionFlow(),
+    onClose: stopLive,
+  });
+  const session = new LiveSession({
+    readFrame: (requestId) =>
+      sendRequest<LiveFrameResponse>({
+        type: "LIVE_FRAME_REQUEST",
+        requestId,
+        sessionId,
+        rect,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        mask: panel.getMask(),
+      }),
+    translate: (requestId, text) =>
+      sendRequest<LiveTranslationResponse>({
+        type: "LIVE_TRANSLATE_REQUEST",
+        requestId,
+        text,
+      }),
+    cancel: (requestId) => {
+      void sendRequest({ type: "CANCEL_REQUEST", requestId }).catch(() => {});
+    },
+    createId: createRequestId,
+    isVisible: () => document.visibilityState === "visible",
+    now: () => Date.now(),
+    onChange: (state) => panel.render(state),
+  });
+
+  // The screen can only be read while this tab is the one on show, so pick up
+  // right away when it returns rather than at the next idle check.
+  const wakeWhenVisible = (): void => {
+    if (document.visibilityState === "visible") {
+      session.wake();
+    }
+  };
+  document.addEventListener("visibilitychange", wakeWhenVisible);
+
+  live = {
+    session,
+    panel,
+    sessionId,
+    stopWatchingVisibility: () =>
+      document.removeEventListener("visibilitychange", wakeWhenVisible),
+  };
+  startNavigationWatch(closePageUi);
+  // The selection overlay is torn down above, but until the browser paints that
+  // it is still on screen, and the first read would pick up its hint.
+  void afterNextPaint().then(() => {
+    if (live?.session === session) {
+      session.start();
+    }
+  });
+}
+
+// Resolves once the page has painted. The timeout covers a tab that is hidden,
+// where animation frames do not run.
+function afterNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    const fallback = setTimeout(resolve, 150);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        clearTimeout(fallback);
+        resolve();
+      }),
+    );
+  });
+}
+
+function stopLive(): void {
+  if (!live) {
+    return;
+  }
+  const { session, panel, sessionId, stopWatchingVisibility } = live;
+  live = undefined;
+  session.stop();
+  stopWatchingVisibility();
+  panel.dispose();
+  void sendRequest({ type: "LIVE_STOP", sessionId }).catch(() => {});
 }
 
 function startNewSelection(): void {

@@ -2,6 +2,7 @@ import type {
   EncodedImage,
   LangCode,
   PipelineOcrResult,
+  PipelineResult,
   PipelineStatus,
   Rect,
   SerializedError,
@@ -19,6 +20,11 @@ export type RuntimeMessage =
     }
   | {
       type: "START_SELECTION";
+    }
+  // Popup, context menu or shortcut -> content (top frame): pick a screen
+  // region to translate continuously.
+  | {
+      type: "START_LIVE_SELECTION";
     }
   | {
       type: "START_IMAGE_PICKER";
@@ -122,6 +128,32 @@ export type RuntimeMessage =
       providerId: string;
       text: string;
     }
+  // Content -> background: read the text currently inside a screen region. The
+  // live translation loop sends this repeatedly. `mask` lists viewport rects
+  // (the live panel, where it overlaps the region) to blank out first, so the
+  // panel's own text is never read back. The response resolves to a
+  // LiveFrameResponse.
+  | {
+      type: "LIVE_FRAME_REQUEST";
+      requestId: string;
+      sessionId: string;
+      rect: Rect;
+      viewport: Viewport;
+      mask: Rect[];
+    }
+  // Content -> background: translate text the live loop read. Unlike
+  // RETRANSLATE_REQUEST it leaves the saved settings alone. The response
+  // resolves to a LiveTranslationResponse.
+  | {
+      type: "LIVE_TRANSLATE_REQUEST";
+      requestId: string;
+      text: string;
+    }
+  // Content -> background: live translation ended; forget its last frame.
+  | {
+      type: "LIVE_STOP";
+      sessionId: string;
+    }
   // Content -> background: abort the in-flight pipeline
   // so an abandoned recognition stops occupying the single OCR worker.
   | {
@@ -144,6 +176,23 @@ export interface CaptureSnapshotResponse {
    * between the capture and the request. */
   snapshot?: EncodedImage;
 }
+
+export type LiveFrameResponse =
+  /** The sending tab was not the visible one, so nothing was captured. */
+  | { status: "hidden" }
+  | {
+      status: "ok";
+      /** Empty when the region holds no readable text. */
+      text: string;
+      /** The region looked the same as at the last read, so `text` is that
+       * read's result and no recognition ran. */
+      unchanged: boolean;
+    };
+
+export type LiveTranslationResponse = Pick<
+  PipelineResult,
+  "translation" | "translationStatus"
+>;
 
 export interface SpeakResponse {
   audioChunks: string[];

@@ -1,4 +1,8 @@
-import { captureVisibleArea, loadImage } from "@/background/capture";
+import {
+  captureLiveFrame,
+  captureVisibleArea,
+  loadImage,
+} from "@/background/capture";
 import { createCaptureStore } from "@/background/capture-store";
 import { startKeyboardCommand } from "@/background/command";
 import { startContextMenu } from "@/background/context-menu";
@@ -45,6 +49,7 @@ export default defineBackground(() => {
       settingsRepository,
       captureStore: createCaptureStore(),
       captureVisibleArea,
+      captureLiveFrame,
       loadImage,
       createOcrProvider,
       releaseOcrProvider,

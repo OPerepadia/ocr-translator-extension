@@ -8,8 +8,14 @@
   "commandTranslateScreenRegion": {
     "message": "Перевести область экрана"
   },
+  "commandTranslateScreenRegionLive": {
+    "message": "Переводить область экрана в реальном времени"
+  },
   "contextTranslateScreenRegion": {
     "message": "Перевести область экрана…"
+  },
+  "contextTranslateScreenRegionLive": {
+    "message": "Переводить область экрана в реальном времени…"
   },
   "contextTranslateImage": {
     "message": "Перевести это изображение"
@@ -305,6 +311,9 @@
   "popupPickImage": {
     "message": "Выбрать изображение"
   },
+  "popupLiveTranslation": {
+    "message": "Перевод в реальном времени"
+  },
   "popupRestrictedPage": {
     "message": "Доступ к этой странице браузера ограничен, поэтому расширение не может с ней работать. Попробуйте на обычной веб-странице."
   },
@@ -323,6 +332,9 @@
   "selectionDragArea": {
     "message": "Потяните мышью, чтобы выбрать область, или нажмите на изображение"
   },
+  "liveSelectionHint": {
+    "message": "Потяните мышью, чтобы выбрать область для перевода в реальном времени"
+  },
   "selectionPressKeyToCancel": {
     "message": "Нажмите $1 для отмены"
   },
@@ -334,6 +346,9 @@
   },
   "selectionRunOcr": {
     "message": "Перевести"
+  },
+  "liveSelectionStart": {
+    "message": "Начать"
   },
   "languageTargetTitle": {
     "message": "Язык перевода: $1"
@@ -379,6 +394,24 @@
   },
   "panelAlreadyInTargetLanguage": {
     "message": "Текст уже написан на языке перевода."
+  },
+  "liveWaitingForText": {
+    "message": "Ожидание текста…"
+  },
+  "livePaused": {
+    "message": "На паузе"
+  },
+  "livePause": {
+    "message": "Приостановить"
+  },
+  "liveResume": {
+    "message": "Продолжить"
+  },
+  "liveShowOriginal": {
+    "message": "Показать оригинал"
+  },
+  "liveHideOriginal": {
+    "message": "Скрыть оригинал"
   },
   "overlayMoveToolbar": {
     "message": "Переместить тулбар"

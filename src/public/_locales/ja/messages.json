@@ -8,8 +8,14 @@
   "commandTranslateScreenRegion": {
     "message": "画面の範囲を翻訳"
   },
+  "commandTranslateScreenRegionLive": {
+    "message": "画面の範囲をリアルタイム翻訳"
+  },
   "contextTranslateScreenRegion": {
     "message": "画面の範囲を翻訳…"
+  },
+  "contextTranslateScreenRegionLive": {
+    "message": "画面の範囲をリアルタイム翻訳…"
   },
   "contextTranslateImage": {
     "message": "この画像を翻訳"
@@ -305,6 +311,9 @@
   "popupPickImage": {
     "message": "画像を選択"
   },
+  "popupLiveTranslation": {
+    "message": "リアルタイム翻訳"
+  },
   "popupRestrictedPage": {
     "message": "このページでは拡張機能を使用できません。通常のウェブページでお試しください。"
   },
@@ -323,6 +332,9 @@
   "selectionDragArea": {
     "message": "ドラッグして範囲を選択、または画像をクリック"
   },
+  "liveSelectionHint": {
+    "message": "ドラッグして、リアルタイムで翻訳する範囲を選択"
+  },
   "selectionPressKeyToCancel": {
     "message": "$1キーでキャンセル"
   },
@@ -334,6 +346,9 @@
   },
   "selectionRunOcr": {
     "message": "翻訳"
+  },
+  "liveSelectionStart": {
+    "message": "開始"
   },
   "languageTargetTitle": {
     "message": "翻訳先の言語：$1"
@@ -379,6 +394,24 @@
   },
   "panelAlreadyInTargetLanguage": {
     "message": "テキストはすでに翻訳先の言語です。"
+  },
+  "liveWaitingForText": {
+    "message": "テキストを待っています…"
+  },
+  "livePaused": {
+    "message": "一時停止中"
+  },
+  "livePause": {
+    "message": "一時停止"
+  },
+  "liveResume": {
+    "message": "再開"
+  },
+  "liveShowOriginal": {
+    "message": "原文を表示"
+  },
+  "liveHideOriginal": {
+    "message": "原文を非表示"
   },
   "overlayMoveToolbar": {
     "message": "ツールバーを移動"

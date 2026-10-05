@@ -93,3 +93,24 @@ export const OVERLAY_ICON =
   '<path d="M7 11.8L10.4 7.7L13 11.8L15 9.2L17.4 11.8Z" fill="currentColor"/>' +
   '<path d="M7.5 14H16.5M7.5 16.5H16.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
   "</svg>";
+
+export const PAUSE_ICON =
+  '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">' +
+  '<rect x="5" y="4" width="3.4" height="12" rx="1"/><rect x="11.6" y="4" width="3.4" height="12" rx="1"/>' +
+  "</svg>";
+
+export const PLAY_ICON =
+  '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">' +
+  '<path d="M6.5 4.6a1 1 0 0 1 1.5-.86l8 5.4a1 1 0 0 1 0 1.72l-8 5.4a1 1 0 0 1-1.5-.86z"/>' +
+  "</svg>";
+
+export const ORIGINAL_TEXT_ICON =
+  '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false">' +
+  '<path d="M4 5.5h12M4 10h12M4 14.5h7"/>' +
+  "</svg>";
+
+export const LIVE_ICON =
+  '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  '<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>' +
+  '<circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/>' +
+  "</svg>";

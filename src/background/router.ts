@@ -30,12 +30,18 @@ import type {
   Settings,
   Viewport,
 } from "../shared/types";
+import type { LiveFrame } from "./capture";
 import type {
   CaptureDraft,
   CaptureRecord,
   CaptureStore,
 } from "./capture-store";
 import { createKeepAlive } from "./keepalive";
+import {
+  createLiveSessions,
+  handleLiveFrameRequest,
+  handleLiveTranslateRequest,
+} from "./live";
 import { runPipeline, translateText } from "./pipeline";
 
 export interface RouterDependencies {
@@ -43,6 +49,13 @@ export interface RouterDependencies {
   /** Screenshots retained past the request that took them. */
   captureStore: CaptureStore;
   captureVisibleArea(args: { rect: Rect; viewport: Viewport }): Promise<Blob>;
+  /** Capture a region for live translation, with `mask` rects painted over. */
+  captureLiveFrame(args: {
+    rect: Rect;
+    viewport: Viewport;
+    mask: Rect[];
+    windowId?: number;
+  }): Promise<LiveFrame>;
   loadImage(url: string, pageUrl?: string): Promise<Blob>;
   createOcrProvider(settings: Settings["ocr"]): OcrProvider;
   /** Free the cached OCR provider's worker and models. */
@@ -68,10 +81,16 @@ export function startRouter(
     },
   );
 
+  const liveSessions = createLiveSessions();
+
   onRequest(async (message, sender) => {
     await localeReady;
     const messageSender = sender as
-      | { tab?: { id?: number }; frameId?: number; url?: string }
+      | {
+          tab?: { id?: number; active?: boolean; windowId?: number };
+          frameId?: number;
+          url?: string;
+        }
       | undefined;
     const tabId = messageSender?.tab?.id;
     const frameKey =
@@ -114,6 +133,30 @@ export function startRouter(
           ),
         ),
       );
+    }
+    if (isRuntimeMessage(message, "LIVE_FRAME_REQUEST")) {
+      return withKeepAlive(() =>
+        withAbort(message.requestId, (signal) =>
+          handleLiveFrameRequest(
+            dependencies,
+            liveSessions,
+            message,
+            messageSender?.tab,
+            signal,
+          ),
+        ),
+      );
+    }
+    if (isRuntimeMessage(message, "LIVE_TRANSLATE_REQUEST")) {
+      return withKeepAlive(() =>
+        withAbort(message.requestId, (signal) =>
+          handleLiveTranslateRequest(dependencies, message, signal),
+        ),
+      );
+    }
+    if (isRuntimeMessage(message, "LIVE_STOP")) {
+      liveSessions.end(message.sessionId);
+      return undefined;
     }
     if (isRuntimeMessage(message, "PRELOAD_OCR")) {
       return withKeepAlive(() => handlePreloadOcrRequest(dependencies));

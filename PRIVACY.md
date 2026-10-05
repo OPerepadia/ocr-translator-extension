@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: September 23, 2026
+Last updated: October 5, 2026
 
 Screen OCR Translator handles only the data needed to provide the features
 described below and collect optional uninstall feedback.
@@ -13,8 +13,11 @@ use user data for advertising.
   OCR engine and are not uploaded. Up to eight recent captures may be stored
   locally for overlays and re-recognition. Captures expire after 30 minutes
   and are deleted the next time the extension performs its local cleanup.
+  Live translation keeps no captures. It reads each frame in memory and
+  discards it.
 - **Recognized text.** Recognized text is sent to the translation service
-selected by the user.
+selected by the user. During live translation, the text found in the selected
+region is sent each time it changes, until live translation is stopped.
 - **Text-to-speech text.** Text is sent to Google text-to-speech only when the
   user requests read-aloud.
 - **Settings and authentication information.** Preferences and API keys are stored

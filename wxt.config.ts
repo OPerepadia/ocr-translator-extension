@@ -1,6 +1,9 @@
 import { resolve } from "node:path";
 import { defineConfig } from "wxt";
-import { START_SELECTION_COMMAND } from "./src/shared/commands";
+import {
+  START_LIVE_SELECTION_COMMAND,
+  START_SELECTION_COMMAND,
+} from "./src/shared/commands";
 
 const packagedLegalFiles = [
   "LICENSE",
@@ -89,6 +92,11 @@ export default defineConfig({
           default: "Ctrl+Shift+F",
         },
         description: "__MSG_commandTranslateScreenRegion__",
+      },
+      // No suggested key: a browser shortcut can clash with the page's own,
+      // so the user picks one in the browser's shortcut settings.
+      [START_LIVE_SELECTION_COMMAND]: {
+        description: "__MSG_commandTranslateScreenRegionLive__",
       },
     },
     // Local OCR engine (PaddleOCR) compiles packaged WASM at runtime and runs in a

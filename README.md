@@ -16,6 +16,7 @@ Browser extension that uses local OCR to extract text from images, comics, scans
 ## Features
 
 - Select any area of a web page and translate it in place.
+- Translate a screen region live, for example subtitles that are part of a video.
 - Translate images directly from the context menu.
 - Run OCR locally in your browser using bundled [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
 - Recognize multilingual text with automatic script detection. See [supported languages](#text-recognition).
@@ -37,6 +38,24 @@ You can also right-click an image and choose "Translate this image". If clicking
 In the overlay view, press `Shift` to switch between the translation and the original.
 
 By default, the translation appears in an overlay. You can switch to the panel view from the toolbar context menu, or change the default view in the extension settings.
+
+### Live translation
+
+Use it for text that keeps changing on screen, such as subtitles burned into a video.
+
+1. Click **Live translation** in the extension popup, or right-click the page and choose "Translate a screen region live…".
+2. Drag over the area where the text appears.
+
+The extension reads that area about once a second and shows the translation in a small panel next to it. The panel buttons show the original text, pause, select a new area, or close the panel. Drag the title bar to move the panel.
+
+To start it with a key, assign a shortcut to "Translate a screen region live" in your browser's extension shortcut settings.
+
+Things to know:
+
+- The area stays at a fixed place on the screen. If the video moves or changes size, select the area again.
+- Every new line is sent to your translation provider. A line that repeats is translated only once.
+- In fullscreen, the panel shows when the page makes a container fullscreen, such as the whole player. It can't show when the page makes only the video, or a frame, fullscreen.
+- The browser may capture protected (DRM) video as a black picture. Nothing can be read from it.
 
 ### Local image files
 To use the extension on local image files, you need to grant access to local files.

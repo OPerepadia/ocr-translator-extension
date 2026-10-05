@@ -1080,4 +1080,129 @@ describe("background router", () => {
       await Promise.all([first, second]);
     }
   });
+
+  describe("live translation", () => {
+    function startLiveRouter(overrides: Record<string, unknown> = {}) {
+      let listener: MessageListener | undefined;
+      vi.stubGlobal("browser", {
+        runtime: {
+          onMessage: {
+            addListener: vi.fn((next: MessageListener) => {
+              listener = next;
+            }),
+          },
+          getPlatformInfo: vi.fn(async () => ({})),
+        },
+      });
+      const recognize = vi.fn(async (_input: unknown, _signal: AbortSignal) => ({
+        text: "Hello there",
+      }));
+      const captureLiveFrame = vi.fn(async () => ({
+        signature: { cell: 1, columns: 1, rows: 1, luma: new Uint8Array([10]) },
+        toBlob: async () => new Blob(["frame"]),
+      }));
+      startRouter({
+        settingsRepository: {
+          get: async () => ({
+            ocr: { providerId: "test", sourceLang: "auto" },
+            translation: { providerId: "test", targetLang: "uk" },
+          }),
+        },
+        captureLiveFrame,
+        createOcrProvider: () => ({ id: "test", recognize }),
+        createTranslationProvider: () => ({
+          id: "test",
+          translate: async ({ text }: { text: string }) => ({
+            text: `translated ${text}`,
+            targetLang: "uk",
+          }),
+        }),
+        detectLanguage: async () => undefined,
+        ...overrides,
+      } as unknown as RouterDependencies);
+      return { send: (message: unknown, sender: unknown) => invoke(listener, message, sender), recognize, captureLiveFrame };
+    }
+
+    const frameRequest = {
+      type: "LIVE_FRAME_REQUEST",
+      requestId: "frame-1",
+      sessionId: "session-1",
+      rect: { x: 0, y: 0, width: 100, height: 40 },
+      viewport: { width: 800, height: 600 },
+      mask: [],
+    };
+    const tab = { tab: { id: 7, active: true, windowId: 3 }, frameId: 0 };
+
+    it("reads a region for the tab that sent the request", async () => {
+      const { send, captureLiveFrame } = startLiveRouter();
+
+      await expect(send(frameRequest, tab)).resolves.toEqual({
+        status: "ok",
+        text: "Hello there",
+        unchanged: false,
+      });
+      expect(captureLiveFrame).toHaveBeenCalledWith(
+        expect.objectContaining({ windowId: 3 }),
+      );
+    });
+
+    it("reports a background tab as hidden", async () => {
+      const { send, captureLiveFrame } = startLiveRouter();
+
+      await expect(
+        send(frameRequest, { tab: { id: 7, active: false, windowId: 3 } }),
+      ).resolves.toEqual({ status: "hidden" });
+      expect(captureLiveFrame).not.toHaveBeenCalled();
+    });
+
+    it("translates a line without capturing anything", async () => {
+      const { send, captureLiveFrame } = startLiveRouter();
+
+      await expect(
+        send({ type: "LIVE_TRANSLATE_REQUEST", requestId: "t-1", text: "Hi" }, tab),
+      ).resolves.toMatchObject({
+        translation: { text: "translated Hi", targetLang: "uk" },
+        translationStatus: { state: "ok" },
+      });
+      expect(captureLiveFrame).not.toHaveBeenCalled();
+    });
+
+    it("reads the region again after the session is stopped", async () => {
+      const { send, recognize } = startLiveRouter();
+
+      await send(frameRequest, tab);
+      await expect(send(frameRequest, tab)).resolves.toMatchObject({
+        unchanged: true,
+      });
+      await send({ type: "LIVE_STOP", sessionId: "session-1" }, tab);
+      await expect(send(frameRequest, tab)).resolves.toMatchObject({
+        unchanged: false,
+      });
+
+      expect(recognize).toHaveBeenCalledTimes(2);
+    });
+
+    it("aborts a read in progress when the content script cancels it", async () => {
+      let readSignal: AbortSignal | undefined;
+      const recognize = vi.fn(
+        (_input: unknown, signal: AbortSignal) =>
+          new Promise<never>((_resolve, reject) => {
+            readSignal = signal;
+            signal.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      const { send } = startLiveRouter({
+        createOcrProvider: () => ({ id: "test", recognize }),
+      });
+
+      const settled = send(frameRequest, tab).catch((error: unknown) => error);
+      await vi.waitFor(() => expect(recognize).toHaveBeenCalled());
+      await send({ type: "CANCEL_REQUEST", requestId: "frame-1" }, tab);
+
+      expect(readSignal?.aborted).toBe(true);
+      expect((await settled) as Error).toHaveProperty("name", "AbortError");
+    });
+  });
 });

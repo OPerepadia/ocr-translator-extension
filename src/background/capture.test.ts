@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadImage } from "./capture";
+import { loadImage, maskRectsInCrop } from "./capture";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -92,5 +92,42 @@ describe("loadImage", () => {
     expect(updateSessionRules).toHaveBeenNthCalledWith(2, {
       removeRuleIds: [ruleId],
     });
+  });
+});
+
+describe("maskRectsInCrop", () => {
+  const viewport = { width: 1000, height: 500 };
+
+  it("places viewport rects in the cropped canvas", () => {
+    // A 2000x1000 screenshot of a 1000x500 viewport: two pixels per CSS pixel.
+    const crop = { x: 200, y: 100, width: 800, height: 200 };
+
+    expect(
+      maskRectsInCrop(
+        [{ x: 150, y: 80, width: 100, height: 30 }],
+        crop,
+        { width: 2000, height: 1000 },
+        viewport,
+      ),
+    ).toEqual([{ x: 100, y: 60, width: 200, height: 60 }]);
+  });
+
+  it("rounds outwards so no touched pixel is left unmasked", () => {
+    const crop = { x: 0, y: 0, width: 1000, height: 500 };
+
+    expect(
+      maskRectsInCrop(
+        [{ x: 10.4, y: 20.4, width: 10.2, height: 5.2 }],
+        crop,
+        { width: 1000, height: 500 },
+        viewport,
+      ),
+    ).toEqual([{ x: 10, y: 20, width: 11, height: 6 }]);
+  });
+
+  it("returns nothing for no mask", () => {
+    expect(
+      maskRectsInCrop([], { x: 0, y: 0, width: 10, height: 10 }, viewport, viewport),
+    ).toEqual([]);
   });
 });

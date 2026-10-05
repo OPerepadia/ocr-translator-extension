@@ -251,6 +251,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
           id,
           image,
           sourceLang: input.sourceLang,
+          grouping: input.grouping,
         });
       });
     },
