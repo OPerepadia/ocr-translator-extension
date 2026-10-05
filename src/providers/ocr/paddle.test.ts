@@ -98,6 +98,17 @@ describe("createPaddleOcrProvider", () => {
     expect(recognize.grouping).toBe("single");
   });
 
+  it("forwards the smallest text size to the worker", async () => {
+    const fake = new FakeWorker();
+    const provider = makeProvider(fake);
+
+    void provider.recognize({ image: new Blob(["img"]), minTextSize: 20 });
+    await tick();
+
+    const [recognize] = fake.ofType("recognize");
+    expect(recognize.minTextSize).toBe(20);
+  });
+
   it("reports initializing when recognize starts while preload is still loading", async () => {
     const fake = new FakeWorker();
     fake.deferInit = true;

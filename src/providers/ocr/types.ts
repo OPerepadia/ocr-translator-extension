@@ -32,6 +32,10 @@ export interface OcrInput {
    * which is faster for a strip of text such as subtitles. Defaults to
    * "layout". */
   grouping?: "layout" | "single";
+  /** Text smaller than this is skipped before it is read. It is a font size
+   * in image pixels, so a caller converts from CSS pixels with the screen's
+   * pixel ratio. Drops interface text around what matters. */
+  minTextSize?: number;
 }
 
 export interface OcrResult extends PipelineOcrResult {}

@@ -66,7 +66,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         () => cancelled.has(message.id),
         (line, lineCount) =>
           post({ type: "progress", id: message.id, line, lineCount }),
-        { grouping: message.grouping },
+        {
+          grouping: message.grouping,
+          minTextSize: message.minTextSize,
+        },
       );
       activeRecognitions.delete(message.id);
       cancelled.delete(message.id);

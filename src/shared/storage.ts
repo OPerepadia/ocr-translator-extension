@@ -88,6 +88,19 @@ export async function setDefaultOverlayMode(mode: OverlayMode): Promise<void> {
   await browser.storage.local.set({ [DEFAULT_OVERLAY_MODE_KEY]: mode });
 }
 
+// Text smaller than this, in CSS pixels, is left out of live translation: it is
+// usually the page's interface and not what the user came to read.
+export const DEFAULT_MIN_TEXT_SIZE = 16;
+export const MAX_MIN_TEXT_SIZE = 200;
+
+/** The saved size, or the default when it is absent or not a usable number.
+ * Zero is valid and means no text is skipped. */
+export function resolveMinTextSize(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.min(Math.round(value), MAX_MIN_TEXT_SIZE)
+    : DEFAULT_MIN_TEXT_SIZE;
+}
+
 export const defaultSettings: Settings = {
   ocr: {
     providerId: "paddle",

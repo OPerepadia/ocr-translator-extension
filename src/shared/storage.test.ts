@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createSettingsRepository,
+  DEFAULT_MIN_TEXT_SIZE,
   defaultSettings,
   getDefaultOverlayMode,
   getDisplayMode,
   getAdjustSelection,
   getUiLocale,
   setUiLocale,
+  MAX_MIN_TEXT_SIZE,
+  resolveMinTextSize,
   UI_LOCALES,
   setDisplayMode,
   setDefaultOverlayMode,
@@ -119,5 +122,22 @@ describe("storage defaults", () => {
     await expect(createSettingsRepository().get()).resolves.toEqual(
       defaultSettings,
     );
+  });
+});
+
+describe("resolveMinTextSize", () => {
+  it("uses the default when nothing usable is saved", () => {
+    for (const value of [undefined, null, "20", Number.NaN, Infinity, -1]) {
+      expect(resolveMinTextSize(value)).toBe(DEFAULT_MIN_TEXT_SIZE);
+    }
+  });
+
+  it("keeps zero, which turns the filter off", () => {
+    expect(resolveMinTextSize(0)).toBe(0);
+  });
+
+  it("rounds to whole pixels and caps at the maximum", () => {
+    expect(resolveMinTextSize(26.6)).toBe(27);
+    expect(resolveMinTextSize(5000)).toBe(MAX_MIN_TEXT_SIZE);
   });
 });

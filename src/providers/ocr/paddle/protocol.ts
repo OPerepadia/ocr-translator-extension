@@ -36,6 +36,8 @@ export interface RecognizeRequest {
   sourceLang?: string;
   /** "single" skips the layout model and reads the lines as one paragraph. */
   grouping?: "layout" | "single";
+  /** Skip text smaller than this font size, in image pixels. */
+  minTextSize?: number;
 }
 
 export interface CancelRequest {

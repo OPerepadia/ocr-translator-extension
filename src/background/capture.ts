@@ -109,6 +109,8 @@ function toDeviceRect(
 
 /** A region of the screen as captured for live translation. */
 export interface LiveFrame {
+  /** Screenshot pixels per CSS pixel of height. */
+  pixelRatio: number;
   signature: FrameSignature;
   /** Encoded on demand: a frame that looks unchanged is never read. */
   toBlob(): Promise<Blob>;
@@ -160,6 +162,7 @@ export async function captureLiveFrame(args: {
     }
 
     return {
+      pixelRatio: bitmap.height / args.viewport.height,
       signature: createFrameSignature(
         context.getImageData(0, 0, canvas.width, canvas.height),
       ),

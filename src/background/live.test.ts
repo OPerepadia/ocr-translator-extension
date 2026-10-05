@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
 import type { RuntimeMessage } from "../shared/messages";
-import { defaultSettings } from "../shared/storage";
+import { DEFAULT_MIN_TEXT_SIZE, defaultSettings } from "../shared/storage";
 import type { Settings } from "../shared/types";
 import type { LiveFrame } from "./capture";
 import { createFrameSignature } from "./frame-signature";
@@ -15,11 +15,12 @@ import {
 
 type FrameMessage = Extract<RuntimeMessage, { type: "LIVE_FRAME_REQUEST" }>;
 
-function frameOf(brightness: number): LiveFrame {
+function frameOf(brightness: number, pixelRatio = 1): LiveFrame {
   const width = 40;
   const height = 10;
   const data = new Uint8ClampedArray(width * height * 4).fill(brightness);
   return {
+    pixelRatio,
     signature: createFrameSignature({ width, height, data }),
     toBlob: vi.fn(async () => new Blob([`frame-${brightness}`])),
   };
@@ -81,6 +82,66 @@ describe("handleLiveFrameRequest", () => {
     expect(response).toEqual({ status: "ok", text: "Hello there", unchanged: false });
     expect(recognize).toHaveBeenCalledWith(
       expect.objectContaining({ sourceLang: "auto", grouping: "single" }),
+      expect.anything(),
+    );
+  });
+
+  it("skips text smaller than the default size", async () => {
+    const { dependencies, recognize, sessions } = setup({});
+
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+
+    expect(recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ minTextSize: DEFAULT_MIN_TEXT_SIZE }),
+      expect.anything(),
+    );
+  });
+
+  it("skips text smaller than the size in the settings", async () => {
+    const { dependencies, recognize, sessions } = setup({
+      settings: {
+        ...defaultSettings,
+        ocr: { ...defaultSettings.ocr, minTextSize: 27 },
+      },
+    });
+
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+
+    expect(recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ minTextSize: 27 }),
+      expect.anything(),
+    );
+  });
+
+  it("reads all text when the size is zero", async () => {
+    const { dependencies, recognize, sessions } = setup({
+      settings: {
+        ...defaultSettings,
+        ocr: { ...defaultSettings.ocr, minTextSize: 0 },
+      },
+    });
+
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+
+    expect(recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ minTextSize: 0 }),
+      expect.anything(),
+    );
+  });
+
+  it("measures the size in screen pixels on a high-density display", async () => {
+    const { dependencies, recognize, sessions } = setup({
+      frames: [frameOf(10, 2)],
+      settings: {
+        ...defaultSettings,
+        ocr: { ...defaultSettings.ocr, minTextSize: 20 },
+      },
+    });
+
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+
+    expect(recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ minTextSize: 40 }),
       expect.anything(),
     );
   });

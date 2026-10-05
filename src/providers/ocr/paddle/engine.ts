@@ -15,7 +15,7 @@ import {
 import { ctcGreedyDecode, reverseArabicCtcText } from "./ctc";
 import { extractBoxes, type DbConfig, type DetectedBox } from "./db-postprocess";
 import { makeCharAt, parseDict } from "./dict";
-import { orientedRectOfQuad } from "./geometry";
+import { orientedRectOfQuad, textBoxThickness } from "./geometry";
 import {
   createSession,
   configureOrt,
@@ -67,6 +67,8 @@ export type EngineOptions = Omit<InitRequest, "type" | "id" | "debug"> & {
 export interface RecognizeOptions {
   /** "single" reads the lines as one paragraph, without the layout model. */
   grouping?: "layout" | "single";
+  /** Text smaller than this font size, in image pixels, is not read. */
+  minTextSize?: number;
 }
 
 interface LoadedRecognizer {
@@ -202,11 +204,19 @@ export class PaddleEngine {
         );
       }
 
-      const boxes = await this.detect(bitmap);
+      const detected = await this.detect(bitmap);
+      // Dropped before recognition: it saves reading them, and keeps text that
+      // does not matter from steering the script detection.
+      const boxes = this.dropSmallBoxes(detected, options.minTextSize);
       throwIfCancelled(isCancelled);
 
       if (this.debug) {
-        console.log(`${LOG_PREFIX} detector found ${boxes.length} box(es)`);
+        console.log(
+          `${LOG_PREFIX} detector found ${detected.length} box(es)` +
+            (boxes.length < detected.length
+              ? `, ${detected.length - boxes.length} dropped as too small`
+              : ""),
+        );
       }
 
       const sourceImageData = boxes.length > 0 ? bitmapToImageData(bitmap) : null;
@@ -443,6 +453,22 @@ export class PaddleEngine {
       }
       return undefined;
     }
+  }
+
+  /** Boxes whose short side, once padded like the line's own box, is as thick
+   * as a line of text of `minTextSize` would be. That side is the text's
+   * height, whichever way it reads. */
+  private dropSmallBoxes(
+    boxes: DetectedBox[],
+    minTextSize: number | undefined,
+  ): DetectedBox[] {
+    if (!minTextSize) {
+      return boxes;
+    }
+    const minThickness = textBoxThickness(minTextSize);
+    return boxes.filter(
+      (box) => this.lineFrame(box).oriented.rect.height >= minThickness,
+    );
   }
 
   private async recognizeAllLines(

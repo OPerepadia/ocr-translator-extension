@@ -9,6 +9,7 @@ import type {
 } from "../shared/messages";
 import { framesMatch, type FrameSignature } from "./frame-signature";
 import { translateText } from "./pipeline";
+import { resolveMinTextSize } from "../shared/storage";
 import type { RouterDependencies } from "./router";
 
 export type LiveDependencies = Pick<
@@ -104,7 +105,14 @@ export async function handleLiveFrameRequest(
   const recognized = await dependencies
     .createOcrProvider(settings.ocr)
     .recognize(
-      { image, sourceLang: sourceLanguage.sourceLang, grouping: "single" },
+      {
+        image,
+        sourceLang: sourceLanguage.sourceLang,
+        grouping: "single",
+        // CSS pixels from the setting, in the screenshot's pixels for the OCR.
+        minTextSize:
+          resolveMinTextSize(settings.ocr.minTextSize) * frame.pixelRatio,
+      },
       signal,
     );
 

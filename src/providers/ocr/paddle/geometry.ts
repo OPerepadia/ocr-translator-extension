@@ -292,3 +292,14 @@ export function pointInConvexPolygon(point: Point, polygon: Point[]): boolean {
   }
   return true;
 }
+
+/**
+ * How thick the detector's padded box is around a line of text whose font size
+ * is `textSize`, in the same pixels. A straight-line fit to measurements of the
+ * packaged detector on text from 16 to 96 px, good to about 3 px: a box is
+ * about the font size, grown a tenth and padded a few pixels. Below roughly
+ * 12 px the boxes stop shrinking, so smaller sizes cannot be told apart.
+ */
+export function textBoxThickness(textSize: number): number {
+  return 1.1 * textSize + 4.5;
+}

@@ -1098,6 +1098,7 @@ describe("background router", () => {
         text: "Hello there",
       }));
       const captureLiveFrame = vi.fn(async () => ({
+        pixelRatio: 1,
         signature: { cell: 1, columns: 1, rows: 1, luma: new Uint8Array([10]) },
         toBlob: async () => new Blob(["frame"]),
       }));
