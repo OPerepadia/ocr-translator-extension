@@ -217,6 +217,17 @@
   "optionsDefaultSourceLanguageHint": {
     "message": "Select the language of the original text, or \"Auto\" to automatically detect the language (text recognition may take a little longer)."
   },
+  "optionsMinTextSize": {
+    "message": "Ignore small text in live translation",
+    "description": "Label of a number field. Live translation skips text on screen smaller than this size."
+  },
+  "optionsPixels": {
+    "message": "px",
+    "description": "Unit shown next to a size: pixels."
+  },
+  "optionsMinTextSizeHint": {
+    "message": "Text smaller than this on screen is skipped, so buttons and labels around the subtitles are not translated. The size is in pixels and does not depend on screen density. Use 0 to read all text."
+  },
   "optionsGpuAcceleration": {
     "message": "GPU acceleration (experimental)"
   },

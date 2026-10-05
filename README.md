@@ -53,7 +53,7 @@ To start it with a key, assign a shortcut to "Translate a screen region live" in
 Things to know:
 
 - The area stays at a fixed place on the screen. If the video moves or changes size, select the area again.
-- Text smaller than 16 px on screen is ignored, so buttons and labels around the subtitles are not translated.
+- Text smaller than a set size is ignored, 16 px by default, so buttons and labels around the subtitles are not translated. Change it with **Ignore small text in live translation** in the extension settings. The size is in pixels and does not depend on screen density. Use 0 to read all text.
 - Every new line is sent to your translation provider. A line that comes straight back is not translated again.
 - With an LLM endpoint, the previous few lines are sent as context, so a sentence split over several subtitles translates better.
 - In fullscreen, the panel shows when the page makes a container fullscreen, such as the whole player. It can't show when the page makes only the video, or a frame, fullscreen.

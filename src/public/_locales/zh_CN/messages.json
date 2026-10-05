@@ -191,6 +191,15 @@
   "optionsDefaultSourceLanguageHint": {
     "message": "选择要识别的语言。选择“自动检测”可自动识别语言，但可能需要更长时间。"
   },
+  "optionsMinTextSize": {
+    "message": "实时翻译时忽略小文字"
+  },
+  "optionsPixels": {
+    "message": "px"
+  },
+  "optionsMinTextSizeHint": {
+    "message": "屏幕上小于此大小的文字会被跳过，这样字幕周围的按钮和标签就不会被翻译。大小以像素为单位，与屏幕密度无关。设为 0 则读取所有文字。"
+  },
   "optionsGpuAcceleration": {
     "message": "GPU 加速（实验性）"
   },
