@@ -320,6 +320,9 @@
   "popupLiveTranslation": {
     "message": "实时翻译"
   },
+  "popupLiveTranslationHint": {
+    "message": "选择要实时翻译的屏幕区域，例如视频中的硬字幕。"
+  },
   "popupRestrictedPage": {
     "message": "无法在此页面使用此扩展。请在普通网页上重试。"
   },

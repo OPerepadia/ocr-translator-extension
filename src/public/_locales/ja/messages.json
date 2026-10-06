@@ -320,6 +320,9 @@
   "popupLiveTranslation": {
     "message": "リアルタイム翻訳"
   },
+  "popupLiveTranslationHint": {
+    "message": "リアルタイム翻訳の対象にする画面の範囲を選択します（例：動画に焼き込まれた字幕）。"
+  },
   "popupRestrictedPage": {
     "message": "このページでは拡張機能を使用できません。通常のウェブページでお試しください。"
   },

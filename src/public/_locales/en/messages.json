@@ -363,6 +363,10 @@
     "message": "Live translation",
     "description": "Button that translates a chosen screen region continuously, for example video subtitles."
   },
+  "popupLiveTranslationHint": {
+    "message": "Select a screen area for live translation, for example subtitles burned into a video.",
+    "description": "Tooltip of the Live translation button in the popup."
+  },
   "popupRestrictedPage": {
     "message": "This browser page is restricted, so the extension can't access it. Try it on a regular web page."
   },
