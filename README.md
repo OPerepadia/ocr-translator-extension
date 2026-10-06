@@ -16,8 +16,8 @@ Browser extension that uses local OCR to extract text from images, comics, scans
 ## Features
 
 - Select any area of a web page and translate it in place.
-- Translate a screen region live, for example subtitles that are part of a video.
 - Translate images directly from the context menu.
+- Translate a screen region live, for example subtitles that are part of a video.
 - Run OCR locally in your browser using bundled [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
 - Recognize multilingual text with automatic script detection. See [supported languages](#text-recognition).
 - Group text lines using speech-bubble and free-text regions detected by a [local layout model](docs/LAYOUT-GROUPING.md).
@@ -39,31 +39,26 @@ In the overlay view, press `Shift` to switch between the translation and the ori
 
 By default, the translation appears in an overlay. You can switch to the panel view from the toolbar context menu, or change the default view in the extension settings.
 
-### Live translation
-
-Use it for text that keeps changing on screen, such as subtitles burned into a video.
-
-1. Click **Live translation** in the extension popup.
-2. Drag over the area where the text appears.
-
-The extension reads that area about once a second and shows the translation in a small panel next to it. The newest line is at the bottom, and earlier lines stay above it. Scroll up to read them again. The panel buttons show the original text, pause, select a new area, or close the panel. Drag the title bar to move the panel, or its bottom right corner to resize it.
-
-To start it with a key, assign a shortcut to "Translate a screen region live" in your browser's extension shortcut settings.
-
-Things to know:
-
-- The area stays at a fixed place on the screen. If the video moves or changes size, select the area again. Selecting a new area clears the earlier lines.
-- Text smaller than a set size is ignored, 16 px by default, so buttons and labels around the subtitles are not translated. Change it with **Ignore small text in live translation** in the extension settings. The size is in pixels and does not depend on screen density. Use 0 to read all text.
-- Every new line is sent to your translation provider. A line that comes straight back is not translated again.
-- With an LLM endpoint, the previous few lines are sent as context, so a sentence split over several subtitles translates better.
-- In fullscreen, the panel shows when the page makes a container fullscreen, such as the whole player. It can't show when the page makes only the video, or a frame, fullscreen.
-- The browser may capture protected (DRM) video as a black picture. Nothing can be read from it.
-
 ### Local image files
 To use the extension on local image files, you need to grant access to local files.
   - Firefox: open the add-on's **Permissions and data** settings and enable **Access local files on your computer**.
   - Chrome: open the extension details and enable **Allow access to file URLs**.
 After granting the permission, reload the image and try again.
+
+## Live translation
+
+Use it for text that keeps changing on screen, such as subtitles burned into a video.
+
+1. Click **Live translation** in the extension popup.
+2. Drag over the area where the text appears.
+3. The translation appears in a small panel next to the area.
+
+Things to know:
+
+- A fast provider works best, such as a local LLM or DeepL. Google Translate also works, but speed and quality may vary.
+- Text smaller than 16 px is ignored by default. You can adjust the threshold in settings.
+- When an LLM endpoint is used, the previous few lines are sent as context to achieve a better translation.
+- It may not works with DRM protected videos.
 
 ## Supported languages
 
