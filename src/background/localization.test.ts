@@ -46,14 +46,14 @@ describe("background localization", () => {
     resolveStorage({ uiLocale: "en" });
     await ready;
     expect(uiLanguage()).toBe("ja");
-    expect(api.contextMenus.update).toHaveBeenCalledTimes(3);
+    expect(api.contextMenus.update).toHaveBeenCalledTimes(2);
     expect(api.contextMenus.create).not.toHaveBeenCalled();
 
     changed({ settings: { newValue: {} } }, "local");
     changed({ uiLocale: { newValue: "uk" } }, "sync");
     await Promise.resolve();
     expect(uiLanguage()).toBe("ja");
-    expect(api.contextMenus.update).toHaveBeenCalledTimes(3);
+    expect(api.contextMenus.update).toHaveBeenCalledTimes(2);
 
     changed({ uiLocale: { oldValue: "ja" } }, "local");
     await Promise.resolve();

@@ -14,9 +14,6 @@
   "contextTranslateScreenRegion": {
     "message": "翻译屏幕区域…"
   },
-  "contextTranslateScreenRegionLive": {
-    "message": "实时翻译屏幕区域…"
-  },
   "contextTranslateImage": {
     "message": "翻译此图片"
   },

@@ -14,7 +14,6 @@ export type ContextMenuApi = {
 };
 
 export const START_SELECTION_MENU_ID = "select-region-for-ocr";
-export const START_LIVE_SELECTION_MENU_ID = "select-region-for-live-ocr";
 export const TRANSLATE_IMAGE_MENU_ID = "translate-image";
 
 // Restrict menus to pages where the content script can run. This hides them on
@@ -39,13 +38,6 @@ export function startContextMenu(
       documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
     });
     contextMenus.create({
-      id: START_LIVE_SELECTION_MENU_ID,
-      title: t("contextTranslateScreenRegionLive"),
-      // A right click on a video reports "video" rather than "page".
-      contexts: ["page", "video"],
-      documentUrlPatterns: CONTENT_SCRIPT_PATTERNS,
-    });
-    contextMenus.create({
       id: TRANSLATE_IMAGE_MENU_ID,
       title: t("contextTranslateImage"),
       contexts: ["image"],
@@ -63,14 +55,12 @@ export function startContextMenu(
     const message =
       info.menuItemId === START_SELECTION_MENU_ID
         ? { type: "START_SELECTION" as const }
-        : info.menuItemId === START_LIVE_SELECTION_MENU_ID
-          ? { type: "START_LIVE_SELECTION" as const }
-          : info.menuItemId === TRANSLATE_IMAGE_MENU_ID && info.srcUrl
-            ? {
-                type: "START_IMAGE_TRANSLATION" as const,
-                imageUrl: info.srcUrl,
-              }
-            : undefined;
+        : info.menuItemId === TRANSLATE_IMAGE_MENU_ID && info.srcUrl
+          ? {
+              type: "START_IMAGE_TRANSLATION" as const,
+              imageUrl: info.srcUrl,
+            }
+          : undefined;
 
     if (!message) {
       return;
@@ -96,9 +86,6 @@ export async function updateContextMenuTitles(
   await Promise.allSettled([
     api.contextMenus.update(START_SELECTION_MENU_ID, {
       title: t("contextTranslateScreenRegion"),
-    }),
-    api.contextMenus.update(START_LIVE_SELECTION_MENU_ID, {
-      title: t("contextTranslateScreenRegionLive"),
     }),
     api.contextMenus.update(TRANSLATE_IMAGE_MENU_ID, {
       title: t("contextTranslateImage"),

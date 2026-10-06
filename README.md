@@ -43,7 +43,7 @@ By default, the translation appears in an overlay. You can switch to the panel v
 
 Use it for text that keeps changing on screen, such as subtitles burned into a video.
 
-1. Click **Live translation** in the extension popup, or right-click the page and choose "Translate a screen region live…".
+1. Click **Live translation** in the extension popup.
 2. Drag over the area where the text appears.
 
 The extension reads that area about once a second and shows the translation in a small panel next to it. The newest line is at the bottom, and earlier lines stay above it. Scroll up to read them again. The panel buttons show the original text, pause, select a new area, or close the panel. Drag the title bar to move the panel, or its bottom right corner to resize it.

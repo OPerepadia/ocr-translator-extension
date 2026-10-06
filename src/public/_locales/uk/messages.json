@@ -14,9 +14,6 @@
   "contextTranslateScreenRegion": {
     "message": "Перекласти ділянку екрана…"
   },
-  "contextTranslateScreenRegionLive": {
-    "message": "Перекладати ділянку екрана наживо…"
-  },
   "contextTranslateImage": {
     "message": "Перекласти це зображення"
   },

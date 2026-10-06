@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeMessage } from "../shared/messages";
 import {
-  START_LIVE_SELECTION_MENU_ID,
   START_SELECTION_MENU_ID,
   TRANSLATE_IMAGE_MENU_ID,
   startContextMenu,
@@ -43,12 +42,6 @@ describe("OCR context menu", () => {
       documentUrlPatterns,
     });
     expect(create).toHaveBeenCalledWith({
-      id: START_LIVE_SELECTION_MENU_ID,
-      title: "Translate a screen region live…",
-      contexts: ["page", "video"],
-      documentUrlPatterns,
-    });
-    expect(create).toHaveBeenCalledWith({
       id: TRANSLATE_IMAGE_MENU_ID,
       title: "Translate this image",
       contexts: ["image"],
@@ -65,9 +58,6 @@ describe("OCR context menu", () => {
     await Promise.resolve();
     expect(update).toHaveBeenCalledWith(START_SELECTION_MENU_ID, {
       title: "Translate a screen region…",
-    });
-    expect(update).toHaveBeenCalledWith(START_LIVE_SELECTION_MENU_ID, {
-      title: "Translate a screen region live…",
     });
     expect(update).toHaveBeenCalledWith(TRANSLATE_IMAGE_MENU_ID, {
       title: "Translate this image",
@@ -90,27 +80,6 @@ describe("OCR context menu", () => {
       expect(sendMessage).toHaveBeenCalledWith(
         7,
         { type: "START_SELECTION" },
-        { frameId: 0 },
-      );
-    });
-  });
-
-  it("starts live translation in the top frame, whichever frame was clicked", async () => {
-    let onClicked: MenuClickListener | undefined;
-    const sendMessage = vi.fn(async () => undefined);
-    const api = createContextMenuApi({
-      onClicked: (listener) => {
-        onClicked = listener;
-      },
-      sendMessage,
-    });
-
-    startContextMenu(api);
-    onClicked?.({ menuItemId: START_LIVE_SELECTION_MENU_ID, frameId: 4 }, { id: 7 });
-    await vi.waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith(
-        7,
-        { type: "START_LIVE_SELECTION" },
         { frameId: 0 },
       );
     });
@@ -161,7 +130,6 @@ describe("OCR context menu", () => {
     onClicked?.({ menuItemId: "another-menu-item" }, { id: 7 });
     onClicked?.({ menuItemId: TRANSLATE_IMAGE_MENU_ID }, { id: 7 });
     onClicked?.({ menuItemId: START_SELECTION_MENU_ID });
-    onClicked?.({ menuItemId: START_LIVE_SELECTION_MENU_ID });
 
     expect(sendMessage).not.toHaveBeenCalled();
   });
@@ -173,7 +141,7 @@ function createContextMenuApi(overrides: {
   create?: (properties: {
     id: string;
     title: string;
-    contexts: Array<"page" | "image" | "video">;
+    contexts: Array<"page" | "image">;
     documentUrlPatterns?: string[];
   }) => string | number;
   update?: (id: string, changes: { title: string }) => Promise<void>;

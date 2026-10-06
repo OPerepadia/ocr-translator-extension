@@ -14,9 +14,6 @@
   "contextTranslateScreenRegion": {
     "message": "Перевести область экрана…"
   },
-  "contextTranslateScreenRegionLive": {
-    "message": "Переводить область экрана в реальном времени…"
-  },
   "contextTranslateImage": {
     "message": "Перевести это изображение"
   },

@@ -16,9 +16,6 @@
   "contextTranslateScreenRegion": {
     "message": "Translate a screen region…"
   },
-  "contextTranslateScreenRegionLive": {
-    "message": "Translate a screen region live…"
-  },
   "contextTranslateImage": {
     "message": "Translate this image"
   },

@@ -14,9 +14,6 @@
   "contextTranslateScreenRegion": {
     "message": "画面の範囲を翻訳…"
   },
-  "contextTranslateScreenRegionLive": {
-    "message": "画面の範囲をリアルタイム翻訳…"
-  },
   "contextTranslateImage": {
     "message": "この画像を翻訳"
   },
