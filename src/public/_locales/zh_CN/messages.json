@@ -195,7 +195,7 @@
     "message": "px"
   },
   "optionsMinTextSizeHint": {
-    "message": "屏幕上小于此大小的文字会被跳过，这样字幕周围的按钮和标签就不会被翻译。大小以像素为单位，与屏幕密度无关。设为 0 则读取所有文字。"
+    "message": "忽略小于指定大小的文字。设为 0 则禁用过滤。"
   },
   "optionsGpuAcceleration": {
     "message": "GPU 加速（实验性）"

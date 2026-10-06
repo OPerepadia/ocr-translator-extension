@@ -129,6 +129,9 @@ main {
 .options-layout:has(#display-options:target)
   .options-nav
   a[href="#display-options"],
+.options-layout:has(#live-translation:target)
+  .options-nav
+  a[href="#live-translation"],
 .options-layout:has(#about:target) .options-nav a[href="#about"] {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);

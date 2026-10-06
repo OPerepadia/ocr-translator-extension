@@ -223,7 +223,7 @@
     "description": "Unit shown next to a size: pixels."
   },
   "optionsMinTextSizeHint": {
-    "message": "Text smaller than this on screen is skipped, so buttons and labels around the subtitles are not translated. The size is in pixels and does not depend on screen density. Use 0 to read all text."
+    "message": "Ignore text smaller than the specified size. Use 0 to disable filtering."
   },
   "optionsGpuAcceleration": {
     "message": "GPU acceleration (experimental)"

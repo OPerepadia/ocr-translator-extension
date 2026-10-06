@@ -18,8 +18,14 @@ test("saves the live translation text size and falls back to the default", async
     await worker.evaluate(() => chrome.storage.local.set({ uiLocale: "en" }));
 
     const options = await context.newPage();
-    await options.goto(`${extensionUrl}/options.html#ocr`);
+    await options.goto(`${extensionUrl}/options.html`);
     const size = options.locator('input[name="minTextSize"]');
+    await expect(size).toBeHidden();
+
+    // The field has its own section, reached from the sidebar.
+    await options.locator('.options-nav a[href="#live-translation"]').click();
+    await expect(options.locator("#live-translation .section-title")).toHaveText("Live translation");
+    await expect(size).toBeVisible();
     const saved = () => worker.evaluate(async () =>
       ((await chrome.storage.local.get("settings")).settings as Settings | undefined)?.ocr.minTextSize,
     );
