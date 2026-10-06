@@ -2000,12 +2000,6 @@
   display: none;
 }
 
-/* Every line would say so; the newest one is enough. */
-.ocr-translate-live-line[data-state="same-language"]:not(:last-child)
-  .ocr-translate-live-line-note {
-  display: none;
-}
-
 .ocr-translate-live-footer {
   position: relative;
   display: flex;

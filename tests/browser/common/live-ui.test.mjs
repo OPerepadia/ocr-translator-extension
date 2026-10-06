@@ -335,16 +335,16 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal(await lines.count(), 22);
       assert.equal(await opacityOf(lines.last()), 1);
 
-      // Only the newest line says it is already in the target language.
+      // Text already in the target language shows as it is, with no note.
       await showLines(24, {
         tail: [
           { original: "Line 23", state: "same-language" },
           { original: "Line 24", state: "same-language" },
         ],
       });
-      const notes = page.locator(".ocr-translate-live-line-note:visible");
-      assert.equal(await notes.count(), 1);
-      assert.equal(await notes.textContent(), "panelAlreadyInTargetLanguage");
+      assert.equal(await translationOf(lines.last()), "Line 24");
+      assert.equal(await translationOf(lines.nth(22)), "Line 23");
+      assert.equal(await page.locator(".ocr-translate-live-line-note:visible").count(), 0);
 
       // A line waiting for its translation is as tall as a translated one, so
       // the lines above it stay put when the translation comes.

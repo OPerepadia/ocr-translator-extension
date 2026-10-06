@@ -463,8 +463,6 @@ function fillLineView(view: LineView, line: LiveLine): void {
 
 function lineNote(line: LiveLine): { text: string; isError: boolean } {
   switch (line.state) {
-    case "same-language":
-      return { text: t("panelAlreadyInTargetLanguage"), isError: false };
     case "failed":
       return { text: line.error || t("commonTranslationFailed"), isError: true };
     default:
