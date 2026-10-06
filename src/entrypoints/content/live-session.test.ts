@@ -10,6 +10,7 @@ import {
   LiveSession,
   MAX_CONTEXT_LINES,
   MAX_FAILED_READS,
+  MAX_TRANSLATIONS,
   READ_INTERVAL_MS,
   RETRY_INTERVAL_MS,
   RETRY_TRANSLATION_MS,
@@ -96,10 +97,12 @@ describe("LiveSession", () => {
     await advance(0);
 
     expect(t.readFrame).toHaveBeenCalledOnce();
-    expect(t.last()).toEqual({
-      status: "running",
-      line: { original: "Good morning.", translation: "[uk] Good morning.", state: "ready" },
-    });
+    const line = {
+      original: "Good morning.",
+      translation: "[uk] Good morning.",
+      state: "ready",
+    };
+    expect(t.last()).toEqual({ status: "running", lines: [line], line });
     expect(t.translate).toHaveBeenCalledWith(expect.any(String), "Good morning.", []);
   });
 
@@ -167,7 +170,7 @@ describe("LiveSession", () => {
     t.session.stop();
   });
 
-  it("translates a new line and drops the translation still in flight", async () => {
+  it("fills in a line's translation after the next line shows", async () => {
     const t = setup();
     t.replies.push(read("First line here"), read("A different line"));
     let resolveFirst: (response: LiveTranslationResponse) => void = () => {};
@@ -176,18 +179,93 @@ describe("LiveSession", () => {
     );
 
     t.session.start();
-    await advance(0);
-    const [firstRequest] = t.translate.mock.calls[0];
     await advance(READ_INTERVAL_MS);
+    expect(t.last()?.lines.map((line) => line.state)).toEqual(["pending", "ready"]);
 
-    expect(t.cancel).toHaveBeenCalledWith(firstRequest);
     resolveFirst(translated("[uk] First line here"));
     await advance(0);
-    expect(t.last()?.line).toEqual({
+    const second = {
       original: "A different line",
       translation: "[uk] A different line",
       state: "ready",
-    });
+    };
+    expect(t.last()?.lines).toEqual([
+      { original: "First line here", translation: "[uk] First line here", state: "ready" },
+      second,
+    ]);
+    expect(t.last()?.line).toEqual(second);
+    expect(t.cancel).not.toHaveBeenCalled();
+    t.session.stop();
+  });
+
+  it("keeps every line after it leaves the screen", async () => {
+    const t = setup();
+    t.replies.push(read("First line here"), read("A different line"), read(""));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * (1 + EMPTY_READS_BEFORE_CLEAR));
+
+    expect(t.last()?.line).toBeUndefined();
+    expect(t.last()?.lines).toEqual([
+      { original: "First line here", translation: "[uk] First line here", state: "ready" },
+      { original: "A different line", translation: "[uk] A different line", state: "ready" },
+    ]);
+    t.session.stop();
+  });
+
+  it("keeps translating a line after the screen clears", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning."), read(""));
+    let resolve: (response: LiveTranslationResponse) => void = () => {};
+    t.translate.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * EMPTY_READS_BEFORE_CLEAR);
+    expect(t.last()?.line).toBeUndefined();
+
+    resolve(translated("[uk] Good morning."));
+    await advance(0);
+    expect(t.cancel).not.toHaveBeenCalled();
+    expect(t.last()?.line).toBeUndefined();
+    expect(t.last()?.lines).toEqual([
+      { original: "Good morning.", translation: "[uk] Good morning.", state: "ready" },
+    ]);
+    t.session.stop();
+  });
+
+  it("does not ask again for a line that comes back while it is translated", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning."), read(""), read(""), read("Good morning."));
+    t.translate.mockImplementation(() => new Promise(() => {}));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 3);
+
+    expect(t.translate).toHaveBeenCalledOnce();
+    expect(t.last()?.lines).toHaveLength(1);
+    expect(t.last()?.line).toEqual({ original: "Good morning.", state: "pending" });
+    t.session.stop();
+  });
+
+  it("drops the oldest translation when too many are out", async () => {
+    const t = setup();
+    const lines = ["Line one here", "Line two here", "Line three here", "Line four here"];
+    t.replies.push(...lines.map((line) => read(line)));
+    t.translate.mockImplementation(() => new Promise(() => {}));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * (lines.length - 1));
+
+    expect(MAX_TRANSLATIONS).toBe(3);
+    expect(t.cancel).toHaveBeenCalledOnce();
+    expect(t.cancel).toHaveBeenCalledWith(t.translate.mock.calls[0][0]);
+    expect(t.last()?.lines.map((line) => line.state)).toEqual([
+      "skipped",
+      "pending",
+      "pending",
+      "pending",
+    ]);
+    expect(t.last()?.lines[0].original).toBe("Line one here");
     t.session.stop();
   });
 
@@ -209,6 +287,7 @@ describe("LiveSession", () => {
       translation: "[uk] First line here",
       state: "ready",
     });
+    expect(t.last()?.lines).toHaveLength(1);
     t.session.stop();
   });
 
@@ -464,7 +543,7 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(READ_INTERVAL_MS);
 
-    expect(t.session.current).toEqual({ status: "starting" });
+    expect(t.session.current).toEqual({ status: "starting", lines: [] });
     t.session.stop();
   });
 
@@ -499,7 +578,7 @@ describe("LiveSession", () => {
     finish(read("Good morning."));
     await advance(0);
 
-    expect(t.session.current).toEqual({ status: "paused" });
+    expect(t.session.current).toEqual({ status: "paused", lines: [] });
     expect(t.translate).not.toHaveBeenCalled();
     t.session.stop();
   });
@@ -537,7 +616,11 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(RETRY_INTERVAL_MS * MAX_FAILED_READS);
 
-    expect(t.session.current).toEqual({ status: "error", error: "worker crashed" });
+    expect(t.session.current).toEqual({
+      status: "error",
+      lines: [],
+      error: "worker crashed",
+    });
     const reads = t.readFrame.mock.calls.length;
     expect(reads).toBe(MAX_FAILED_READS);
     await advance(IDLE_INTERVAL_MS * 3);

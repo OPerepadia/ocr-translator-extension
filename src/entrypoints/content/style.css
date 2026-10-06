@@ -1899,14 +1899,47 @@
   background: var(--ocr-accent-fill);
 }
 
-.ocr-translate-live-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.ocr-translate-live-lines {
+  flex: 1 1 auto;
   min-height: 0;
-  padding: 10px 12px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.ocr-translate-live-lines.is-empty {
+  display: none;
+}
+
+/* The lines slide up together when a new one comes in. */
+.ocr-translate-live-track {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+}
+
+/* The bar marks the line the region shows now. It is always there, so the
+   text does not shift when it comes and goes. A line clips its text while its
+   height animates; flex: none keeps that clipping from shrinking it. */
+.ocr-translate-live-line {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  margin-left: -8px;
+  padding-left: 6px;
+  border-left: 2px solid transparent;
+  transition: opacity var(--ocr-duration) var(--ocr-ease-out);
+}
+
+.ocr-translate-live-line.is-current {
+  border-left-color: var(--ocr-accent);
+}
+
+/* Earlier lines step back so the newest stands out. */
+.ocr-translate-live-line:not(:last-child) {
+  opacity: 0.7;
 }
 
 .ocr-translate-live-translation {
@@ -1916,9 +1949,12 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
   text-wrap: pretty;
+  transition: color var(--ocr-duration) var(--ocr-ease-out);
 }
 
-.ocr-translate-live-translation.is-pending {
+/* A line waiting for its translation shows the original in grey. It has no
+   note, so it keeps its height when the translation comes. */
+.ocr-translate-live-line[data-state="pending"] .ocr-translate-live-translation {
   color: var(--ocr-ink-muted);
 }
 
@@ -1930,12 +1966,40 @@
   overflow-wrap: anywhere;
 }
 
+.ocr-translate-live-lines:not(.is-showing-original) .ocr-translate-live-original,
 .ocr-translate-live-translation:empty,
 .ocr-translate-live-original:empty,
+.ocr-translate-live-line-note:empty,
 .ocr-translate-live-note:empty {
   display: none;
 }
 
+/* Every line would say so; the newest one is enough. */
+.ocr-translate-live-line[data-state="same-language"]:not(:last-child)
+  .ocr-translate-live-line-note {
+  display: none;
+}
+
+.ocr-translate-live-footer {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+}
+
+.ocr-translate-live-lines:not(.is-empty) + .ocr-translate-live-footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--ocr-line);
+}
+
+/* An empty footer stays in place, so screen readers hear what shows up in it. */
+.ocr-translate-live-lines + .ocr-translate-live-footer.is-empty {
+  padding: 0;
+  border-top: 0;
+}
+
+.ocr-translate-live-line-note,
 .ocr-translate-live-note {
   margin: 0;
   color: var(--ocr-ink-subtle);
@@ -1943,6 +2007,7 @@
   line-height: var(--ocr-leading-ui);
 }
 
+.ocr-translate-live-line-note.is-error,
 .ocr-translate-live-note.is-error {
   color: var(--ocr-danger);
 }
@@ -1956,6 +2021,26 @@
 
 .ocr-translate-live-retry[hidden] {
   display: none;
+}
+
+/* Two diagonal strokes in the bottom right corner, like a text area's. */
+.ocr-translate-live-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(
+    135deg,
+    transparent 52%,
+    var(--ocr-ink-subtle) 52% 58%,
+    transparent 58% 70%,
+    var(--ocr-ink-subtle) 70% 76%,
+    transparent 76%
+  );
+  opacity: 0.7;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1984,7 +2069,9 @@
   .ocr-translate-overlay-retry,
   .ocr-translate-overlay-popover-button,
   .ocr-translate-overlay-progress-fill,
-  .ocr-translate-popup-progress-fill {
+  .ocr-translate-popup-progress-fill,
+  .ocr-translate-live-line,
+  .ocr-translate-live-translation {
     transition: none;
   }
 }

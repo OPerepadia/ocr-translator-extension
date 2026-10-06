@@ -10,7 +10,9 @@ export type LiveTranslationState =
   | "pending"
   | "ready"
   | "same-language"
-  | "failed";
+  | "failed"
+  /** Dropped because newer lines needed the translator more. */
+  | "skipped";
 
 export interface LiveLine {
   /** The text as read from the screen. */
@@ -23,7 +25,11 @@ export interface LiveLine {
 
 export interface LiveState {
   status: LiveStatus;
-  /** What the region shows now. Absent while it holds no text. */
+  /** Every line read so far, oldest first. A line stays here after it leaves
+   * the screen. */
+  lines: LiveLine[];
+  /** What the region shows now, which is always the last of `lines`. Absent
+   * while the region holds no text. */
   line?: LiveLine;
   /** Set when status is "error". */
   error?: string;
@@ -63,6 +69,10 @@ export const EMPTY_READS_BEFORE_CLEAR = 2;
 // A line whose translation failed is translated again no sooner than this.
 export const RETRY_TRANSLATION_MS = 5000;
 export const TRANSLATION_CACHE_SIZE = 100;
+// A line keeps translating after the next one shows, so that it gets filled in
+// too. Past this many translations at once the oldest is dropped, so that a
+// slow translator does not fall further and further behind.
+export const MAX_TRANSLATIONS = 3;
 // How many earlier lines go along with a line as context.
 export const MAX_CONTEXT_LINES = 3;
 // Lines further apart than this belong to different scenes, so an earlier one
@@ -76,23 +86,28 @@ interface CachedTranslation {
 
 /** A line that has been on screen, kept to give the lines after it context. */
 interface ShownLine {
+  /** Where it is in `LiveState.lines`. */
+  index: number;
   text: string;
   firstSeenAt: number;
   lastSeenAt: number;
   /** The lines before it that it was translated with. */
   context: string[];
+  /** The translation request that is still out for it. */
+  requestId?: string;
+  failedAt?: number;
 }
 
 /**
  * Reads a screen region over and over and keeps the translation of whatever
  * text it shows.
  *
- * Reading and translating run side by side. A translation that is still out
- * when the subtitle changes is dropped, and a line that was translated before
- * comes straight from the cache.
+ * Reading and translating run side by side, and a line keeps translating
+ * after the subtitle changes. A line that was translated before comes straight
+ * from the cache.
  */
 export class LiveSession {
-  private state: LiveState = { status: "starting" };
+  private state: LiveState = { status: "starting", lines: [] };
   // Replies from a loop that has since stopped are ignored by comparing this.
   private generation = 0;
   private stopped = false;
@@ -101,12 +116,12 @@ export class LiveSession {
   private failedReads = 0;
   private unchangedReads = 0;
   private emptyReads = 0;
-  private translationFailedAt = 0;
   private targetLang: string | undefined;
   private frameRequestId: string | undefined;
-  private translationRequestId: string | undefined;
   private wakeUp: (() => void) | undefined;
   private readonly cache = new Map<string, CachedTranslation>();
+  // Lines with a translation out, oldest request first.
+  private readonly translating = new Set<ShownLine>();
   // The last of these is the line on screen, or the last one that was.
   private readonly history: ShownLine[] = [];
 
@@ -232,7 +247,6 @@ export class LiveSession {
 
   private giveUp(error: unknown): void {
     this.generation += 1;
-    this.cancelTranslation();
     this.update({
       status: "error",
       error: error instanceof Error ? error.message : String(error),
@@ -244,7 +258,6 @@ export class LiveSession {
     if (!isReadable(text)) {
       this.emptyReads += 1;
       if (this.emptyReads >= EMPTY_READS_BEFORE_CLEAR && this.state.line) {
-        this.cancelTranslation();
         this.update({ line: undefined });
       }
       return;
@@ -260,25 +273,31 @@ export class LiveSession {
     shown.lastSeenAt = this.deps.now();
     if (
       line.state === "failed" &&
-      this.deps.now() - this.translationFailedAt >= RETRY_TRANSLATION_MS
+      this.deps.now() - (shown.failedAt ?? 0) >= RETRY_TRANSLATION_MS
     ) {
-      this.update({ line: { original: line.original, state: "pending" } });
-      this.translateLine(line.original, shown.context);
+      this.setLine(shown, { original: line.original, state: "pending" }, true);
+      this.translateLine(shown, line.original);
     }
   }
 
   private showLine(text: string): void {
     const shown = this.recordShown(text);
-    const cached = this.cache.get(cacheKey(text, shown.context));
-    if (cached && cached.targetLang === this.targetLang) {
-      this.cancelTranslation();
-      this.update({
-        line: { original: text, translation: cached.translation, state: "ready" },
-      });
+    if (shown.requestId) {
+      // A line back on screen whose translation is still on the way.
+      this.update({ line: this.state.lines[shown.index] });
       return;
     }
-    this.update({ line: { original: text, state: "pending" } });
-    this.translateLine(text, shown.context);
+    const cached = this.cache.get(cacheKey(text, shown.context));
+    if (cached && cached.targetLang === this.targetLang) {
+      this.setLine(
+        shown,
+        { original: text, translation: cached.translation, state: "ready" },
+        true,
+      );
+      return;
+    }
+    this.setLine(shown, { original: text, state: "pending" }, true);
+    this.translateLine(shown, text);
   }
 
   /** Records `text` as the line on screen and returns its entry. A line that
@@ -293,6 +312,7 @@ export class LiveSession {
     }
 
     const shown: ShownLine = {
+      index: this.state.lines.length,
       text,
       firstSeenAt: now,
       lastSeenAt: now,
@@ -324,24 +344,39 @@ export class LiveSession {
     return context;
   }
 
-  private translateLine(text: string, context: string[]): void {
-    this.cancelTranslation();
-    const requestId = this.deps.createId();
-    this.translationRequestId = requestId;
-    const isCurrentRequest = (): boolean =>
-      this.translationRequestId === requestId;
+  private translateLine(shown: ShownLine, text: string): void {
+    if (this.translating.size >= MAX_TRANSLATIONS) {
+      const [oldest] = this.translating;
+      this.cancelTranslation(oldest);
+      this.setLine(oldest, {
+        original: this.state.lines[oldest.index].original,
+        state: "skipped",
+      });
+    }
 
-    this.deps.translate(requestId, text, context).then(
+    const requestId = this.deps.createId();
+    shown.requestId = requestId;
+    this.translating.add(shown);
+    // False when the request was cancelled, so its answer is dropped.
+    const finish = (): boolean => {
+      if (shown.requestId !== requestId) {
+        return false;
+      }
+      shown.requestId = undefined;
+      this.translating.delete(shown);
+      return true;
+    };
+
+    this.deps.translate(requestId, text, shown.context).then(
       (response) => {
-        if (isCurrentRequest()) {
-          this.translationRequestId = undefined;
-          this.applyTranslation(text, context, response);
+        if (finish()) {
+          this.applyTranslation(shown, text, response);
         }
       },
       (error: unknown) => {
-        if (isCurrentRequest()) {
-          this.translationRequestId = undefined;
+        if (finish()) {
           this.markTranslationFailed(
+            shown,
             text,
             error instanceof Error ? error.message : String(error),
           );
@@ -351,8 +386,8 @@ export class LiveSession {
   }
 
   private applyTranslation(
+    shown: ShownLine,
     text: string,
-    context: string[],
     { translation, translationStatus }: LiveTranslationResponse,
   ): void {
     const targetLang = translation?.targetLang ?? translationStatus.targetLang;
@@ -361,23 +396,40 @@ export class LiveSession {
     }
 
     if (translation) {
-      this.cacheTranslation(text, context, {
+      this.cacheTranslation(text, shown.context, {
         translation: translation.text,
         targetLang,
       });
-      this.update({
-        line: { original: text, translation: translation.text, state: "ready" },
+      this.setLine(shown, {
+        original: text,
+        translation: translation.text,
+        state: "ready",
       });
     } else if (translationStatus.state === "same_language") {
-      this.update({ line: { original: text, state: "same-language" } });
+      this.setLine(shown, { original: text, state: "same-language" });
     } else {
-      this.markTranslationFailed(text, translationStatus.reason);
+      this.markTranslationFailed(shown, text, translationStatus.reason);
     }
   }
 
-  private markTranslationFailed(text: string, error?: string): void {
-    this.translationFailedAt = this.deps.now();
-    this.update({ line: { original: text, state: "failed", error } });
+  private markTranslationFailed(
+    shown: ShownLine,
+    text: string,
+    error?: string,
+  ): void {
+    shown.failedAt = this.deps.now();
+    this.setLine(shown, { original: text, state: "failed", error });
+  }
+
+  /** Puts `line` in the list at the place of `shown`, adding it if `shown` was
+   * just recorded. `show` makes it the line on screen. Without it, the line on
+   * screen changes only if it is the same line. */
+  private setLine(shown: ShownLine, line: LiveLine, show = false): void {
+    const lines = [...this.state.lines];
+    const onScreen =
+      show || (this.state.line !== undefined && shown.index === lines.length - 1);
+    lines[shown.index] = line;
+    this.update(onScreen ? { lines, line } : { lines });
   }
 
   private cacheTranslation(
@@ -396,15 +448,18 @@ export class LiveSession {
     }
   }
 
-  private cancelTranslation(): void {
-    if (this.translationRequestId) {
-      this.deps.cancel(this.translationRequestId);
-      this.translationRequestId = undefined;
+  private cancelTranslation(shown: ShownLine): void {
+    if (shown.requestId) {
+      this.deps.cancel(shown.requestId);
+      shown.requestId = undefined;
     }
+    this.translating.delete(shown);
   }
 
   private cancelRequests(): void {
-    this.cancelTranslation();
+    for (const shown of this.translating) {
+      this.cancelTranslation(shown);
+    }
     if (this.frameRequestId) {
       this.deps.cancel(this.frameRequestId);
       this.frameRequestId = undefined;

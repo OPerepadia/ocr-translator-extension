@@ -106,11 +106,13 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const frame = ".ocr-translate-live-region";
       const panel = ".ocr-translate-live";
 
-      // Below the region, outside the frame drawn around it.
+      // Below the region, outside the frame drawn around it, at its default size.
       const region = { x: 100, y: 100, width: 600, height: 80 };
       await show(region);
       await settle(page);
       assert.equal(overlaps(await box(page, panel), await box(page, frame)), false);
+      const { width, height } = await box(page, panel);
+      assert.deepEqual({ width, height }, { width: 480, height: 180 });
       assert.ok((await box(page, panel)).y >= 180 + 12);
       assert.deepEqual(await page.evaluate(() => window.panel.getMask()), []);
       // The frame stays clear of the pixels that are read.
@@ -122,36 +124,40 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.ok(above.y + above.height <= 500 - 12 + 1);
 
       await show(region);
-      await render({
-        status: "running",
-        line: { original: "Hello there", translation: "Bonjour", state: "ready" },
-      });
+      const onScreen = (line) => ({ status: "running", lines: [line], line });
+      const original = page.locator(".ocr-translate-live-original");
+      const statusNote = page.locator(".ocr-translate-live-note");
+      await render(onScreen({ original: "Hello there", translation: "Bonjour", state: "ready" }));
       assert.equal(await text(".ocr-translate-live-translation"), "Bonjour");
-      assert.equal(await text(".ocr-translate-live-original"), "");
+      assert.equal(await original.isVisible(), false);
+      assert.equal(await statusNote.isVisible(), false);
 
       await page.locator(".ocr-translate-live-actions button").nth(0).click();
+      assert.equal(await original.isVisible(), true);
       assert.equal(await text(".ocr-translate-live-original"), "Hello there");
 
-      await render({ status: "running", line: { original: "Hello there", state: "pending" } });
+      await render(onScreen({ original: "Hello there", state: "pending" }));
       assert.equal(await text(".ocr-translate-live-translation"), "Hello there");
-      assert.equal(await text(".ocr-translate-live-note"), "statusTranslating");
+      assert.equal(await page.locator(".ocr-translate-live-line-note").isVisible(), false);
 
-      await render({
-        status: "running",
-        line: { original: "Hello there", state: "failed", error: "HTTP 429" },
-      });
-      assert.equal(await text(".ocr-translate-live-note"), "HTTP 429");
+      await render(onScreen({ original: "Hello there", state: "failed", error: "HTTP 429" }));
+      assert.equal(await text(".ocr-translate-live-line-note"), "HTTP 429");
 
-      await render({ status: "running" });
+      // A line whose translation was cancelled shows what was read, with no note.
+      await render(onScreen({ original: "Hello there", state: "skipped" }));
+      assert.equal(await text(".ocr-translate-live-translation"), "Hello there");
+      assert.equal(await page.locator(".ocr-translate-live-line-note").isVisible(), false);
+
+      await render({ status: "running", lines: [] });
       assert.equal(await text(".ocr-translate-live-note"), "liveWaitingForText");
 
       // Pause becomes resume while paused.
       await page.locator(".ocr-translate-live-actions button").nth(1).click();
-      await render({ status: "paused" });
+      await render({ status: "paused", lines: [] });
       assert.equal(await text(".ocr-translate-live-note"), "livePaused");
       await page.locator(".ocr-translate-live-actions button").nth(1).click();
 
-      await render({ status: "error", error: "worker crashed" });
+      await render({ status: "error", lines: [], error: "worker crashed" });
       assert.equal(await text(".ocr-translate-live-note"), "worker crashed");
       assert.equal(await page.locator(".ocr-translate-live-actions button").nth(1).isDisabled(), true);
       await page.locator(".ocr-translate-live-retry").click();
@@ -170,6 +176,218 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       // treat them as play, pause or full screen.
       await page.locator(".ocr-translate-live-title").dblclick();
       assert.equal(await page.evaluate(() => window.pageClicks), 0);
+    });
+  });
+
+  test(`${name}: the live panel keeps earlier lines above the newest`, async () => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`<body style="margin:0"></body>`);
+      await page.addScriptTag({
+        type: "module",
+        content: `${panelCode}
+          ${uiSetup}
+          window.panel = showLivePanel(container, { x: 100, y: 100, width: 600, height: 80 }, {
+            onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
+          });
+          const lineAt = (number) => ({
+            original: "Line " + number,
+            translation: "Translated line " + number,
+            state: "ready",
+          });
+          // "tail" replaces the newest lines. Reports, right after drawing,
+          // whether the lines slide and the newest fades in (both only show
+          // while the animations run), and where the line above the newest is.
+          window.showLines = (count, { onScreen = true, tail = [] } = {}) => {
+            const lines = Array.from({ length: count }, (_, index) => lineAt(index + 1));
+            lines.splice(count - tail.length, tail.length, ...tail);
+            window.panel.render({
+              status: "running",
+              lines,
+              line: onScreen ? lines.at(-1) : undefined,
+            });
+            const views = container.querySelectorAll(".ocr-translate-live-line");
+            return {
+              slid: container.querySelector(".ocr-translate-live-track").getAnimations().length > 0,
+              faded: views[views.length - 1].getAnimations().length > 0,
+              aboveY: views.length > 1 ? views[views.length - 2].getBoundingClientRect().y : 0,
+            };
+          };
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.panel));
+      await settle(page);
+      const showLines = async (count, options) => {
+        const result = await page.evaluate(
+          ([count, options]) => window.showLines(count, options),
+          [count, options],
+        );
+        await settle(page);
+        return result;
+      };
+      const list = page.locator(".ocr-translate-live-lines");
+      const scroll = () =>
+        list.evaluate((element) => ({
+          top: element.scrollTop,
+          end: element.scrollHeight - element.clientHeight,
+        }));
+      const lines = page.locator(".ocr-translate-live-line");
+      const translationOf = (line) =>
+        line.locator(".ocr-translate-live-translation").textContent();
+      const near = (actual, expected) => Math.abs(actual - expected) <= 1;
+      const atEnd = async () => {
+        const { top, end } = await scroll();
+        return near(top, end);
+      };
+
+      await showLines(20);
+      assert.equal(await lines.count(), 20);
+      // The panel keeps its size and the lines scroll, with the newest at the
+      // bottom and in view.
+      assert.equal((await box(page, ".ocr-translate-live")).height, 180);
+      assert.ok((await scroll()).end > 0, JSON.stringify(await scroll()));
+      assert.equal(await atEnd(), true);
+      assert.equal(await translationOf(lines.first()), "Translated line 1");
+      assert.equal(await translationOf(lines.last()), "Translated line 20");
+      const current = page.locator(".ocr-translate-live-line.is-current");
+      assert.equal(await current.count(), 1);
+      assert.equal(await translationOf(current), "Translated line 20");
+
+      // Lines already shown are updated in place, not drawn again.
+      await lines.first().evaluate((element) => (element.dataset.marked = "yes"));
+
+      // Scrolled up to read, the lines in view stay put as lines come in below.
+      await list.evaluate((element) => (element.scrollTop = 0));
+      const before = await lines.first().boundingBox();
+      const unwatched = await showLines(21);
+      assert.equal(unwatched.slid || unwatched.faded, false);
+      assert.equal((await scroll()).top, 0);
+      assert.deepEqual(await lines.first().boundingBox(), before);
+      assert.equal(await lines.first().getAttribute("data-marked"), "yes");
+
+      // Back at the end, it follows the newest line, sliding it in.
+      await list.evaluate((element) => (element.scrollTop = element.scrollHeight));
+      const following = await showLines(22);
+      assert.equal(following.slid, true);
+      assert.equal(following.faded, true);
+      assert.equal(await atEnd(), true);
+      assert.equal(await translationOf(lines.last()), "Translated line 22");
+
+      // The lines start where they were, so nothing jumps: the one above the
+      // newest has moved up only once the slide is over.
+      const settled = (await lines.nth(20).boundingBox()).y;
+      assert.ok(settled < following.aboveY - 10, JSON.stringify({ settled, following }));
+
+      // Earlier lines are faded, the newest is not.
+      const opacityOf = (line) =>
+        line.evaluate((element) => Number(getComputedStyle(element).opacity));
+      assert.equal(await opacityOf(lines.last()), 1);
+      assert.ok((await opacityOf(lines.nth(20))) < 1);
+
+      // Once the region is empty, no line is marked as the one on screen, and
+      // the newest line stays as it was.
+      await showLines(22, { onScreen: false });
+      assert.equal(await current.count(), 0);
+      assert.equal(await lines.count(), 22);
+      assert.equal(await opacityOf(lines.last()), 1);
+
+      // Only the newest line says it is already in the target language.
+      await showLines(24, {
+        tail: [
+          { original: "Line 23", state: "same-language" },
+          { original: "Line 24", state: "same-language" },
+        ],
+      });
+      const notes = page.locator(".ocr-translate-live-line-note:visible");
+      assert.equal(await notes.count(), 1);
+      assert.equal(await notes.textContent(), "panelAlreadyInTargetLanguage");
+
+      // A line waiting for its translation is as tall as a translated one, so
+      // the lines above it stay put when the translation comes.
+      await showLines(25, { tail: [{ original: "Line 25", state: "pending" }] });
+      const pendingY = (await lines.nth(23).boundingBox()).y;
+      const ready = await showLines(25);
+      assert.ok(near(ready.aboveY, pendingY), JSON.stringify({ pendingY, ready }));
+      assert.equal(ready.slid, false);
+
+      // A translation that is taller pushes the lines above it up. They start
+      // where they were and slide.
+      const long = "Translated line 25 ".repeat(12);
+      const tall = await showLines(25, {
+        tail: [{ original: "Line 25", translation: long, state: "ready" }],
+      });
+      assert.equal(tall.slid, true);
+      assert.ok(near(tall.aboveY, ready.aboveY), JSON.stringify({ ready, tall }));
+      assert.equal(await atEnd(), true);
+
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      const reduced = await showLines(26);
+      assert.equal(reduced.slid || reduced.faded, false);
+      assert.equal(await atEnd(), true);
+    });
+  });
+
+  test(`${name}: the live panel resizes from its corner`, async () => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`<body style="margin:0"></body>`);
+      await page.addScriptTag({
+        type: "module",
+        content: `${panelCode}
+          ${uiSetup}
+          window.panel = showLivePanel(container, { x: 100, y: 100, width: 600, height: 80 }, {
+            onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
+          });
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.panel));
+      await settle(page);
+      const panel = () => box(page, ".ocr-translate-live");
+      // Pointer positions stay inside the viewport: Firefox reports odd
+      // coordinates for synthetic moves outside it.
+      const dragGripTo = async (toX, toY) => {
+        const grip = await box(page, ".ocr-translate-live-resize");
+        await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(toX, toY, { steps: 5 });
+        await page.mouse.up();
+      };
+      const dragGrip = async (dx, dy) => {
+        const grip = await box(page, ".ocr-translate-live-resize");
+        await dragGripTo(grip.x + grip.width / 2 + dx, grip.y + grip.height / 2 + dy);
+      };
+      const near = (actual, expected) => Math.abs(actual - expected) <= 1;
+
+      const start = await panel();
+      await dragGrip(140, 60);
+      const grown = await panel();
+      const where = JSON.stringify({ start, grown });
+      assert.ok(near(grown.width, start.width + 140), where);
+      assert.ok(near(grown.height, start.height + 60), where);
+      assert.ok(near(grown.x, start.x) && near(grown.y, start.y), where);
+
+      // There is no limit but the viewport.
+      await dragGripTo(799, 599);
+      const largest = await panel();
+      assert.ok(near(largest.x + largest.width, 800 - 8), JSON.stringify(largest));
+      assert.ok(near(largest.y + largest.height, 600 - 8), JSON.stringify(largest));
+
+      // It stays big enough for the title bar and a line.
+      await dragGripTo(start.x, start.y);
+      const smallest = await panel();
+      assert.deepEqual(
+        { width: smallest.width, height: smallest.height },
+        { width: 180, height: 96 },
+      );
+
+      // A new size stays when the window changes.
+      await dragGrip(100, 100);
+      const resized = await panel();
+      await page.setViewportSize({ width: 900, height: 700 });
+      await page.waitForTimeout(100);
+      const after = await panel();
+      assert.deepEqual(
+        { width: after.width, height: after.height },
+        { width: resized.width, height: resized.height },
+      );
     });
   });
 
@@ -200,12 +418,12 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const grip = { x: panel.x + 60, y: panel.y + 14 };
       await page.mouse.move(grip.x, grip.y);
       await page.mouse.down();
-      await page.mouse.move(grip.x + 120, grip.y - 150, { steps: 5 });
+      await page.mouse.move(grip.x + 120, grip.y + 150, { steps: 5 });
       await page.mouse.up();
       const moved = await box(page, ".ocr-translate-live");
       const where = JSON.stringify({ panel, moved });
       assert.ok(Math.abs(moved.x - (panel.x + 120)) <= 1, where);
-      assert.ok(Math.abs(moved.y - (panel.y - 150)) <= 1, where);
+      assert.ok(Math.abs(moved.y - (panel.y + 150)) <= 1, where);
       const [movedMask] = await page.evaluate(() => window.panel.getMask());
       assert.ok(movedMask.x <= moved.x && movedMask.y <= moved.y);
 

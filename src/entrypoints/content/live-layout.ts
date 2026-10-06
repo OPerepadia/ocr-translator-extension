@@ -7,30 +7,27 @@ export interface ViewportSize {
 
 export type PanelSide = "below" | "above" | "right" | "left" | "overlap";
 
-/**
- * Where the panel sits, as CSS offsets from the viewport. A panel above or to
- * the left is anchored by its bottom or right edge, so when its text grows it
- * grows away from the region instead of into it.
- */
-export interface PanelPlacement {
-  side: PanelSide;
+/** The panel's box, in viewport coordinates. */
+export interface PanelBox {
+  left: number;
+  top: number;
   width: number;
-  /** The most the panel may grow before its text scrolls. */
-  maxHeight: number;
-  left?: number;
-  right?: number;
-  top?: number;
-  bottom?: number;
+  height: number;
+}
+
+export interface PanelPlacement extends PanelBox {
+  side: PanelSide;
 }
 
 // The region's frame is drawn this far outside it; the panel clears that.
 export const PANEL_GAP = 12;
 export const PANEL_MARGIN = 8;
-export const PANEL_MIN_WIDTH = 260;
-export const PANEL_MAX_WIDTH = 520;
-// Room for the title bar and one line of text.
+export const PANEL_WIDTH = 480;
+export const PANEL_HEIGHT = 180;
+// The smallest the panel gets beside a region or when resized: room for the
+// title bar's buttons and one line of text.
+export const PANEL_MIN_WIDTH = 180;
 export const PANEL_MIN_HEIGHT = 96;
-export const PANEL_MAX_HEIGHT = 240;
 
 /**
  * Put the panel beside the region without covering it, trying below, above,
@@ -38,16 +35,20 @@ export const PANEL_MAX_HEIGHT = 240;
  * is what gets read, and it would otherwise read its own text back.
  *
  * With no room anywhere (a region that fills the viewport) the panel goes to
- * the bottom of the viewport and the caller masks the overlap.
+ * the top of the viewport, away from where subtitles usually are, and the
+ * caller masks the overlap.
  */
 export function placeLivePanel(
   region: Rect,
   viewport: ViewportSize,
 ): PanelPlacement {
-  const maxWidth = Math.max(0, viewport.width - PANEL_MARGIN * 2);
-  const width = Math.min(
-    maxWidth,
-    Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, region.width)),
+  const width = Math.max(
+    0,
+    Math.min(PANEL_WIDTH, viewport.width - PANEL_MARGIN * 2),
+  );
+  const height = Math.max(
+    0,
+    Math.min(PANEL_HEIGHT, viewport.height - PANEL_MARGIN * 2),
   );
   const centered = clamp(
     region.x + region.width / 2 - width / 2,
@@ -62,83 +63,102 @@ export function placeLivePanel(
   if (roomBelow >= PANEL_MIN_HEIGHT) {
     return {
       side: "below",
-      width,
-      maxHeight: Math.min(PANEL_MAX_HEIGHT, roomBelow),
       left: centered,
       top: regionBottom + PANEL_GAP,
+      width,
+      height: Math.min(height, roomBelow),
     };
   }
 
   const roomAbove = region.y - PANEL_GAP - PANEL_MARGIN;
   if (roomAbove >= PANEL_MIN_HEIGHT) {
+    const aboveHeight = Math.min(height, roomAbove);
     return {
       side: "above",
-      width,
-      maxHeight: Math.min(PANEL_MAX_HEIGHT, roomAbove),
       left: centered,
-      bottom: viewport.height - (region.y - PANEL_GAP),
+      top: region.y - PANEL_GAP - aboveHeight,
+      width,
+      height: aboveHeight,
     };
   }
 
-  const alongside = (room: number) => ({
-    width: Math.min(width, room),
-    top: clamp(
-      region.y,
-      PANEL_MARGIN,
-      viewport.height - PANEL_MIN_HEIGHT - PANEL_MARGIN,
-    ),
-  });
+  // Beside the region, level with its top as far as the viewport allows.
+  const top = clamp(
+    region.y,
+    PANEL_MARGIN,
+    viewport.height - height - PANEL_MARGIN,
+  );
 
   const roomRight = viewport.width - (regionRight + PANEL_GAP) - PANEL_MARGIN;
   if (roomRight >= PANEL_MIN_WIDTH) {
-    const { width: sideWidth, top } = alongside(roomRight);
     return {
       side: "right",
-      width: sideWidth,
-      maxHeight: Math.min(PANEL_MAX_HEIGHT, viewport.height - top - PANEL_MARGIN),
       left: regionRight + PANEL_GAP,
       top,
+      width: Math.min(width, roomRight),
+      height,
     };
   }
 
   const roomLeft = region.x - PANEL_GAP - PANEL_MARGIN;
   if (roomLeft >= PANEL_MIN_WIDTH) {
-    const { width: sideWidth, top } = alongside(roomLeft);
+    const leftWidth = Math.min(width, roomLeft);
     return {
       side: "left",
-      width: sideWidth,
-      maxHeight: Math.min(PANEL_MAX_HEIGHT, viewport.height - top - PANEL_MARGIN),
-      right: viewport.width - (region.x - PANEL_GAP),
+      left: region.x - PANEL_GAP - leftWidth,
       top,
+      width: leftWidth,
+      height,
     };
   }
 
   return {
     side: "overlap",
-    width,
-    maxHeight: Math.max(
-      0,
-      Math.min(PANEL_MAX_HEIGHT, viewport.height - PANEL_MARGIN * 2),
-    ),
     left: clamp(
       (viewport.width - width) / 2,
       PANEL_MARGIN,
       viewport.width - width - PANEL_MARGIN,
     ),
-    bottom: PANEL_MARGIN,
+    top: PANEL_MARGIN,
+    width,
+    height,
   };
 }
 
-/** Keep a dragged panel's top-left corner where the whole panel stays in the
- * viewport. */
-export function clampPanelPosition(
-  position: { left: number; top: number },
-  panel: { width: number; height: number },
-  viewport: ViewportSize,
-): { left: number; top: number } {
+/** `box` moved, and shrunk if it must be, to fit inside the viewport. */
+export function clampPanelBox(box: PanelBox, viewport: ViewportSize): PanelBox {
+  const width = Math.min(
+    box.width,
+    Math.max(0, viewport.width - PANEL_MARGIN * 2),
+  );
+  const height = Math.min(
+    box.height,
+    Math.max(0, viewport.height - PANEL_MARGIN * 2),
+  );
   return {
-    left: clamp(position.left, PANEL_MARGIN, viewport.width - panel.width - PANEL_MARGIN),
-    top: clamp(position.top, PANEL_MARGIN, viewport.height - panel.height - PANEL_MARGIN),
+    left: clamp(box.left, PANEL_MARGIN, viewport.width - width - PANEL_MARGIN),
+    top: clamp(box.top, PANEL_MARGIN, viewport.height - height - PANEL_MARGIN),
+    width,
+    height,
+  };
+}
+
+/** `box` resized from its bottom right corner to `width` by `height`, no
+ * smaller than the minimum and not past the viewport's edges. */
+export function resizePanelBox(
+  box: PanelBox,
+  width: number,
+  height: number,
+  viewport: ViewportSize,
+): PanelBox {
+  return {
+    ...box,
+    width: clamp(width, PANEL_MIN_WIDTH, viewport.width - box.left - PANEL_MARGIN),
+    height: clamp(
+      height,
+      PANEL_MIN_HEIGHT,
+      viewport.height - box.top - PANEL_MARGIN,
+    ),
   };
 }
 

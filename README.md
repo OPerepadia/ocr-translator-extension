@@ -46,13 +46,13 @@ Use it for text that keeps changing on screen, such as subtitles burned into a v
 1. Click **Live translation** in the extension popup, or right-click the page and choose "Translate a screen region live…".
 2. Drag over the area where the text appears.
 
-The extension reads that area about once a second and shows the translation in a small panel next to it. The panel buttons show the original text, pause, select a new area, or close the panel. Drag the title bar to move the panel.
+The extension reads that area about once a second and shows the translation in a small panel next to it. The newest line is at the bottom, and earlier lines stay above it. Scroll up to read them again. The panel buttons show the original text, pause, select a new area, or close the panel. Drag the title bar to move the panel, or its bottom right corner to resize it.
 
 To start it with a key, assign a shortcut to "Translate a screen region live" in your browser's extension shortcut settings.
 
 Things to know:
 
-- The area stays at a fixed place on the screen. If the video moves or changes size, select the area again.
+- The area stays at a fixed place on the screen. If the video moves or changes size, select the area again. Selecting a new area clears the earlier lines.
 - Text smaller than a set size is ignored, 16 px by default, so buttons and labels around the subtitles are not translated. Change it with **Ignore small text in live translation** in the extension settings. The size is in pixels and does not depend on screen density. Use 0 to read all text.
 - Every new line is sent to your translation provider. A line that comes straight back is not translated again.
 - With an LLM endpoint, the previous few lines are sent as context, so a sentence split over several subtitles translates better.

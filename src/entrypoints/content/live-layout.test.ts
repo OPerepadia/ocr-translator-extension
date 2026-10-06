@@ -1,39 +1,39 @@
 import { describe, expect, it } from "vitest";
 import type { Rect } from "@/shared/types";
 import {
-  clampPanelPosition,
+  clampPanelBox,
   growRect,
   PANEL_GAP,
+  PANEL_HEIGHT,
   PANEL_MARGIN,
-  PANEL_MAX_HEIGHT,
-  PANEL_MAX_WIDTH,
+  PANEL_MIN_HEIGHT,
   PANEL_MIN_WIDTH,
+  PANEL_WIDTH,
   placeLivePanel,
   rectsOverlap,
-  type PanelPlacement,
+  resizePanelBox,
+  type PanelBox,
 } from "./live-layout";
 
 const viewport = { width: 1280, height: 720 };
 
-/** The box a placement describes, once it is as tall as it may get. */
-function boxOf(placement: PanelPlacement): Rect {
-  const height = placement.maxHeight;
-  const x =
-    placement.left ?? viewport.width - (placement.right ?? 0) - placement.width;
-  const y =
-    placement.top ?? viewport.height - (placement.bottom ?? 0) - height;
-  return { x, y, width: placement.width, height };
-}
+const rectOf = (box: PanelBox): Rect => ({
+  x: box.left,
+  y: box.top,
+  width: box.width,
+  height: box.height,
+});
 
 describe("placeLivePanel", () => {
-  it("puts the panel below a region with room under it", () => {
+  it("puts a panel of the default size below a region with room under it", () => {
     const region = { x: 200, y: 100, width: 600, height: 80 };
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("below");
     expect(placement.top).toBe(100 + 80 + PANEL_GAP);
-    expect(placement.maxHeight).toBe(PANEL_MAX_HEIGHT);
-    expect(rectsOverlap(boxOf(placement), growRect(region, 4))).toBe(false);
+    expect(placement.width).toBe(PANEL_WIDTH);
+    expect(placement.height).toBe(PANEL_HEIGHT);
+    expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
   });
 
   it("puts the panel above a region near the bottom edge", () => {
@@ -41,9 +41,8 @@ describe("placeLivePanel", () => {
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("above");
-    expect(placement.bottom).toBe(viewport.height - (600 - PANEL_GAP));
-    expect(placement.top).toBeUndefined();
-    expect(rectsOverlap(boxOf(placement), growRect(region, 4))).toBe(false);
+    expect(placement.top + placement.height).toBe(600 - PANEL_GAP);
+    expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
   });
 
   it("limits the height to the room that is left", () => {
@@ -51,7 +50,7 @@ describe("placeLivePanel", () => {
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("below");
-    expect(placement.maxHeight).toBe(
+    expect(placement.height).toBe(
       viewport.height - (540 + PANEL_GAP) - PANEL_MARGIN,
     );
   });
@@ -60,23 +59,21 @@ describe("placeLivePanel", () => {
     const region = { x: 400, y: 100, width: 400, height: 60 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.width).toBe(400);
-    expect(placement.left).toBe(400);
+    expect(placement.left).toBe(600 - PANEL_WIDTH / 2);
   });
 
-  it("keeps a panel under a wide region within the viewport", () => {
+  it("keeps the default width under a wide region", () => {
     const region = { x: 0, y: 100, width: 1280, height: 60 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.width).toBe(PANEL_MAX_WIDTH);
-    expect(placement.left).toBe((1280 - PANEL_MAX_WIDTH) / 2);
+    expect(placement.width).toBe(PANEL_WIDTH);
+    expect(placement.left).toBe((1280 - PANEL_WIDTH) / 2);
   });
 
-  it("gives a narrow region a readable panel", () => {
+  it("keeps the panel inside the viewport at the left edge", () => {
     const region = { x: 10, y: 100, width: 80, height: 40 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.width).toBe(PANEL_MIN_WIDTH);
     expect(placement.left).toBe(PANEL_MARGIN);
   });
 
@@ -93,7 +90,8 @@ describe("placeLivePanel", () => {
 
     expect(placement.side).toBe("right");
     expect(placement.left).toBe(520 + PANEL_GAP);
-    expect(rectsOverlap(boxOf(placement), growRect(region, 4))).toBe(false);
+    expect(placement.top).toBe(20);
+    expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
   });
 
   it("goes to the left when only the left has room", () => {
@@ -101,26 +99,27 @@ describe("placeLivePanel", () => {
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("left");
-    expect(placement.right).toBe(viewport.width - (760 - PANEL_GAP));
-    expect(rectsOverlap(boxOf(placement), growRect(region, 4))).toBe(false);
+    expect(placement.left + placement.width).toBe(760 - PANEL_GAP);
+    expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
   });
 
   it("shrinks to the room beside the region", () => {
-    const region = { x: 20, y: 20, width: 880, height: 680 };
+    const region = { x: 20, y: 20, width: 1000, height: 680 };
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("right");
     expect(placement.width).toBe(
-      viewport.width - (900 + PANEL_GAP) - PANEL_MARGIN,
+      viewport.width - (1020 + PANEL_GAP) - PANEL_MARGIN,
     );
+    expect(placement.width).toBeLessThan(PANEL_WIDTH);
   });
 
-  it("falls back to the bottom edge when nothing fits", () => {
+  it("falls back to the top edge, away from subtitles, when nothing fits", () => {
     const region = { x: 0, y: 0, width: 1280, height: 720 };
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("overlap");
-    expect(placement.bottom).toBe(PANEL_MARGIN);
+    expect(placement.top).toBe(PANEL_MARGIN);
   });
 
   it("never returns a negative size in a tiny viewport", () => {
@@ -130,28 +129,66 @@ describe("placeLivePanel", () => {
     );
 
     expect(placement.width).toBeGreaterThanOrEqual(0);
-    expect(placement.maxHeight).toBeGreaterThanOrEqual(0);
+    expect(placement.height).toBeGreaterThanOrEqual(0);
   });
 });
 
-describe("clampPanelPosition", () => {
-  const panel = { width: 300, height: 120 };
+describe("clampPanelBox", () => {
+  const box = { left: 100, top: 200, width: 300, height: 120 };
 
-  it("leaves a position inside the viewport alone", () => {
-    expect(clampPanelPosition({ left: 100, top: 200 }, panel, viewport)).toEqual({
-      left: 100,
-      top: 200,
-    });
+  it("leaves a box inside the viewport alone", () => {
+    expect(clampPanelBox(box, viewport)).toEqual(box);
   });
 
-  it("pulls a panel back from every edge", () => {
-    expect(clampPanelPosition({ left: -50, top: -50 }, panel, viewport)).toEqual({
+  it("pulls a box back from every edge", () => {
+    expect(clampPanelBox({ ...box, left: -50, top: -50 }, viewport)).toEqual({
+      ...box,
       left: PANEL_MARGIN,
       top: PANEL_MARGIN,
     });
-    expect(clampPanelPosition({ left: 5000, top: 5000 }, panel, viewport)).toEqual({
-      left: viewport.width - panel.width - PANEL_MARGIN,
-      top: viewport.height - panel.height - PANEL_MARGIN,
+    expect(clampPanelBox({ ...box, left: 5000, top: 5000 }, viewport)).toEqual({
+      ...box,
+      left: viewport.width - box.width - PANEL_MARGIN,
+      top: viewport.height - box.height - PANEL_MARGIN,
+    });
+  });
+
+  it("shrinks a box larger than the viewport", () => {
+    expect(
+      clampPanelBox({ left: 0, top: 0, width: 5000, height: 5000 }, viewport),
+    ).toEqual({
+      left: PANEL_MARGIN,
+      top: PANEL_MARGIN,
+      width: viewport.width - PANEL_MARGIN * 2,
+      height: viewport.height - PANEL_MARGIN * 2,
+    });
+  });
+});
+
+describe("resizePanelBox", () => {
+  const box = { left: 100, top: 200, width: 300, height: 120 };
+
+  it("moves the bottom right corner and keeps the top left one", () => {
+    expect(resizePanelBox(box, 700, 400, viewport)).toEqual({
+      ...box,
+      width: 700,
+      height: 400,
+    });
+  });
+
+  it("does not shrink below the minimum", () => {
+    expect(resizePanelBox(box, 10, 10, viewport)).toEqual({
+      ...box,
+      width: PANEL_MIN_WIDTH,
+      height: PANEL_MIN_HEIGHT,
+    });
+  });
+
+  it("stops at the viewport's edges", () => {
+    expect(resizePanelBox(box, 5000, 5000, viewport)).toEqual({
+      ...box,
+      width: viewport.width - 100 - PANEL_MARGIN,
+      height: viewport.height - 200 - PANEL_MARGIN,
     });
   });
 });

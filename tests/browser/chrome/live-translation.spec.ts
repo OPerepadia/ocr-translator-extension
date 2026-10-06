@@ -207,6 +207,10 @@ const capturesSoFar = (worker: Worker): Promise<number> =>
 const translation = (page: Page) =>
   page.locator(".ocr-translate-live-translation");
 
+// The line the region shows now. Earlier lines stay in the panel.
+const currentLine = (page: Page) =>
+  page.locator(".ocr-translate-live-line.is-current");
+
 async function overlaps(page: Page, first: string, second: string): Promise<boolean> {
   const a = await page.locator(first).boundingBox();
   const b = await page.locator(second).boundingBox();
@@ -235,23 +239,26 @@ test("translates the subtitles in a region and reuses earlier translations", asy
     expect(await overlaps(page, ".ocr-translate-live", ".ocr-translate-live-region")).toBe(false);
 
     await showSubtitle(page);
-    await expect(translation(page)).toHaveText("", { timeout: 10_000 });
+    await expect(currentLine(page)).toHaveCount(0, { timeout: 10_000 });
 
-    // The same line coming straight back is not translated again.
+    // The same line coming straight back is not translated or listed again.
     await showSubtitle(page, "The weather is nice today.");
-    await expect(translation(page)).toHaveText("[uk] The weather is nice today.", {
-      timeout: 10_000,
-    });
+    await expect(currentLine(page)).toHaveCount(1, { timeout: 10_000 });
+    await expect(translation(page)).toHaveText(["[uk] The weather is nice today."]);
     await showSubtitle(page);
-    await expect(translation(page)).toHaveText("", { timeout: 10_000 });
+    await expect(currentLine(page)).toHaveCount(0, { timeout: 10_000 });
 
     await showSubtitle(
       page,
       "We should walk to the market",
       "before it starts to rain.",
     );
+    // The newest line is at the bottom.
     await expect(translation(page)).toHaveText(
-      "[uk] We should walk to the market before it starts to rain.",
+      [
+        "[uk] The weather is nice today.",
+        "[uk] We should walk to the market before it starts to rain.",
+      ],
       { timeout: 10_000 },
     );
 
@@ -275,7 +282,7 @@ test("ignores small interface text in the region", async () => {
     await startLiveTranslation(session);
     await page.waitForTimeout(3_000);
     // Nothing but the small text is on screen, so there is nothing to show.
-    await expect(translation(page)).toHaveText("");
+    await expect(translation(page)).toHaveCount(0);
     expect(server.requests).toEqual([]);
 
     await showSubtitle(page, "See you tomorrow.");
@@ -313,7 +320,7 @@ test("applies the text size the same way on a high-density screen", async () => 
     await page.waitForTimeout(3_000);
     // At twice the density the small text has twice the pixels, and is still
     // the same size on screen, so it is still left out.
-    await expect(translation(page)).toHaveText("");
+    await expect(translation(page)).toHaveCount(0);
 
     await showSubtitle(page, "See you tomorrow.");
     await expect(translation(page)).toHaveText("[uk] See you tomorrow.", {
@@ -392,7 +399,9 @@ test("pauses, resumes and closes from the panel", async () => {
       .locator(".ocr-translate-live-actions button")
       .all();
 
+    await expect(page.locator(".ocr-translate-live-original")).toBeHidden();
     await showOriginal.click();
+    await expect(page.locator(".ocr-translate-live-original")).toBeVisible();
     await expect(page.locator(".ocr-translate-live-original")).toHaveText(
       "The weather is nice today.",
     );
