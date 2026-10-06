@@ -237,6 +237,8 @@ test("translates the subtitles in a region and reuses earlier translations", asy
     });
     // The panel stays out of the pixels it reads.
     expect(await overlaps(page, ".ocr-translate-live", ".ocr-translate-live-region")).toBe(false);
+    // The languages that were used are shown.
+    await expect(page.locator(".ocr-translate-live-languages")).toHaveText("EN → UK");
 
     await showSubtitle(page);
     await expect(currentLine(page)).toHaveCount(0, { timeout: 10_000 });

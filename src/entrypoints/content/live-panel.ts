@@ -17,6 +17,7 @@ import {
   type PanelBox,
   type ViewportSize,
 } from "./live-layout";
+import { languageName } from "./language-picker";
 import type { LiveLine, LiveState } from "./live-session";
 
 export interface LivePanelCallbacks {
@@ -95,6 +96,11 @@ export function showLivePanel(
   title.className = "ocr-translate-live-title";
   title.textContent = t("popupLiveTranslation");
 
+  // Always left to right, so the arrow points from the source to the target.
+  const languages = document.createElement("span");
+  languages.className = "ocr-translate-live-languages";
+  languages.dir = "ltr";
+
   const originalButton = iconButton(ORIGINAL_TEXT_ICON, () => {
     showOriginal = !showOriginal;
     keepingScroll(draw);
@@ -123,7 +129,12 @@ export function showLivePanel(
 
   const topbar = document.createElement("div");
   topbar.className = "ocr-translate-live-topbar";
-  topbar.append(dot, title, actions);
+  // The title and the languages after it, as wide as their text.
+  const heading = document.createElement("div");
+  heading.className = "ocr-translate-live-heading";
+  heading.append(title, languages);
+
+  topbar.append(dot, heading, actions);
 
   // Screen readers announce each line as it is added.
   const lineList = document.createElement("div");
@@ -337,6 +348,7 @@ export function showLivePanel(
     );
     originalButton.setAttribute("aria-pressed", String(showOriginal));
 
+    drawLanguages();
     lineList.classList.toggle("is-showing-original", showOriginal);
     lineList.classList.toggle("is-empty", state.lines.length === 0);
     drawLines();
@@ -346,6 +358,24 @@ export function showLivePanel(
     note.classList.toggle("is-error", message.isError);
     retry.hidden = status !== "error";
     footer.classList.toggle("is-empty", !message.text && retry.hidden);
+  }
+
+  // "EN → UK", with the names in the tooltip. Before the first translation
+  // nothing is known, and a source that was not found leaves just the target.
+  function drawLanguages(): void {
+    const { sourceLang, targetLang } = state;
+    if (!targetLang && !sourceLang) {
+      languages.textContent = "";
+      languages.removeAttribute("title");
+      return;
+    }
+    const code = (lang?: string): string => lang?.toUpperCase() ?? "?";
+    languages.textContent = sourceLang
+      ? `${code(sourceLang)} → ${code(targetLang)}`
+      : `→ ${code(targetLang)}`;
+    languages.title = [sourceLang, targetLang]
+      .map((lang) => (lang ? languageName(lang) : "?"))
+      .join(" → ");
   }
 
   function drawLines(): void {

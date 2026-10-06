@@ -31,6 +31,10 @@ export interface LiveState {
   /** What the region shows now, which is always the last of `lines`. Absent
    * while the region holds no text. */
   line?: LiveLine;
+  /** The languages of the latest translation. Absent until there is one. The
+   * source is the one that was detected, so it can change between lines. */
+  sourceLang?: string;
+  targetLang?: string;
   /** Set when status is "error". */
   error?: string;
 }
@@ -393,6 +397,15 @@ export class LiveSession {
     const targetLang = translation?.targetLang ?? translationStatus.targetLang;
     if (targetLang) {
       this.targetLang = targetLang;
+    }
+    // Shown along with the line below, which sends the update.
+    const sourceLang = translation?.sourceLang ?? translationStatus.sourceLang;
+    if (sourceLang || targetLang) {
+      this.state = {
+        ...this.state,
+        sourceLang: sourceLang ?? this.state.sourceLang,
+        targetLang: targetLang ?? this.state.targetLang,
+      };
     }
 
     if (translation) {

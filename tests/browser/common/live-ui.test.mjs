@@ -9,12 +9,12 @@ const css = await readFile(new URL("style.css", contentDir), "utf8");
 
 // The content modules are compiled into one script. Their imports are dropped,
 // so each test lists the files it needs, in dependency order.
-async function compile(files, name) {
+async function compile(files, name, stubs = []) {
   const sources = await Promise.all(
     files.map((file) => readFile(new URL(file, contentDir), "utf8")),
   );
   const { code } = await transformWithOxc(
-    ["const t = (key: string) => key;", ...sources]
+    ["const t = (key: string) => key;", ...stubs, ...sources]
       .join("\n")
       .replace(/^import[\s\S]*?from\s+["'][^"']+["'];\n/gm, ""),
     `${name}.ts`,
@@ -22,7 +22,9 @@ async function compile(files, name) {
   return code;
 }
 
-const panelCode = await compile(["icons.ts", "live-layout.ts", "live-panel.ts"], "live-panel");
+const panelCode = await compile(["icons.ts", "live-layout.ts", "live-panel.ts"], "live-panel", [
+  "const languageName = (code: string) => `Language ${code}`;",
+]);
 const selectionCode = await compile(["image-picker.ts", "selection-overlay.ts"], "selection");
 const modalCode = await compile(["modal-ui.ts"], "modal-ui");
 
@@ -151,6 +153,27 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await render({ status: "running", lines: [] });
       assert.equal(await text(".ocr-translate-live-note"), "liveWaitingForText");
 
+      // The languages show once they are known, with their names to hover.
+      const languages = page.locator(".ocr-translate-live-languages");
+      assert.equal(await languages.isVisible(), false);
+      await render({ status: "running", lines: [], sourceLang: "en", targetLang: "uk" });
+      assert.equal(await languages.textContent(), "EN → UK");
+      assert.equal(await languages.getAttribute("title"), "Language en → Language uk");
+      // They sit right after the title, with the buttons on the far side.
+      const title = await box(page, ".ocr-translate-live-title");
+      const beside = await languages.boundingBox();
+      const buttons = await box(page, ".ocr-translate-live-actions");
+      const gap = beside.x - (title.x + title.width);
+      assert.ok(gap >= 0 && gap <= 12, JSON.stringify({ title, beside }));
+      assert.ok(buttons.x - (beside.x + beside.width) > 20, JSON.stringify({ beside, buttons }));
+      await render({ status: "running", lines: [], sourceLang: "zh-cn", targetLang: "uk" });
+      assert.equal(await languages.textContent(), "ZH-CN → UK");
+      // Without a detected source there is only the target.
+      await render({ status: "running", lines: [], targetLang: "uk" });
+      assert.equal(await languages.textContent(), "→ UK");
+      assert.equal(await languages.getAttribute("title"), "? → Language uk");
+      await render({ status: "running", lines: [], sourceLang: "en", targetLang: "uk" });
+
       // Pause becomes resume while paused.
       await page.locator(".ocr-translate-live-actions button").nth(1).click();
       await render({ status: "paused", lines: [] });
@@ -261,8 +284,9 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
 
       // Scrolled up to read, the lines in view stay put as lines come in below.
       await list.evaluate((element) => (element.scrollTop = 0));
+      // The scroll event comes a frame later.
+      await latest.waitFor({ state: "visible" });
       await settle(page);
-      assert.equal(await latest.isVisible(), true);
       const before = await lines.first().boundingBox();
       const unwatched = await showLines(21);
       assert.equal(unwatched.slid || unwatched.faded, false);
@@ -391,13 +415,41 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.ok(near(largest.x + largest.width, 800 - 8), JSON.stringify(largest));
       assert.ok(near(largest.y + largest.height, 600 - 8), JSON.stringify(largest));
 
+      // With the languages shown, a bar that is a little short of room shrinks
+      // the title and leaves the languages whole.
+      await page.evaluate(() =>
+        window.panel.render({ status: "running", lines: [], sourceLang: "en", targetLang: "uk" }),
+      );
+      const wide = {
+        title: (await box(page, ".ocr-translate-live-title")).width,
+        languages: (await box(page, ".ocr-translate-live-languages")).width,
+      };
+      await dragGripTo(start.x + 300, start.y + 100);
+      const narrow = {
+        title: (await box(page, ".ocr-translate-live-title")).width,
+        languages: (await box(page, ".ocr-translate-live-languages")).width,
+      };
+      assert.ok(narrow.title < wide.title - 5, JSON.stringify({ wide, narrow }));
+      assert.ok(Math.abs(narrow.languages - wide.languages) < 0.1, JSON.stringify({ wide, narrow }));
+
       // It stays big enough for the title bar and a line.
       await dragGripTo(start.x, start.y);
       const smallest = await panel();
       assert.deepEqual(
         { width: smallest.width, height: smallest.height },
-        { width: 180, height: 96 },
+        { width: 220, height: 96 },
       );
+
+      // Even at that size the buttons and the languages fit in the title bar,
+      // and the long pair gives way before the buttons do.
+      await page.evaluate(() =>
+        window.panel.render({ status: "running", lines: [], sourceLang: "zh-cn", targetLang: "uk" }),
+      );
+      const bar = await box(page, ".ocr-translate-live-topbar");
+      const close = await box(page, ".ocr-translate-live-actions button:last-child");
+      assert.ok(close.x + close.width <= bar.x + bar.width, JSON.stringify({ bar, close }));
+      const label = await box(page, ".ocr-translate-live-languages");
+      assert.ok(label.width > 20, JSON.stringify(label));
 
       // A new size stays when the window changes.
       await dragGrip(100, 100);

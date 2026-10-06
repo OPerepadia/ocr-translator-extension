@@ -1871,8 +1871,17 @@
   }
 }
 
+/* The title and the languages right after it. When the bar is short of room
+   the title gives way first. The languages shorten only once it is gone. */
+.ocr-translate-live-heading {
+  display: flex;
+  align-items: baseline;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .ocr-translate-live-title {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--ocr-ink);
@@ -1883,10 +1892,27 @@
   white-space: nowrap;
 }
 
+.ocr-translate-live-languages {
+  flex: none;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding-left: 8px;
+  overflow: hidden;
+  color: var(--ocr-ink-subtle);
+  font-size: var(--ocr-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocr-translate-live-languages:empty {
+  display: none;
+}
+
 .ocr-translate-live-actions {
   display: inline-flex;
   align-items: center;
   flex: none;
+  margin-left: auto;
 }
 
 .ocr-translate-live-actions .ocr-translate-popup-icon-button {

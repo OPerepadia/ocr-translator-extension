@@ -32,8 +32,12 @@ const read = (text: string, unchanged = false): LiveFrameResponse => ({
   unchanged,
 });
 
-const translated = (text: string, targetLang = "uk"): LiveTranslationResponse => ({
-  translation: { text, targetLang },
+const translated = (
+  text: string,
+  targetLang = "uk",
+  sourceLang?: string,
+): LiveTranslationResponse => ({
+  translation: { text, targetLang, sourceLang },
   translationStatus: { state: "ok" },
 });
 
@@ -102,8 +106,75 @@ describe("LiveSession", () => {
       translation: "[uk] Good morning.",
       state: "ready",
     };
-    expect(t.last()).toEqual({ status: "running", lines: [line], line });
+    expect(t.last()).toEqual({ status: "running", lines: [line], line, targetLang: "uk" });
     expect(t.translate).toHaveBeenCalledWith(expect.any(String), "Good morning.", []);
+  });
+
+  it("reports the languages with the first translation, not before", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning."));
+    let resolve: (response: LiveTranslationResponse) => void = () => {};
+    t.translate.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+
+    t.session.start();
+    await advance(0);
+    expect(t.last()?.sourceLang).toBeUndefined();
+    expect(t.last()?.targetLang).toBeUndefined();
+
+    resolve(translated("[uk] Good morning.", "uk", "en"));
+    await advance(0);
+    // They arrive in the same update as the translation.
+    expect(t.last()).toMatchObject({
+      sourceLang: "en",
+      targetLang: "uk",
+      line: { state: "ready" },
+    });
+    const withLanguages = t.states.filter((state) => state.sourceLang);
+    expect(withLanguages).toHaveLength(1);
+    t.session.stop();
+  });
+
+  it("follows the source language as it is detected line by line", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning."), read("Guten Morgen."));
+    t.translate
+      .mockResolvedValueOnce(translated("[uk] Good morning.", "uk", "en"))
+      .mockResolvedValueOnce(translated("[uk] Guten Morgen.", "uk", "de"));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS);
+
+    expect(t.last()).toMatchObject({ sourceLang: "de", targetLang: "uk" });
+    t.session.stop();
+  });
+
+  it("keeps the languages when a later translation does not name them", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning."), read("A different line"));
+    t.translate
+      .mockResolvedValueOnce(translated("[uk] Good morning.", "uk", "en"))
+      .mockResolvedValueOnce({ translationStatus: { state: "failed", reason: "HTTP 429" } });
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS);
+
+    expect(t.last()?.lines[1].state).toBe("failed");
+    expect(t.last()).toMatchObject({ sourceLang: "en", targetLang: "uk" });
+    t.session.stop();
+  });
+
+  it("takes the languages from a result without a translation", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning."));
+    t.translate.mockResolvedValue({
+      translationStatus: { state: "same_language", sourceLang: "uk", targetLang: "uk" },
+    });
+
+    t.session.start();
+    await advance(0);
+
+    expect(t.last()).toMatchObject({ sourceLang: "uk", targetLang: "uk" });
+    t.session.stop();
   });
 
   it("shows the original while the translation is on its way", async () => {
