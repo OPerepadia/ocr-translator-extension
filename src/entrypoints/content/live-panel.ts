@@ -1,6 +1,7 @@
 import { t } from "@/shared/i18n";
 import type { Rect } from "@/shared/types";
 import {
+  ARROW_DOWN_ICON,
   CLOSE_ICON,
   ORIGINAL_TEXT_ICON,
   PAUSE_ICON,
@@ -143,11 +144,25 @@ export function showLivePanel(
   retry.textContent = t("commonRetry");
   retry.addEventListener("click", () => callbacks.onRetry());
 
+  // Brings the newest line back into view after scrolling up to read. It has
+  // no text, so it has no name for assistive technology either. The list can
+  // be scrolled by keyboard.
+  const latestButton = document.createElement("button");
+  latestButton.type = "button";
+  latestButton.className = "ocr-translate-live-latest";
+  latestButton.tabIndex = -1;
+  latestButton.setAttribute("aria-hidden", "true");
+  latestButton.innerHTML = ARROW_DOWN_ICON;
+  latestButton.addEventListener("click", () => {
+    lineList.scrollTop = maxScroll();
+    updateLatestButton();
+  });
+
   // The status stays in view while the lines scroll.
   const footer = document.createElement("div");
   footer.className = "ocr-translate-live-footer";
   footer.setAttribute("aria-live", "polite");
-  footer.append(note, retry);
+  footer.append(note, retry, latestButton);
 
   const resizeGrip = document.createElement("div");
   resizeGrip.className = "ocr-translate-live-resize";
@@ -168,6 +183,14 @@ export function showLivePanel(
   function maxScroll(): number {
     return Math.max(0, track.offsetHeight - lineList.clientHeight);
   }
+
+  function updateLatestButton(): void {
+    latestButton.classList.toggle(
+      "is-visible",
+      lineList.scrollTop < maxScroll() - SCROLL_END_SLACK,
+    );
+  }
+  lineList.addEventListener("scroll", updateLatestButton);
 
   /** How far the track is from its place while it slides. */
   function slideOffset(): number {
@@ -191,11 +214,11 @@ export function showLivePanel(
     slide = undefined;
     change();
     const fadeIn = added.splice(0);
-    if (!atEnd) {
-      return;
+    if (atEnd) {
+      lineList.scrollTop = maxScroll();
     }
-    lineList.scrollTop = maxScroll();
-    if (!animate || prefersReducedMotion()) {
+    updateLatestButton();
+    if (!atEnd || !animate || prefersReducedMotion()) {
       return;
     }
 

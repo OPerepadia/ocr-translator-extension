@@ -255,17 +255,38 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       // Lines already shown are updated in place, not drawn again.
       await lines.first().evaluate((element) => (element.dataset.marked = "yes"));
 
+      // The button that jumps to the newest line shows only when scrolled up.
+      const latest = page.locator(".ocr-translate-live-latest");
+      assert.equal(await latest.isVisible(), false);
+
       // Scrolled up to read, the lines in view stay put as lines come in below.
       await list.evaluate((element) => (element.scrollTop = 0));
+      await settle(page);
+      assert.equal(await latest.isVisible(), true);
       const before = await lines.first().boundingBox();
       const unwatched = await showLines(21);
       assert.equal(unwatched.slid || unwatched.faded, false);
       assert.equal((await scroll()).top, 0);
       assert.deepEqual(await lines.first().boundingBox(), before);
       assert.equal(await lines.first().getAttribute("data-marked"), "yes");
+      assert.equal(await latest.isVisible(), true);
 
-      // Back at the end, it follows the newest line, sliding it in.
-      await list.evaluate((element) => (element.scrollTop = element.scrollHeight));
+      // The button sits over the list, and is no part of the keyboard or
+      // screen reader's way.
+      const listBox = await box(page, ".ocr-translate-live-lines");
+      const latestBox = await latest.boundingBox();
+      assert.ok(latestBox.y + latestBox.height <= listBox.y + listBox.height);
+      assert.ok(latestBox.y >= listBox.y);
+      assert.equal(await latest.getAttribute("aria-hidden"), "true");
+      assert.equal(await latest.getAttribute("tabindex"), "-1");
+
+      // Clicking it shows the newest line, and the button goes away.
+      await latest.click();
+      await settle(page);
+      assert.equal(await atEnd(), true);
+      assert.equal(await latest.isVisible(), false);
+
+      // At the end, it follows the newest line, sliding it in.
       const following = await showLines(22);
       assert.equal(following.slid, true);
       assert.equal(following.faded, true);

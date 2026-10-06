@@ -1981,6 +1981,7 @@
 }
 
 .ocr-translate-live-footer {
+  position: relative;
   display: flex;
   flex: none;
   flex-direction: column;
@@ -1997,6 +1998,43 @@
 .ocr-translate-live-lines + .ocr-translate-live-footer.is-empty {
   padding: 0;
   border-top: 0;
+}
+
+/* Floats over the end of the list, just above the footer, while the list is
+   scrolled up. It stays in the layout so that it can fade. */
+.ocr-translate-live-latest {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 24px;
+  margin-left: -16px;
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  color: var(--ocr-on-accent);
+  background: var(--ocr-accent-solid);
+  box-shadow: var(--ocr-shadow-float);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--ocr-duration) var(--ocr-ease-out),
+    background-color var(--ocr-duration-fast) ease,
+    visibility 0s var(--ocr-duration);
+}
+
+.ocr-translate-live-latest.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.ocr-translate-live-latest:hover {
+  background: var(--ocr-accent-solid-hover);
 }
 
 .ocr-translate-live-line-note,
@@ -2070,6 +2108,7 @@
   .ocr-translate-overlay-popover-button,
   .ocr-translate-overlay-progress-fill,
   .ocr-translate-popup-progress-fill,
+  .ocr-translate-live-latest,
   .ocr-translate-live-line,
   .ocr-translate-live-translation {
     transition: none;

@@ -104,6 +104,11 @@ export const PLAY_ICON =
   '<path d="M6.5 4.6a1 1 0 0 1 1.5-.86l8 5.4a1 1 0 0 1 0 1.72l-8 5.4a1 1 0 0 1-1.5-.86z"/>' +
   "</svg>";
 
+export const ARROW_DOWN_ICON =
+  '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  '<path d="M10 4v12M5 11l5 5 5-5"/>' +
+  "</svg>";
+
 export const ORIGINAL_TEXT_ICON =
   '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false">' +
   '<path d="M4 5.5h12M4 10h12M4 14.5h7"/>' +
