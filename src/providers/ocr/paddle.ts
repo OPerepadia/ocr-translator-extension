@@ -252,7 +252,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
           image,
           sourceLang: input.sourceLang,
           grouping: input.grouping,
-          minTextSize: input.minTextSize,
+          minLineThickness: input.minLineThickness,
         });
       });
     },

@@ -8,7 +8,6 @@ import {
   pointInConvexPolygon,
   polygonArea,
   polygonPerimeter,
-  textBoxThickness,
   type Point,
   type Quad,
 } from "./geometry";
@@ -204,25 +203,5 @@ describe("aabbOfPoints", () => {
         { x: 4, y: -1 },
       ]),
     ).toEqual({ minX: -3, minY: -1, maxX: 4, maxY: 5 });
-  });
-});
-
-describe("textBoxThickness", () => {
-  // Thickness of the detector's boxes around the same line of text at each font
-  // size, from the packaged model.
-  it.each([
-    [16, 22.1],
-    [24, 31.7],
-    [32, 38.2],
-    [48, 57.5],
-    [68, 80.1],
-    [80, 92.1],
-    [96, 110.9],
-  ])("is close to what the detector measured at %i px", (size, measured) => {
-    expect(Math.abs(textBoxThickness(size) - measured)).toBeLessThan(3);
-  });
-
-  it("grows with the text", () => {
-    expect(textBoxThickness(40)).toBeGreaterThan(textBoxThickness(20));
   });
 });

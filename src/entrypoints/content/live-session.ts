@@ -40,8 +40,12 @@ export interface LiveState {
 }
 
 export interface LiveSessionDeps {
-  /** Capture the region and read its text. */
-  readFrame(requestId: string): Promise<LiveFrameResponse>;
+  /** Capture the region and read its text. Lines thinner than
+   * `minLineThickness`, in CSS pixels, are left out. */
+  readFrame(
+    requestId: string,
+    minLineThickness: number | undefined,
+  ): Promise<LiveFrameResponse>;
   /** `context` holds the lines shown just before `text`, oldest first. */
   translate(
     requestId: string,
@@ -82,6 +86,10 @@ export const MAX_CONTEXT_LINES = 3;
 // Lines further apart than this belong to different scenes, so an earlier one
 // is no help in translating the next.
 export const CONTEXT_GAP_MS = 5000;
+// The region holds subtitles, so the thickness of the first text read in it is
+// how thick the subtitles are. From then on, lines thinner than this share of
+// the subtitles are the page's interface or a watermark, and are not read.
+export const MIN_LINE_RATIO = 0.6;
 
 interface CachedTranslation {
   translation: string;
@@ -120,6 +128,8 @@ export class LiveSession {
   private failedReads = 0;
   private unchangedReads = 0;
   private emptyReads = 0;
+  // Set once the thickness of the subtitles is known.
+  private minLineThickness: number | undefined;
   private targetLang: string | undefined;
   private frameRequestId: string | undefined;
   private wakeUp: (() => void) | undefined;
@@ -214,7 +224,10 @@ export class LiveSession {
     const requestId = this.deps.createId();
     this.frameRequestId = requestId;
     try {
-      const response = await this.deps.readFrame(requestId);
+      const response = await this.deps.readFrame(
+        requestId,
+        this.minLineThickness,
+      );
       if (!this.isCurrent(generation)) {
         return "read";
       }
@@ -230,7 +243,7 @@ export class LiveSession {
       if (this.state.status === "starting") {
         this.update({ status: "running" });
       }
-      this.handleText(response.text);
+      this.handleText(response.text, response.lineThickness);
       return "read";
     } catch (error) {
       if (!this.isCurrent(generation)) {
@@ -257,7 +270,7 @@ export class LiveSession {
     });
   }
 
-  private handleText(raw: string): void {
+  private handleText(raw: string, lineThickness: number | undefined): void {
     const text = raw.trim();
     if (!isReadable(text)) {
       this.emptyReads += 1;
@@ -267,6 +280,9 @@ export class LiveSession {
       return;
     }
     this.emptyReads = 0;
+    if (this.learnThickness(lineThickness)) {
+      return;
+    }
 
     const line = this.state.line;
     if (!line || !isSameLine(line.original, text)) {
@@ -282,6 +298,23 @@ export class LiveSession {
       this.setLine(shown, { original: line.original, state: "pending" }, true);
       this.translateLine(shown, line.original);
     }
+  }
+
+  /**
+   * Until the thickness of the subtitles is known, a read also picks up the
+   * page's interface around them. The first read that finds text sets the
+   * thickness. It is held back for that reason, and the read after it is the
+   * first to show.
+   *
+   * Returns whether the read is held back. A read with no thickness cannot
+   * teach anything, so it is shown and the filter stays at its floor.
+   */
+  private learnThickness(thickness: number | undefined): boolean {
+    if (this.minLineThickness !== undefined || thickness === undefined) {
+      return false;
+    }
+    this.minLineThickness = thickness * MIN_LINE_RATIO;
+    return true;
   }
 
   private showLine(text: string): void {

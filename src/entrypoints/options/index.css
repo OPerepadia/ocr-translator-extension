@@ -129,9 +129,6 @@ main {
 .options-layout:has(#display-options:target)
   .options-nav
   a[href="#display-options"],
-.options-layout:has(#live-translation:target)
-  .options-nav
-  a[href="#live-translation"],
 .options-layout:has(#about:target) .options-nav a[href="#about"] {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
@@ -559,21 +556,6 @@ select:focus-visible {
 }
 
 .llm-timeout-unit {
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.min-text-size-input {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.min-text-size input {
-  width: 110px;
-}
-
-.min-text-size-unit {
   color: var(--muted);
   font-weight: 400;
 }

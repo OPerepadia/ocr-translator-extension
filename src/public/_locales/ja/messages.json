@@ -188,15 +188,6 @@
   "optionsDefaultSourceLanguageHint": {
     "message": "文字認識する言語を選択してください。「自動検出」を選択すると、言語を自動で検出します（文字認識に少し時間がかかる場合があります）。"
   },
-  "optionsMinTextSize": {
-    "message": "リアルタイム翻訳で小さい文字を無視"
-  },
-  "optionsPixels": {
-    "message": "px"
-  },
-  "optionsMinTextSizeHint": {
-    "message": "指定したサイズより小さい文字を無視します。0 にするとフィルタリングを無効にします。"
-  },
   "optionsGpuAcceleration": {
     "message": "GPUアクセラレーション（試験的機能）"
   },

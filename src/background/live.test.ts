@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
 import type { RuntimeMessage } from "../shared/messages";
-import { DEFAULT_MIN_TEXT_SIZE, defaultSettings } from "../shared/storage";
-import type { Settings } from "../shared/types";
+import { defaultSettings } from "../shared/storage";
+import type { OcrBlock, Settings } from "../shared/types";
 import type { LiveFrame } from "./capture";
 import { createFrameSignature } from "./frame-signature";
 import {
@@ -26,6 +26,12 @@ function frameOf(brightness: number, pixelRatio = 1): LiveFrame {
   };
 }
 
+/** A line of text whose box is `thickness` thick. */
+function lineOf(text: string, thickness: number): OcrBlock {
+  const rect = { x: 0, y: 0, width: 200, height: thickness };
+  return { text, bbox: rect, oriented: { rect, angle: 0 } };
+}
+
 function frameMessage(overrides: Partial<FrameMessage> = {}): FrameMessage {
   return {
     type: "LIVE_FRAME_REQUEST",
@@ -43,13 +49,17 @@ const visibleTab = { id: 4, active: true, windowId: 7 };
 function setup(options: {
   frames?: LiveFrame[];
   texts?: string[];
+  /** The lines each read finds, in the order of the reads. */
+  blocks?: OcrBlock[][];
   settings?: Settings;
 }) {
   const frames = [...(options.frames ?? [frameOf(10)])];
   const texts = [...(options.texts ?? ["Hello there"])];
+  const blocks = [...(options.blocks ?? [])];
   const settings = options.settings ?? defaultSettings;
   const recognize = vi.fn<OcrProvider["recognize"]>(async () => ({
     text: texts.shift() ?? "",
+    blocks: blocks.shift(),
   }));
   const translate = vi.fn<TranslationProvider["translate"]>(
     async ({ text, targetLang }) => ({ text: `[${targetLang}] ${text}`, targetLang }),
@@ -86,64 +96,105 @@ describe("handleLiveFrameRequest", () => {
     );
   });
 
-  it("skips text smaller than the default size", async () => {
+  it("reads lines down to the floor until the session asks for more", async () => {
     const { dependencies, recognize, sessions } = setup({});
 
     await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
 
     expect(recognize).toHaveBeenCalledWith(
-      expect.objectContaining({ minTextSize: DEFAULT_MIN_TEXT_SIZE }),
+      expect.objectContaining({ minLineThickness: 18 }),
       expect.anything(),
     );
   });
 
-  it("skips text smaller than the size in the settings", async () => {
+  it("skips lines thinner than the session asked for", async () => {
+    const { dependencies, recognize, sessions } = setup({});
+
+    await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage({ minLineThickness: 30 }),
+      visibleTab,
+      signal(),
+    );
+
+    expect(recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ minLineThickness: 30 }),
+      expect.anything(),
+    );
+  });
+
+  it("never reads below the floor, whatever the session asks", async () => {
+    const { dependencies, recognize, sessions } = setup({});
+
+    await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage({ minLineThickness: 5 }),
+      visibleTab,
+      signal(),
+    );
+
+    expect(recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ minLineThickness: 18 }),
+      expect.anything(),
+    );
+  });
+
+  it("measures thickness in screen pixels on a high-density display", async () => {
     const { dependencies, recognize, sessions } = setup({
-      settings: {
-        ...defaultSettings,
-        ocr: { ...defaultSettings.ocr, minTextSize: 27 },
-      },
+      frames: [frameOf(10, 2), frameOf(200, 2)],
     });
 
     await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
-
-    expect(recognize).toHaveBeenCalledWith(
-      expect.objectContaining({ minTextSize: 27 }),
-      expect.anything(),
+    await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage({ minLineThickness: 30 }),
+      visibleTab,
+      signal(),
     );
+
+    expect(recognize.mock.calls.map(([input]) => input.minLineThickness)).toEqual([
+      36, 60,
+    ]);
   });
 
-  it("reads all text when the size is zero", async () => {
-    const { dependencies, recognize, sessions } = setup({
-      settings: {
-        ...defaultSettings,
-        ocr: { ...defaultSettings.ocr, minTextSize: 0 },
-      },
-    });
-
-    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
-
-    expect(recognize).toHaveBeenCalledWith(
-      expect.objectContaining({ minTextSize: 0 }),
-      expect.anything(),
-    );
-  });
-
-  it("measures the size in screen pixels on a high-density display", async () => {
-    const { dependencies, recognize, sessions } = setup({
+  it("reports the thickest line it read, in CSS pixels", async () => {
+    const { dependencies, sessions } = setup({
       frames: [frameOf(10, 2)],
-      settings: {
-        ...defaultSettings,
-        ocr: { ...defaultSettings.ocr, minTextSize: 20 },
-      },
+      texts: ["Good morning. Goodbye."],
+      blocks: [[lineOf("Good morning.", 44), lineOf("Goodbye.", 30)]],
     });
 
-    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
-
-    expect(recognize).toHaveBeenCalledWith(
-      expect.objectContaining({ minTextSize: 40 }),
-      expect.anything(),
+    const response = await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage(),
+      visibleTab,
+      signal(),
     );
+
+    expect(response).toEqual({
+      status: "ok",
+      text: "Good morning. Goodbye.",
+      unchanged: false,
+      lineThickness: 22,
+    });
+  });
+
+  it("reports no thickness when no line was read", async () => {
+    const { dependencies, sessions } = setup({ texts: [""], blocks: [[]] });
+
+    const response = await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage(),
+      visibleTab,
+      signal(),
+    );
+
+    expect(response).toEqual({ status: "ok", text: "", unchanged: false });
   });
 
   it("captures the sender's window with the mask it was given", async () => {
@@ -230,6 +281,25 @@ describe("handleLiveFrameRequest", () => {
 
     expect(second).toEqual({ status: "ok", text: "Hello there", unchanged: true });
     expect(recognize).toHaveBeenCalledOnce();
+  });
+
+  it("recognizes an unchanged region again when the session asks for thicker lines", async () => {
+    const { dependencies, recognize, sessions } = setup({
+      frames: [frameOf(10), frameOf(10)],
+      texts: ["Hello there Logo", "Hello there"],
+    });
+
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+    const second = await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage({ minLineThickness: 30 }),
+      visibleTab,
+      signal(),
+    );
+
+    expect(second).toEqual({ status: "ok", text: "Hello there", unchanged: false });
+    expect(recognize).toHaveBeenCalledTimes(2);
   });
 
   it("recognizes again when the region changed", async () => {
@@ -366,6 +436,7 @@ describe("createLiveSessions", () => {
         data: new Uint8ClampedArray(4),
       }),
       text: "Hello",
+      minLineThickness: 18,
     };
 
     sessions.set("abandoned", reading);

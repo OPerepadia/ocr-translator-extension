@@ -7,9 +7,9 @@ import type {
   LiveTranslationResponse,
   RuntimeMessage,
 } from "../shared/messages";
+import type { OcrBlock } from "../shared/types";
 import { framesMatch, type FrameSignature } from "./frame-signature";
 import { translateText } from "./pipeline";
-import { resolveMinTextSize } from "../shared/storage";
 import type { RouterDependencies } from "./router";
 
 export type LiveDependencies = Pick<
@@ -28,11 +28,20 @@ export interface LiveSender {
   windowId?: number;
 }
 
+// The thinnest line worth reading, in CSS pixels: the box the detector draws
+// around text of about 12 px. It cannot tell smaller sizes apart, and below
+// this there is only specks and noise. A session reads nothing thinner, and
+// asks for more once it knows how thick its subtitles are.
+const MIN_LINE_THICKNESS = 18;
+
 /** The last region that was actually read in a live session, and what it said.
  * The next capture is compared with this one. */
 interface LiveReading {
   signature: FrameSignature;
   text: string;
+  /** The thinnest line that was read, in image pixels. A look at the same
+   * frame with a higher one would give different text. */
+  minLineThickness: number;
   readAt: number;
 }
 
@@ -105,8 +114,15 @@ export async function handleLiveFrameRequest(
     return { status: "hidden" };
   }
 
+  const minLineThickness =
+    Math.max(MIN_LINE_THICKNESS, message.minLineThickness ?? 0) *
+    frame.pixelRatio;
   const previous = sessions.get(message.sessionId);
-  if (previous && framesMatch(previous.signature, frame.signature)) {
+  if (
+    previous &&
+    previous.minLineThickness === minLineThickness &&
+    framesMatch(previous.signature, frame.signature)
+  ) {
     return { status: "ok", text: previous.text, unchanged: true };
   }
 
@@ -118,18 +134,35 @@ export async function handleLiveFrameRequest(
         image,
         sourceLang: sourceLanguage.sourceLang,
         grouping: "single",
-        // CSS pixels from the setting, in the screenshot's pixels for the OCR.
-        minTextSize:
-          resolveMinTextSize(settings.ocr.minTextSize) * frame.pixelRatio,
+        minLineThickness,
       },
       signal,
     );
 
+  const lineThickness = thickestLine(recognized.blocks, frame.pixelRatio);
   sessions.set(message.sessionId, {
     signature: frame.signature,
     text: recognized.text,
+    minLineThickness,
   });
-  return { status: "ok", text: recognized.text, unchanged: false };
+  return {
+    status: "ok",
+    text: recognized.text,
+    unchanged: false,
+    lineThickness,
+  };
+}
+
+/** The thickest line of a result, in CSS pixels. */
+function thickestLine(
+  blocks: OcrBlock[] | undefined,
+  pixelRatio: number,
+): number | undefined {
+  const thickest = (blocks ?? []).reduce(
+    (max, block) => Math.max(max, block.oriented?.rect.height ?? 0),
+    0,
+  );
+  return thickest > 0 ? thickest / pixelRatio : undefined;
 }
 
 /** Translate a line the live loop read, into the saved target language. */

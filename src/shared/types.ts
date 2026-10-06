@@ -100,9 +100,6 @@ export interface Settings {
     sourceLang?: LangCode | "auto";
     /** ORT execution backend; "webgpu" falls back to wasm when unavailable. */
     backend?: "wasm" | "webgpu";
-    /** Live translation ignores text smaller than this font size, in CSS
-     * pixels. 0 reads all text; unset uses DEFAULT_MIN_TEXT_SIZE. */
-    minTextSize?: number;
     /** Developer diagnostics. Not exposed in the options UI. */
     debug?: boolean;
   };

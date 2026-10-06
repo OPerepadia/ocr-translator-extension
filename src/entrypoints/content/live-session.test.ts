@@ -11,6 +11,7 @@ import {
   MAX_CONTEXT_LINES,
   MAX_FAILED_READS,
   MAX_TRANSLATIONS,
+  MIN_LINE_RATIO,
   READ_INTERVAL_MS,
   RETRY_INTERVAL_MS,
   RETRY_TRANSLATION_MS,
@@ -26,10 +27,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const read = (text: string, unchanged = false): LiveFrameResponse => ({
+const read = (
+  text: string,
+  unchanged = false,
+  lineThickness?: number,
+): LiveFrameResponse => ({
   status: "ok",
   text,
   unchanged,
+  lineThickness,
 });
 
 const translated = (
@@ -49,14 +55,19 @@ function setup(options: { visible?: boolean } = {}) {
   const states: LiveState[] = [];
   let nextId = 0;
 
-  const readFrame = vi.fn(async (): Promise<LiveFrameResponse> => {
-    // With nothing queued the region keeps showing what it showed last.
-    const reply = replies.length > 1 ? replies.shift()! : replies[0];
-    if (reply instanceof Error) {
-      throw reply;
-    }
-    return reply ?? read("");
-  });
+  const readFrame = vi.fn(
+    async (
+      _requestId: string,
+      _minLineThickness: number | undefined,
+    ): Promise<LiveFrameResponse> => {
+      // With nothing queued the region keeps showing what it showed last.
+      const reply = replies.length > 1 ? replies.shift()! : replies[0];
+      if (reply instanceof Error) {
+        throw reply;
+      }
+      return reply ?? read("");
+    },
+  );
   const translate = vi.fn(
     async (
       _requestId: string,
@@ -839,5 +850,56 @@ describe("LiveSession", () => {
 
     expect(t.translate).not.toHaveBeenCalled();
     expect(t.states).toHaveLength(0);
+  });
+
+  it("holds back the read that sets the thickness of the text", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning.", false, 40));
+
+    t.session.start();
+    await advance(0);
+
+    expect(t.readFrame).toHaveBeenCalledTimes(1);
+    expect(t.translate).not.toHaveBeenCalled();
+    expect(t.last()).toEqual({ status: "running", lines: [] });
+
+    await advance(READ_INTERVAL_MS);
+    expect(t.last()?.line).toMatchObject({
+      original: "Good morning.",
+      state: "ready",
+    });
+    t.session.stop();
+  });
+
+  it("learns from reads that find text, not from empty or unreadable ones", async () => {
+    const t = setup();
+    t.replies.push(
+      read(""),
+      read("%", false, 90),
+      read("Good morning.", false, 40),
+    );
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS * 3);
+
+    const asked = t.readFrame.mock.calls.map(([, minLineThickness]) => minLineThickness);
+    expect(asked).toEqual([undefined, undefined, undefined, 40 * MIN_LINE_RATIO]);
+    t.session.stop();
+  });
+
+  it("keeps the thickness it learned for the rest of the session", async () => {
+    const t = setup();
+    t.replies.push(read("Good morning.", false, 40));
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS);
+    t.replies.push(read("Good evening.", false, 100));
+    await advance(READ_INTERVAL_MS * 3);
+
+    const asked = t.readFrame.mock.calls
+      .slice(1)
+      .map(([, minLineThickness]) => minLineThickness);
+    expect(new Set(asked)).toEqual(new Set([40 * MIN_LINE_RATIO]));
+    t.session.stop();
   });
 });

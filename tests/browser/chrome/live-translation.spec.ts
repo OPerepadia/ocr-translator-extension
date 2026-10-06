@@ -39,6 +39,7 @@ const SUBTITLE_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
     background-size: 400% 400%; animation: move 6s linear infinite; }
   @keyframes move { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
   #hud { position: absolute; left: 640px; top: 440px; color: #ccc; font-size: 11px; }
+  #mark { position: absolute; left: 60px; top: 440px; color: #ddd; font-size: 16px; display: none; }
   #subtitle { position: absolute; left: 0; right: 0; bottom: 36px; padding: 0 40px; text-align: center;
     color: #fff; font-size: 34px; font-weight: 700; line-height: 1.25;
     text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; }
@@ -47,6 +48,7 @@ const SUBTITLE_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
   onclick="document.getElementById('stage').requestFullscreen()">Fullscreen</button>
 <div id="stage"><div id="video">
   <div id="hud">Quality 1080p &nbsp; Speed 1.0x &nbsp; Subtitles on</div>
+  <div id="mark">Example Channel</div>
   <div id="subtitle"></div>
 </div></div>
 <script>
@@ -111,8 +113,6 @@ interface Session {
 }
 
 interface SessionOptions {
-  /** Saved as the live translation text size; the default when absent. */
-  minTextSize?: number;
   /** Screenshot pixels per CSS pixel. Forced with a browser flag: headless
    * Chromium otherwise captures at 1x whatever the emulated density. */
   pixelRatio?: number;
@@ -139,10 +139,10 @@ async function openSession(options: SessionOptions = {}): Promise<Session> {
   const settings = await context.newPage();
   await settings.goto(`chrome-extension://${extensionId}/popup.html`);
   await settings.evaluate(
-    ({ port, minTextSize }) =>
+    ({ port }) =>
       chrome.storage.local.set({
         settings: {
-          ocr: { providerId: "paddle", sourceLang: "en", minTextSize },
+          ocr: { providerId: "paddle", sourceLang: "en" },
           translation: {
             providerId: "openai",
             targetLang: "uk",
@@ -150,7 +150,7 @@ async function openSession(options: SessionOptions = {}): Promise<Session> {
           },
         },
       }),
-    { port: server.port, minTextSize: options.minTextSize },
+    { port: server.port },
   );
   await settings.close();
 
@@ -276,45 +276,46 @@ test("translates the subtitles in a region and reuses earlier translations", asy
   }
 });
 
-test("ignores small interface text in the region", async () => {
+test("learns how thick the subtitles are and ignores thinner text beside them", async () => {
   const session = await openSession();
   const { page, server } = session;
   try {
-    // The region covers a line of small text near the subtitles.
-    await startLiveTranslation(session);
-    await page.waitForTimeout(3_000);
-    // Nothing but the small text is on screen, so there is nothing to show.
-    await expect(translation(page)).toHaveCount(0);
-    expect(server.requests).toEqual([]);
-
+    // The watermark is above the floor, so only the subtitles being much larger
+    // keeps it out. It is well under half their size, so the test does not
+    // depend on the exact ratio.
+    await page.evaluate(() => {
+      const mark = document.getElementById("mark")!;
+      mark.style.display = "block";
+      mark.style.fontSize = "18px";
+      document.getElementById("subtitle")!.style.fontSize = "48px";
+    });
     await showSubtitle(page, "See you tomorrow.");
+    await startLiveTranslation(session);
+
     await expect(translation(page)).toHaveText("[uk] See you tomorrow.", {
       timeout: 20_000,
     });
-    expect(server.requests).toEqual(["See you tomorrow."]);
-  } finally {
-    await session.context.close();
-    server.close();
-  }
-});
 
-test("reads the small text too when the size is set to zero", async () => {
-  const session = await openSession({ minTextSize: 0 });
-  const { page, server } = session;
-  try {
-    await startLiveTranslation(session);
+    // Between subtitles the thinner text is all there is, so nothing shows.
+    await showSubtitle(page);
+    await expect(currentLine(page)).toHaveCount(0, { timeout: 10_000 });
+    await page.waitForTimeout(3_000);
+    await expect(currentLine(page)).toHaveCount(0);
 
+    await showSubtitle(page, "Where are the keys?");
     await expect(translation(page)).toHaveText(
-      "[uk] Quality 1080p Speed 1.0x Subtitles on",
-      { timeout: 20_000 },
+      ["[uk] See you tomorrow.", "[uk] Where are the keys?"],
+      { timeout: 10_000 },
     );
+
+    expect(server.requests).toEqual(["See you tomorrow.", "Where are the keys?"]);
   } finally {
     await session.context.close();
     server.close();
   }
 });
 
-test("applies the text size the same way on a high-density screen", async () => {
+test("applies the floor the same way on a high-density screen", async () => {
   const session = await openSession({ pixelRatio: 2 });
   const { page, server } = session;
   try {

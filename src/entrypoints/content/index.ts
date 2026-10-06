@@ -470,7 +470,7 @@ function startLive(rect: Rect): void {
     onClose: stopLive,
   });
   const session = new LiveSession({
-    readFrame: (requestId) =>
+    readFrame: (requestId, minLineThickness) =>
       sendRequest<LiveFrameResponse>({
         type: "LIVE_FRAME_REQUEST",
         requestId,
@@ -478,6 +478,7 @@ function startLive(rect: Rect): void {
         rect,
         viewport: { width: window.innerWidth, height: window.innerHeight },
         mask: panel.getMask(),
+        minLineThickness,
       }),
     translate: (requestId, text, context) =>
       sendRequest<LiveTranslationResponse>({

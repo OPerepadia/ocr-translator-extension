@@ -23,9 +23,6 @@ import {
   setAdjustSelection,
   setUiLocale,
   normalizeUiLocale,
-  DEFAULT_MIN_TEXT_SIZE,
-  MAX_MIN_TEXT_SIZE,
-  resolveMinTextSize,
 } from "@/shared/storage";
 import {
   initializeI18n,
@@ -126,13 +123,6 @@ async function initOptions(): Promise<void> {
   elements.llmTimeoutInput.value = savedTimeoutMs
     ? String(Math.round(savedTimeoutMs / 1000))
     : "";
-
-  elements.minTextSizeInput.value =
-    settings.ocr.minTextSize === undefined
-      ? ""
-      : String(settings.ocr.minTextSize);
-  elements.minTextSizeInput.placeholder = String(DEFAULT_MIN_TEXT_SIZE);
-  elements.minTextSizeInput.max = String(MAX_MIN_TEXT_SIZE);
 
   elements.ocrWebGpuInput.checked = settings.ocr.backend === "webgpu";
   // The engine probes WebGPU in its worker and falls back on its own; mirror
@@ -271,7 +261,6 @@ async function initOptions(): Promise<void> {
             providerId: latestSettings.ocr.providerId,
             sourceLang: String(formData.get("sourceLang") ?? "auto"),
             backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
-            minTextSize: readMinTextSize(formData),
           },
           translation: {
             providerId: String(formData.get("translationProvider") ?? "google"),
@@ -321,7 +310,6 @@ async function initOptions(): Promise<void> {
   for (const input of [
     elements.deeplApiKeyInput,
     elements.deeplPlanSelect,
-    elements.minTextSizeInput,
     elements.ocrWebGpuInput,
     elements.llmBaseUrlInput,
     elements.llmRemoveOriginHeaderInput,
@@ -481,12 +469,6 @@ function fillLlmModelSelect(
     option.selected = model === selected;
     select.append(option);
   }
-}
-
-// Empty means "use the default" and stays unset, so the default can change.
-function readMinTextSize(formData: FormData): number | undefined {
-  const raw = String(formData.get("minTextSize") ?? "").trim();
-  return raw === "" ? undefined : resolveMinTextSize(Number(raw));
 }
 
 function readLlmSettings(formData: FormData): Settings["translation"]["llm"] {
@@ -669,7 +651,6 @@ function getOptionsElements(): {
   uiLocaleSelect: HTMLSelectElement;
   defaultOverlayModeSelect: HTMLSelectElement;
   adjustSelectionInput: HTMLInputElement;
-  minTextSizeInput: HTMLInputElement;
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
   ocrWebGpuStatus: HTMLElement;
@@ -715,9 +696,6 @@ function getOptionsElements(): {
   );
   const defaultOverlayModeSelect = app.querySelector<HTMLSelectElement>(
     "select[name='defaultOverlayMode']",
-  );
-  const minTextSizeInput = app.querySelector<HTMLInputElement>(
-    "input[name='minTextSize']",
   );
   const adjustSelectionInput = app.querySelector<HTMLInputElement>(
     "input[name='adjustSelection']",
@@ -782,7 +760,6 @@ function getOptionsElements(): {
     !uiLocaleSelect ||
     !defaultOverlayModeSelect ||
     !adjustSelectionInput ||
-    !minTextSizeInput ||
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
     !ocrWebGpuStatus ||
@@ -820,7 +797,6 @@ function getOptionsElements(): {
     uiLocaleSelect,
     defaultOverlayModeSelect,
     adjustSelectionInput,
-    minTextSizeInput,
     ocrWebGpuInput,
     ocrWebGpuNote,
     ocrWebGpuStatus,

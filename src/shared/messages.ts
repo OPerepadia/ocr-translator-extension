@@ -140,6 +140,9 @@ export type RuntimeMessage =
       rect: Rect;
       viewport: Viewport;
       mask: Rect[];
+      /** Lines thinner than this, in CSS pixels, are not read. Absent until
+       * the session has learned how thick its text is. */
+      minLineThickness?: number;
     }
   // Content -> background: translate text the live loop read. `context` holds
   // the lines shown just before it, so a sentence split over several subtitles
@@ -189,6 +192,10 @@ export type LiveFrameResponse =
       /** The region looked the same as at the last read, so `text` is that
        * read's result and no recognition ran. */
       unchanged: boolean;
+      /** The thickest line in `text`, in CSS pixels. Absent when `text` is
+       * empty or `unchanged`: the session learns from the first read with
+       * text, which is never an unchanged one. */
+      lineThickness?: number;
     };
 
 export type LiveTranslationResponse = Pick<

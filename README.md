@@ -56,7 +56,7 @@ Use it for text that keeps changing on screen, such as subtitles burned into a v
 Things to know:
 
 - A fast provider works best, such as a local LLM or DeepL. Google Translate also works, but speed and quality may vary.
-- Text smaller than 16 px is ignored by default. You can adjust the threshold in settings.
+- Select the smallest area that fits the subtitles, so that logos and other text stay outside it. Do it while a subtitle is on screen, because the extension learns the subtitle size from the first lines it reads. Text much smaller than that, such as a watermark or player controls, is ignored.
 - When an LLM endpoint is used, the previous few lines are sent as context to achieve a better translation.
 - It may not works with DRM protected videos.
 

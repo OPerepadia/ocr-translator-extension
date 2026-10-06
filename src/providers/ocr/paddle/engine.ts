@@ -15,7 +15,7 @@ import {
 import { ctcGreedyDecode, reverseArabicCtcText } from "./ctc";
 import { extractBoxes, type DbConfig, type DetectedBox } from "./db-postprocess";
 import { makeCharAt, parseDict } from "./dict";
-import { orientedRectOfQuad, textBoxThickness } from "./geometry";
+import { orientedRectOfQuad } from "./geometry";
 import {
   createSession,
   configureOrt,
@@ -67,8 +67,8 @@ export type EngineOptions = Omit<InitRequest, "type" | "id" | "debug"> & {
 export interface RecognizeOptions {
   /** "single" reads the lines as one paragraph, without the layout model. */
   grouping?: "layout" | "single";
-  /** Text smaller than this font size, in image pixels, is not read. */
-  minTextSize?: number;
+  /** Lines whose box is thinner than this, in image pixels, are not read. */
+  minLineThickness?: number;
 }
 
 interface LoadedRecognizer {
@@ -207,7 +207,7 @@ export class PaddleEngine {
       const detected = await this.detect(bitmap);
       // Dropped before recognition: it saves reading them, and keeps text that
       // does not matter from steering the script detection.
-      const boxes = this.dropSmallBoxes(detected, options.minTextSize);
+      const boxes = this.dropThinBoxes(detected, options.minLineThickness);
       throwIfCancelled(isCancelled);
 
       if (this.debug) {
@@ -455,17 +455,15 @@ export class PaddleEngine {
     }
   }
 
-  /** Boxes whose short side, once padded like the line's own box, is as thick
-   * as a line of text of `minTextSize` would be. That side is the text's
-   * height, whichever way it reads. */
-  private dropSmallBoxes(
+  /** Boxes whose short side, once padded like the line's own box, is at least
+   * `minThickness`. That side is the text's height, whichever way it reads. */
+  private dropThinBoxes(
     boxes: DetectedBox[],
-    minTextSize: number | undefined,
+    minThickness: number | undefined,
   ): DetectedBox[] {
-    if (!minTextSize) {
+    if (!minThickness) {
       return boxes;
     }
-    const minThickness = textBoxThickness(minTextSize);
     return boxes.filter(
       (box) => this.lineFrame(box).oriented.rect.height >= minThickness,
     );

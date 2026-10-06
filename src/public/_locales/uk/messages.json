@@ -188,15 +188,6 @@
   "optionsDefaultSourceLanguageHint": {
     "message": "Виберіть мову оригінального тексту або «Авто», щоб визначити мову автоматично (розпізнавання може тривати довше)."
   },
-  "optionsMinTextSize": {
-    "message": "Ігнорувати дрібний текст у перекладі наживо"
-  },
-  "optionsPixels": {
-    "message": "px"
-  },
-  "optionsMinTextSizeHint": {
-    "message": "Ігнорувати текст, дрібніший за вказаний розмір. Значення 0 вимикає фільтрацію."
-  },
   "optionsGpuAcceleration": {
     "message": "GPU прискорення (експериментальна функція)"
   },

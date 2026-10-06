@@ -188,15 +188,6 @@
   "optionsDefaultSourceLanguageHint": {
     "message": "选择要识别的语言。选择“自动检测”可自动识别语言，但可能需要更长时间。"
   },
-  "optionsMinTextSize": {
-    "message": "实时翻译时忽略小文字"
-  },
-  "optionsPixels": {
-    "message": "px"
-  },
-  "optionsMinTextSizeHint": {
-    "message": "忽略小于指定大小的文字。设为 0 则禁用过滤。"
-  },
   "optionsGpuAcceleration": {
     "message": "GPU 加速（实验性）"
   },
