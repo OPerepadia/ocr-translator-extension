@@ -414,22 +414,18 @@ async function runSelectionFlow(): Promise<void> {
 }
 
 // Pick a region and translate it continuously. Starting again while live
-// translation runs picks a new region; the old one keeps going only if the
-// selection is cancelled.
+// translation runs closes it first, so cancelling the selection leaves
+// nothing running.
 async function runLiveSelectionFlow(): Promise<void> {
   if (!uiRoot) {
     return;
   }
   const generation = ++selectionGeneration;
+  stopLive();
   cancelSelectionOverlay();
   closeRegionOutline();
   startNavigationWatch(closePageUi);
   void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
-
-  // The selection dim would otherwise be read as part of the region.
-  const interrupted = live;
-  const wasPaused = interrupted?.session.current.status === "paused";
-  interrupted?.session.pause();
 
   const adjustSelection = await getAdjustSelection();
   const selection =
@@ -446,8 +442,6 @@ async function runLiveSelectionFlow(): Promise<void> {
   }
   if (selection?.kind === "area") {
     startLive(selection.rect);
-  } else if (interrupted && live === interrupted && !wasPaused) {
-    interrupted.session.resume();
   }
 }
 
