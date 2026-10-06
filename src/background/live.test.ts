@@ -38,7 +38,7 @@ function frameMessage(overrides: Partial<FrameMessage> = {}): FrameMessage {
   };
 }
 
-const visibleTab = { active: true, windowId: 7 };
+const visibleTab = { id: 4, active: true, windowId: 7 };
 
 function setup(options: {
   frames?: LiveFrame[];
@@ -162,8 +162,25 @@ describe("handleLiveFrameRequest", () => {
       rect: { x: 10, y: 20, width: 400, height: 60 },
       viewport: { width: 1280, height: 720 },
       mask,
+      tabId: 4,
       windowId: 7,
     });
+  });
+
+  it("does not recognize a frame discarded after a tab switch", async () => {
+    const { dependencies, recognize, sessions } = setup({});
+    vi.mocked(dependencies.captureLiveFrame).mockResolvedValueOnce(undefined);
+
+    const response = await handleLiveFrameRequest(
+      dependencies,
+      sessions,
+      frameMessage(),
+      visibleTab,
+      signal(),
+    );
+
+    expect(response).toEqual({ status: "hidden" });
+    expect(recognize).not.toHaveBeenCalled();
   });
 
   it("does not capture while the tab is in the background", async () => {

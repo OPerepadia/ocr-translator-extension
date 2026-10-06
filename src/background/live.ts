@@ -23,6 +23,7 @@ export type LiveDependencies = Pick<
 
 /** The tab a live request came from. */
 export interface LiveSender {
+  id?: number;
   active?: boolean;
   windowId?: number;
 }
@@ -82,7 +83,11 @@ export async function handleLiveFrameRequest(
 ): Promise<LiveFrameResponse> {
   // A screenshot is of whichever tab is active in the window. Once the user
   // switches tabs, that is no longer the page this region belongs to.
-  if (!sender?.active) {
+  if (
+    !sender?.active ||
+    sender.id === undefined ||
+    sender.windowId === undefined
+  ) {
     return { status: "hidden" };
   }
 
@@ -92,9 +97,13 @@ export async function handleLiveFrameRequest(
     rect: message.rect,
     viewport: message.viewport,
     mask: message.mask,
+    tabId: sender.id,
     windowId: sender.windowId,
   });
   signal.throwIfAborted();
+  if (!frame) {
+    return { status: "hidden" };
+  }
 
   const previous = sessions.get(message.sessionId);
   if (previous && framesMatch(previous.signature, frame.signature)) {

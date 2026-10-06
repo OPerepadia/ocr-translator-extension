@@ -131,21 +131,26 @@ const waitForLiveCaptureSlot = createThrottle(LIVE_CAPTURE_GAP_MS);
  * Capture a region for live translation. `mask` lists viewport rects to paint
  * over first, which hides the extension's own panel where it overlaps.
  *
- * The screenshot is of the active tab in `windowId`. The caller makes sure
- * that is the tab the region belongs to.
+ * The screenshot is of the active tab in `windowId`. Resolves to `undefined`
+ * when `tabId` is not that tab before or after the capture, since the user
+ * switched tabs and the screenshot would be of another page.
  */
 export async function captureLiveFrame(args: {
   rect: Rect;
   viewport: Viewport;
   mask: Rect[];
-  windowId?: number;
-}): Promise<LiveFrame> {
+  tabId: number;
+  windowId: number;
+}): Promise<LiveFrame | undefined> {
   await waitForLiveCaptureSlot();
+  if (!(await isActiveTab(args.tabId, args.windowId))) {
+    return undefined;
+  }
   const options = { format: "jpeg", quality: LIVE_CAPTURE_QUALITY } as const;
-  const dataUrl =
-    args.windowId === undefined
-      ? await browser.tabs.captureVisibleTab(options)
-      : await browser.tabs.captureVisibleTab(args.windowId, options);
+  const dataUrl = await browser.tabs.captureVisibleTab(args.windowId, options);
+  if (!(await isActiveTab(args.tabId, args.windowId))) {
+    return undefined;
+  }
   const bitmap = await dataUrlToImageBitmap(dataUrl);
 
   try {
@@ -171,6 +176,11 @@ export async function captureLiveFrame(args: {
   } finally {
     bitmap.close();
   }
+}
+
+async function isActiveTab(tabId: number, windowId: number): Promise<boolean> {
+  const [activeTab] = await browser.tabs.query({ active: true, windowId });
+  return activeTab?.id === tabId;
 }
 
 /** Viewport rects as positions in the cropped canvas, rounded outwards so the

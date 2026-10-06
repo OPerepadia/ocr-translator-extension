@@ -1143,7 +1143,7 @@ describe("background router", () => {
         unchanged: false,
       });
       expect(captureLiveFrame).toHaveBeenCalledWith(
-        expect.objectContaining({ windowId: 3 }),
+        expect.objectContaining({ tabId: 7, windowId: 3 }),
       );
     });
 

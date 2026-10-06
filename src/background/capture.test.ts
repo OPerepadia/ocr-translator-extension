@@ -5,6 +5,51 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("captureLiveFrame", () => {
+  const args = {
+    rect: { x: 0, y: 0, width: 100, height: 40 },
+    viewport: { width: 800, height: 600 },
+    mask: [],
+    tabId: 7,
+    windowId: 3,
+  };
+
+  it("does not capture once another tab is active", async () => {
+    vi.resetModules();
+    const { captureLiveFrame } = await import("./capture");
+    const query = vi.fn(async () => [{ id: 8 }]);
+    const captureVisibleTab = vi.fn();
+    vi.stubGlobal("browser", {
+      tabs: { query, captureVisibleTab },
+    });
+
+    await expect(captureLiveFrame(args)).resolves.toBeUndefined();
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledWith({ active: true, windowId: 3 });
+  });
+
+  it("discards a capture if the active tab changes during it", async () => {
+    vi.resetModules();
+    const { captureLiveFrame } = await import("./capture");
+    let activeTabId = 7;
+    const query = vi.fn(async () => [{ id: activeTabId }]);
+    const captureVisibleTab = vi.fn(async () => {
+      activeTabId = 8;
+      return "unused screenshot";
+    });
+    vi.stubGlobal("browser", {
+      tabs: { query, captureVisibleTab },
+    });
+
+    await expect(captureLiveFrame(args)).resolves.toBeUndefined();
+    expect(captureVisibleTab).toHaveBeenCalledWith(3, {
+      format: "jpeg",
+      quality: 92,
+    });
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("loadImage", () => {
   it("loads an image with page credentials", async () => {
     const image = new Blob(["image"], { type: "image/png" });

@@ -54,8 +54,9 @@ export interface RouterDependencies {
     rect: Rect;
     viewport: Viewport;
     mask: Rect[];
-    windowId?: number;
-  }): Promise<LiveFrame>;
+    tabId: number;
+    windowId: number;
+  }): Promise<LiveFrame | undefined>;
   loadImage(url: string, pageUrl?: string): Promise<Blob>;
   createOcrProvider(settings: Settings["ocr"]): OcrProvider;
   /** Free the cached OCR provider's worker and models. */
