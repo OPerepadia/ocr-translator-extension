@@ -339,6 +339,9 @@ test("does not read its own panel when the panel covers the region", async () =>
   const session = await openSession();
   const { page, server } = session;
   try {
+    // A region this wide is scaled down for detection, which makes the small
+    // text's size too rough to filter out reliably.
+    await page.locator("#hud").evaluate((hud) => hud.remove());
     // A region this large leaves the panel nowhere else to go. It stops short
     // of the page's own button, which would be read as well.
     await startLiveTranslation(session, { x1: 10, y1: 50, x2: 1170, y2: 710 });

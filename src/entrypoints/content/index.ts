@@ -82,6 +82,8 @@ import {
 } from "./image-picker";
 import "./style.css";
 
+const FIRST_LIVE_READ_DELAY_MS = 250;
+
 // The recognized text used by re-translate and provider-switch requests.
 let pendingText = "";
 // Container inside the shadow root that all extension UI renders into, so the
@@ -516,27 +518,14 @@ function startLive(rect: Rect): void {
       document.removeEventListener("visibilitychange", wakeWhenVisible),
   };
   startNavigationWatch(closePageUi);
-  // The selection overlay is torn down above, but until the browser paints that
-  // it is still on screen, and the first read would pick up its hint.
-  void afterNextPaint().then(() => {
+  // The selection overlay is torn down above, but a screenshot can lag a few
+  // frames behind the page, and the first read would pick up its hint. Waiting
+  // for a paint is not enough: the capture may still return an older frame.
+  setTimeout(() => {
     if (live?.session === session) {
       session.start();
     }
-  });
-}
-
-// Resolves once the page has painted. The timeout covers a tab that is hidden,
-// where animation frames do not run.
-function afterNextPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    const fallback = setTimeout(resolve, 150);
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        clearTimeout(fallback);
-        resolve();
-      }),
-    );
-  });
+  }, FIRST_LIVE_READ_DELAY_MS);
 }
 
 function stopLive(): void {
