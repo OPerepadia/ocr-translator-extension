@@ -6,13 +6,13 @@
     "message": "使用本地 OCR 识别并翻译图片或网页所选区域中的文字。"
   },
   "commandTranslateScreenRegion": {
-    "message": "翻译屏幕区域"
+    "message": "翻译区域"
   },
   "commandTranslateScreenRegionLive": {
-    "message": "实时翻译屏幕区域"
+    "message": "实时翻译"
   },
   "contextTranslateScreenRegion": {
-    "message": "翻译屏幕区域…"
+    "message": "翻译区域…"
   },
   "contextTranslateImage": {
     "message": "翻译此图片"
@@ -303,16 +303,16 @@
     "message": "面板"
   },
   "popupSelectArea": {
-    "message": "选择区域"
+    "message": "翻译区域"
   },
   "popupPickImage": {
-    "message": "选择图片"
+    "message": "翻译图片"
   },
   "popupLiveTranslation": {
     "message": "实时翻译"
   },
   "popupLiveTranslationHint": {
-    "message": "选择要实时翻译的屏幕区域，例如视频中的硬字幕。"
+    "message": "实时翻译屏幕区域，例如视频中的硬字幕。"
   },
   "popupRestrictedPage": {
     "message": "无法在此页面使用此扩展。请在普通网页上重试。"

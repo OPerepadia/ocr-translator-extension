@@ -17,7 +17,7 @@ Browser extension that uses local OCR to extract text from images, comics, scans
 
 - Select any area of a web page and translate it in place.
 - Translate images directly from the context menu.
-- Translate a screen region live, for example subtitles that are part of a video.
+- Translate a screen area live, for example hardcoded video subtitles.
 - Run OCR locally in your browser using bundled [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
 - Recognize multilingual text with automatic script detection. See [supported languages](#text-recognition).
 - Group text lines using speech-bubble and free-text regions detected by a [local layout model](docs/LAYOUT-GROUPING.md).
@@ -33,7 +33,7 @@ Open the extension from the toolbar or context menu, or press `Ctrl+Shift+F`. Dr
 
 To move or resize the area before recognition starts, enable **Adjust selection before recognition** in the extension settings.
 
-You can also right-click an image and choose "Translate this image". If clicking doesn't pick an image, for example one inside an embedded frame, use **Pick image** from the extension popup.
+You can also right-click an image and choose "Translate this image". If clicking doesn't pick an image, for example one inside an embedded frame, use **Translate an image** from the extension popup.
 
 In the overlay view, press `Shift` to switch between the translation and the original.
 
@@ -47,7 +47,7 @@ After granting the permission, reload the image and try again.
 
 ## Live translation
 
-Use it for text that keeps changing on screen, such as subtitles burned into a video.
+Use it for text that keeps changing on screen, such as hardcoded video subtitles.
 
 1. Click **Live translation** in the extension popup.
 2. Drag over the area where the text appears.

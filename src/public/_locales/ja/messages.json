@@ -6,13 +6,13 @@
     "message": "ローカルOCRを使って、画像やウェブページの選択した範囲から文字を認識し、翻訳します。"
   },
   "commandTranslateScreenRegion": {
-    "message": "画面の範囲を翻訳"
+    "message": "範囲を翻訳"
   },
   "commandTranslateScreenRegionLive": {
-    "message": "画面の範囲をリアルタイム翻訳"
+    "message": "リアルタイム翻訳"
   },
   "contextTranslateScreenRegion": {
-    "message": "画面の範囲を翻訳…"
+    "message": "範囲を翻訳…"
   },
   "contextTranslateImage": {
     "message": "この画像を翻訳"
@@ -303,16 +303,16 @@
     "message": "パネル"
   },
   "popupSelectArea": {
-    "message": "範囲を選択"
+    "message": "範囲を翻訳"
   },
   "popupPickImage": {
-    "message": "画像を選択"
+    "message": "画像を翻訳"
   },
   "popupLiveTranslation": {
     "message": "リアルタイム翻訳"
   },
   "popupLiveTranslationHint": {
-    "message": "リアルタイム翻訳の対象にする画面の範囲を選択します（例：動画に焼き込まれた字幕）。"
+    "message": "画面の範囲をリアルタイムで翻訳します（例：動画に焼き込まれた字幕）。"
   },
   "popupRestrictedPage": {
     "message": "このページでは拡張機能を使用できません。通常のウェブページでお試しください。"

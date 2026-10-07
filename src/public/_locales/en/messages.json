@@ -8,13 +8,13 @@
     "description": "Extension description"
   },
   "commandTranslateScreenRegion": {
-    "message": "Translate a screen region"
+    "message": "Translate an area"
   },
   "commandTranslateScreenRegionLive": {
-    "message": "Translate a screen region live"
+    "message": "Live translation"
   },
   "contextTranslateScreenRegion": {
-    "message": "Translate a screen region…"
+    "message": "Translate an area…"
   },
   "contextTranslateImage": {
     "message": "Translate this image"
@@ -342,18 +342,18 @@
     "description": "Display results in a panel in the bottom-right corner."
   },
   "popupSelectArea": {
-    "message": "Select area"
+    "message": "Translate an area"
   },
   "popupPickImage": {
-    "message": "Pick image",
+    "message": "Translate an image",
     "description": "Choose an image on the current web page to recognize and translate."
   },
   "popupLiveTranslation": {
     "message": "Live translation",
-    "description": "Button that translates a chosen screen region continuously, for example video subtitles."
+    "description": "Button that translates a chosen screen area continuously, for example video subtitles."
   },
   "popupLiveTranslationHint": {
-    "message": "Select a screen area for live translation, for example subtitles burned into a video.",
+    "message": "Translate a screen area in real time, e.g. hardcoded video subtitles.",
     "description": "Tooltip of the Live translation button in the popup."
   },
   "popupRestrictedPage": {
@@ -375,8 +375,8 @@
     "message": "Drag to select an area or click an image"
   },
   "liveSelectionHint": {
-    "message": "Drag over the text to translate it live",
-    "description": "Hint shown while choosing the screen region to translate live."
+    "message": "Drag over an area to translate it live",
+    "description": "Hint shown while choosing the screen area to translate live."
   },
   "selectionPressKeyToCancel": {
     "message": "Press $1 to cancel",
@@ -411,7 +411,7 @@
     "message": "Search languages"
   },
   "panelSelectNewRegion": {
-    "message": "Select new region"
+    "message": "Select new area"
   },
   "panelResize": {
     "message": "Resize panel"
@@ -452,7 +452,7 @@
   },
   "liveWaitingForText": {
     "message": "Waiting for text…",
-    "description": "Shown in the live translation panel while the selected region contains no text."
+    "description": "Shown in the live translation panel while the selected area contains no text."
   },
   "livePaused": {
     "message": "Paused",
@@ -599,7 +599,7 @@
     "message": "Could not encode the captured image."
   },
   "errorCapturedImageUnavailable": {
-    "message": "The captured image is no longer available. Please select the region again."
+    "message": "The captured image is no longer available. Please select the area again."
   },
   "errorOcrWorkerCrashed": {
     "message": "The OCR worker crashed.",
