@@ -1794,6 +1794,16 @@
   border-radius: 4px;
   box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   pointer-events: none;
+  transition:
+    opacity 0.6s ease,
+    border-width 0.6s ease;
+}
+
+/* The frame shows what is being read, then fades back. An error keeps it
+   bright. */
+.ocr-translate-live-region.is-settled:not([data-status="error"]) {
+  border-width: 1px;
+  opacity: 0.3;
 }
 
 .ocr-translate-live-region[data-status="paused"] {
@@ -2178,6 +2188,7 @@
   .ocr-translate-overlay-popover-button,
   .ocr-translate-overlay-progress-fill,
   .ocr-translate-popup-progress-fill,
+  .ocr-translate-live-region,
   .ocr-translate-live-latest,
   .ocr-translate-live-line,
   .ocr-translate-live-translation {

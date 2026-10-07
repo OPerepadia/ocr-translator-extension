@@ -45,6 +45,8 @@ export interface LivePanel {
 // The frame around the region sits this far outside it, which leaves a clear
 // strip between the frame and the pixels that get read.
 const FRAME_OUTSET = 4;
+// After this long the frame fades back, so it stops distracting from the page.
+const FRAME_SETTLE_MS = 2000;
 // The panel's edge blurs a little past its box.
 const MASK_PADDING = 3;
 // Lines scrolled this close to the end still count as being at the end.
@@ -90,6 +92,10 @@ export function showLivePanel(
   frame.style.top = `${region.y - FRAME_OUTSET}px`;
   frame.style.width = `${region.width + FRAME_OUTSET * 2}px`;
   frame.style.height = `${region.height + FRAME_OUTSET * 2}px`;
+  const settleTimer = window.setTimeout(
+    () => frame.classList.add("is-settled"),
+    FRAME_SETTLE_MS,
+  );
 
   const panel = document.createElement("div");
   panel.className = "ocr-translate-live";
@@ -520,6 +526,7 @@ export function showLivePanel(
     },
 
     dispose() {
+      window.clearTimeout(settleTimer);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("pointerdown", onPointerDown, true);
       frame.remove();
