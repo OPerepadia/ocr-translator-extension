@@ -111,7 +111,13 @@ export const ARROW_DOWN_ICON =
 
 export const ORIGINAL_TEXT_ICON =
   '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false">' +
-  '<path d="M4 5.5h12M4 10h12M4 14.5h7"/>' +
+  '<path d="M4 7h12" stroke-width="2.25"/>' +
+  '<path d="M4 13h8" opacity="0.5"/>' +
+  "</svg>";
+
+export const TEXT_SIZE_ICON =
+  '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  '<path d="M1.9 15L5.2 4.4L8.5 15M2.8 12.1H7.6M12.1 15L14.8 7.8L17.5 15M12.93 12.8H16.68"/>' +
   "</svg>";
 
 export const LIVE_ICON =

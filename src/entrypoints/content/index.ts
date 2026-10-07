@@ -23,7 +23,10 @@ import {
   getDefaultOverlayMode,
   getDisplayMode,
   getAdjustSelection,
+  getLiveTextScale,
+  setLiveTextScale,
   type DisplayMode,
+  type LiveTextScale,
 } from "@/shared/storage";
 import { createRequestId } from "@/shared/request-id";
 import { sendRequest } from "@/shared/runtime-messaging";
@@ -427,7 +430,10 @@ async function runLiveSelectionFlow(): Promise<void> {
   startNavigationWatch(closePageUi);
   void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
 
-  const adjustSelection = await getAdjustSelection();
+  const [adjustSelection, textScale] = await Promise.all([
+    getAdjustSelection(),
+    getLiveTextScale(),
+  ]);
   const selection =
     generation === selectionGeneration
       ? await startSelectionOverlay(uiRoot, adjustSelection, {
@@ -441,11 +447,11 @@ async function runLiveSelectionFlow(): Promise<void> {
     return;
   }
   if (selection?.kind === "area") {
-    startLive(selection.rect);
+    startLive(selection.rect, textScale);
   }
 }
 
-function startLive(rect: Rect): void {
+function startLive(rect: Rect, textScale: LiveTextScale): void {
   if (!uiRoot) {
     return;
   }
@@ -462,13 +468,20 @@ function startLive(rect: Rect): void {
   pendingText = "";
 
   const sessionId = createRequestId();
-  const panel = showLivePanel(uiRoot, rect, {
-    onPause: () => session.pause(),
-    onResume: () => session.resume(),
-    onRetry: () => session.retry(),
-    onSelectNewRegion: () => void runLiveSelectionFlow(),
-    onClose: stopLive,
-  });
+  const panel = showLivePanel(
+    uiRoot,
+    rect,
+    {
+      onPause: () => session.pause(),
+      onResume: () => session.resume(),
+      onRetry: () => session.retry(),
+      onSelectNewRegion: () => void runLiveSelectionFlow(),
+      onClose: stopLive,
+      onTextScaleChange: (scale) =>
+        void setLiveTextScale(scale).catch(() => {}),
+    },
+    textScale,
+  );
   const session = new LiveSession({
     readFrame: (requestId, minLineThickness) =>
       sendRequest<LiveFrameResponse>({

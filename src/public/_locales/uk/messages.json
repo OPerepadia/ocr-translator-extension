@@ -413,6 +413,9 @@
   "liveHideOriginal": {
     "message": "Сховати оригінал"
   },
+  "liveTextSize": {
+    "message": "Розмір тексту"
+  },
   "overlayMoveToolbar": {
     "message": "Перемістити тулбар"
   },

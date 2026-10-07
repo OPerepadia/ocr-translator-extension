@@ -474,6 +474,10 @@
     "message": "Hide original text",
     "description": "Button that hides the recognized text below the translation."
   },
+  "liveTextSize": {
+    "message": "Text size",
+    "description": "Button in the live translation panel that opens the text size controls."
+  },
   "overlayMoveToolbar": {
     "message": "Move toolbar"
   },

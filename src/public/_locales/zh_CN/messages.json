@@ -413,6 +413,9 @@
   "liveHideOriginal": {
     "message": "隐藏原文"
   },
+  "liveTextSize": {
+    "message": "文字大小"
+  },
   "overlayMoveToolbar": {
     "message": "移动工具栏"
   },

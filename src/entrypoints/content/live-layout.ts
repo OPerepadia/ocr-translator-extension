@@ -26,7 +26,7 @@ export const PANEL_WIDTH = 480;
 export const PANEL_HEIGHT = 180;
 // The smallest the panel gets beside a region or when resized: room for the
 // title bar's buttons and languages, and one line of text.
-export const PANEL_MIN_WIDTH = 220;
+export const PANEL_MIN_WIDTH = 250;
 export const PANEL_MIN_HEIGHT = 96;
 
 /**

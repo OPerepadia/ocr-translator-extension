@@ -104,12 +104,12 @@ describe("placeLivePanel", () => {
   });
 
   it("shrinks to the room beside the region", () => {
-    const region = { x: 20, y: 20, width: 1000, height: 680 };
+    const region = { x: 20, y: 20, width: 980, height: 680 };
     const placement = placeLivePanel(region, viewport);
 
     expect(placement.side).toBe("right");
     expect(placement.width).toBe(
-      viewport.width - (1020 + PANEL_GAP) - PANEL_MARGIN,
+      viewport.width - (1000 + PANEL_GAP) - PANEL_MARGIN,
     );
     expect(placement.width).toBeLessThan(PANEL_WIDTH);
   });

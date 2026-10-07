@@ -402,7 +402,7 @@ test("pauses, resumes and closes from the panel", async () => {
       timeout: 20_000,
     });
     const [showOriginal, pause, , close] = await page
-      .locator(".ocr-translate-live-actions button")
+      .locator(".ocr-translate-live-actions > button")
       .all();
 
     await expect(page.locator(".ocr-translate-live-original")).toBeHidden();

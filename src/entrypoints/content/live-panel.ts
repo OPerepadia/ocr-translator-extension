@@ -1,4 +1,5 @@
 import { t } from "@/shared/i18n";
+import { LIVE_TEXT_SCALES, type LiveTextScale } from "@/shared/storage";
 import type { Rect } from "@/shared/types";
 import {
   ARROW_DOWN_ICON,
@@ -7,6 +8,7 @@ import {
   PAUSE_ICON,
   PLAY_ICON,
   SELECT_REGION_ICON,
+  TEXT_SIZE_ICON,
 } from "./icons";
 import {
   clampPanelBox,
@@ -26,6 +28,7 @@ export interface LivePanelCallbacks {
   onSelectNewRegion(): void;
   onRetry(): void;
   onClose(): void;
+  onTextScaleChange(scale: LiveTextScale): void;
 }
 
 export interface LivePanel {
@@ -67,9 +70,11 @@ export function showLivePanel(
   root: HTMLElement,
   region: Rect,
   callbacks: LivePanelCallbacks,
+  initialTextScale: LiveTextScale,
 ): LivePanel {
   let state: LiveState = { status: "starting", lines: [] };
   let showOriginal = false;
+  let textScale = initialTextScale;
   // One view per line in `state.lines`, in the same order.
   const views: LineView[] = [];
   // Where the user moved or resized the panel to. Until then it follows the
@@ -105,6 +110,36 @@ export function showLivePanel(
     showOriginal = !showOriginal;
     keepingScroll(draw);
   });
+  const smallerButton = stepButton("−", () => changeTextScale(-1));
+  const largerButton = stepButton("+", () => changeTextScale(1));
+  const sizeValue = document.createElement("span");
+  sizeValue.className = "ocr-translate-live-size-value";
+  sizeValue.setAttribute("aria-live", "polite");
+  const sizePopover = document.createElement("div");
+  sizePopover.className = "ocr-translate-live-size-popover";
+  sizePopover.setAttribute("role", "group");
+  sizePopover.setAttribute("aria-label", t("liveTextSize"));
+  sizePopover.hidden = true;
+  sizePopover.append(smallerButton, sizeValue, largerButton);
+  const sizeButton = iconButton(
+    TEXT_SIZE_ICON,
+    () => setSizeOpen(Boolean(sizePopover.hidden)),
+    t("liveTextSize"),
+  );
+  sizeButton.setAttribute("aria-haspopup", "true");
+  sizeButton.setAttribute("aria-expanded", "false");
+  const sizeControl = document.createElement("div");
+  sizeControl.className = "ocr-translate-live-size";
+  sizeControl.append(sizeButton, sizePopover);
+  sizeControl.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !sizePopover.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      setSizeOpen(false);
+      sizeButton.focus();
+    }
+  });
+
   const pauseButton = iconButton(PAUSE_ICON, () => {
     if (state.status === "paused") {
       callbacks.onResume();
@@ -125,7 +160,13 @@ export function showLivePanel(
 
   const actions = document.createElement("div");
   actions.className = "ocr-translate-live-actions";
-  actions.append(originalButton, pauseButton, selectButton, closeButton);
+  actions.append(
+    originalButton,
+    sizeControl,
+    pauseButton,
+    selectButton,
+    closeButton,
+  );
 
   const topbar = document.createElement("div");
   topbar.className = "ocr-translate-live-topbar";
@@ -181,6 +222,48 @@ export function showLivePanel(
 
   panel.append(topbar, lineList, footer, resizeGrip);
   root.append(frame, panel);
+
+  function setSizeOpen(open: boolean): void {
+    sizePopover.hidden = !open;
+    sizeButton.setAttribute("aria-expanded", String(open));
+  }
+
+  function drawTextScale(): void {
+    panel.style.setProperty("--ocr-live-scale", String(textScale));
+    sizeValue.textContent = `${Math.round(textScale * 100)}%`;
+    smallerButton.disabled = textScale === LIVE_TEXT_SCALES[0];
+    largerButton.disabled =
+      textScale === LIVE_TEXT_SCALES[LIVE_TEXT_SCALES.length - 1];
+  }
+
+  function changeTextScale(direction: -1 | 1): void {
+    const next =
+      LIVE_TEXT_SCALES[LIVE_TEXT_SCALES.indexOf(textScale) + direction];
+    if (next === undefined) {
+      return;
+    }
+    textScale = next;
+    keepingScroll(drawTextScale);
+    callbacks.onTextScaleChange(textScale);
+    // A button that reaches the end of its range is disabled, and a disabled
+    // button cannot be used from the keyboard. Move to the other one.
+    const [reached, other] =
+      direction === 1
+        ? [largerButton, smallerButton]
+        : [smallerButton, largerButton];
+    if (reached.disabled) {
+      other.focus();
+    }
+  }
+
+  // Captured because the panel stops pointer events from going on to the
+  // document, so a click inside the panel would not get there.
+  const onPointerDown = (event: PointerEvent): void => {
+    if (!sizePopover.hidden && !event.composedPath().includes(sizeControl)) {
+      setSizeOpen(false);
+    }
+  };
+  document.addEventListener("pointerdown", onPointerDown, true);
 
   function viewport(): ViewportSize {
     return {
@@ -272,7 +355,12 @@ export function showLivePanel(
       | { pointerId: number; x: number; y: number; start: PanelBox }
       | undefined;
     handle.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || (event.target as Element).closest("button")) {
+      if (
+        event.button !== 0 ||
+        (event.target as Element).closest(
+          "button, .ocr-translate-live-size-popover",
+        )
+      ) {
         return;
       }
       const box = panel.getBoundingClientRect();
@@ -327,6 +415,7 @@ export function showLivePanel(
   const onResize = (): void => keepingScroll(position);
   window.addEventListener("resize", onResize);
   position();
+  drawTextScale();
   draw();
 
   function draw(): void {
@@ -419,6 +508,7 @@ export function showLivePanel(
 
     dispose() {
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("pointerdown", onPointerDown, true);
       frame.remove();
       panel.remove();
     },
@@ -506,6 +596,12 @@ function iconButton(
   if (label) {
     setButton(button, icon, label);
   }
+  return button;
+}
+
+function stepButton(symbol: string, onClick: () => void): HTMLButtonElement {
+  const button = iconButton("", onClick);
+  button.textContent = symbol;
   return button;
 }
 

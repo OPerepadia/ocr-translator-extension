@@ -24,6 +24,7 @@ async function compile(files, name, stubs = []) {
 
 const panelCode = await compile(["icons.ts", "live-layout.ts", "live-panel.ts"], "live-panel", [
   "const languageName = (code: string) => `Language ${code}`;",
+  "const LIVE_TEXT_SCALES = [1];",
 ]);
 const selectionCode = await compile(["image-picker.ts", "selection-overlay.ts"], "selection");
 const modalCode = await compile(["modal-ui.ts"], "modal-ui");
@@ -94,7 +95,8 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
               onSelectNewRegion: () => calls.push("select"),
               onRetry: () => calls.push("retry"),
               onClose: () => calls.push("close"),
-            });
+              onTextScaleChange() {},
+            }, 1);
           };
           window.pageClicks = 0;
           document.addEventListener("click", () => window.pageClicks++);
@@ -134,7 +136,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal(await original.isVisible(), false);
       assert.equal(await statusNote.isVisible(), false);
 
-      await page.locator(".ocr-translate-live-actions button").nth(0).click();
+      await page.locator(".ocr-translate-live-actions > button").nth(0).click();
       assert.equal(await original.isVisible(), true);
       assert.equal(await text(".ocr-translate-live-original"), "Hello there");
 
@@ -175,18 +177,18 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await render({ status: "running", lines: [], sourceLang: "en", targetLang: "uk" });
 
       // Pause becomes resume while paused.
-      await page.locator(".ocr-translate-live-actions button").nth(1).click();
+      await page.locator(".ocr-translate-live-actions > button").nth(1).click();
       await render({ status: "paused", lines: [] });
       assert.equal(await text(".ocr-translate-live-note"), "livePaused");
-      await page.locator(".ocr-translate-live-actions button").nth(1).click();
+      await page.locator(".ocr-translate-live-actions > button").nth(1).click();
 
       await render({ status: "error", lines: [], error: "worker crashed" });
       assert.equal(await text(".ocr-translate-live-note"), "worker crashed");
-      assert.equal(await page.locator(".ocr-translate-live-actions button").nth(1).isDisabled(), true);
+      assert.equal(await page.locator(".ocr-translate-live-actions > button").nth(1).isDisabled(), true);
       await page.locator(".ocr-translate-live-retry").click();
 
-      await page.locator(".ocr-translate-live-actions button").nth(2).click();
-      await page.locator(".ocr-translate-live-actions button").nth(3).click();
+      await page.locator(".ocr-translate-live-actions > button").nth(2).click();
+      await page.locator(".ocr-translate-live-actions > button").nth(3).click();
       assert.deepEqual(await page.evaluate(() => window.calls), [
         "pause",
         "resume",
@@ -211,7 +213,8 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
           ${uiSetup}
           window.panel = showLivePanel(container, { x: 100, y: 100, width: 600, height: 80 }, {
             onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
-          });
+            onTextScaleChange() {},
+          }, 1);
           const lineAt = (number) => ({
             original: "Line " + number,
             translation: "Translated line " + number,
@@ -380,7 +383,9 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
           ${uiSetup}
           window.panel = showLivePanel(container, { x: 100, y: 100, width: 600, height: 80 }, {
             onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
-          });
+            onTextScaleChange() {},
+          }, 1);
+          window.minSize = { width: PANEL_MIN_WIDTH, height: PANEL_MIN_HEIGHT };
         `,
       });
       await page.waitForFunction(() => Boolean(window.panel));
@@ -437,7 +442,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const smallest = await panel();
       assert.deepEqual(
         { width: smallest.width, height: smallest.height },
-        { width: 220, height: 96 },
+        await page.evaluate(() => window.minSize),
       );
 
       // Even at that size the buttons and the languages fit in the title bar,
@@ -446,7 +451,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
         window.panel.render({ status: "running", lines: [], sourceLang: "zh-cn", targetLang: "uk" }),
       );
       const bar = await box(page, ".ocr-translate-live-topbar");
-      const close = await box(page, ".ocr-translate-live-actions button:last-child");
+      const close = await box(page, ".ocr-translate-live-actions > button:last-child");
       assert.ok(close.x + close.width <= bar.x + bar.width, JSON.stringify({ bar, close }));
       const label = await box(page, ".ocr-translate-live-languages");
       assert.ok(label.width > 20, JSON.stringify(label));
@@ -473,7 +478,8 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
           ${uiSetup}
           window.panel = showLivePanel(container, { x: 10, y: 10, width: 780, height: 580 }, {
             onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
-          });
+            onTextScaleChange() {},
+          }, 1);
         `,
       });
       await page.waitForFunction(() => Boolean(window.panel));

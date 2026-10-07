@@ -1920,9 +1920,58 @@
   height: 28px;
 }
 
-.ocr-translate-live-actions .ocr-translate-popup-icon-button[aria-pressed="true"] {
+.ocr-translate-live-actions .ocr-translate-popup-icon-button[aria-pressed="true"],
+.ocr-translate-live-actions .ocr-translate-popup-icon-button[aria-expanded="true"] {
   color: var(--ocr-accent-text);
   background: var(--ocr-accent-fill);
+}
+
+/* The text size steps open under their button, over the lines. They float, so
+   changing the size never changes the panel's. */
+.ocr-translate-live-size {
+  position: relative;
+  display: inline-flex;
+}
+
+.ocr-translate-live-size-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--ocr-surface-pad);
+  border: 1px solid var(--ocr-line);
+  border-radius: var(--ocr-radius-surface);
+  background: var(--ocr-surface);
+  box-shadow: var(--ocr-shadow-float);
+  cursor: default;
+}
+
+.ocr-translate-live-size-popover[hidden] {
+  display: none;
+}
+
+.ocr-translate-live-size-value {
+  min-width: 44px;
+  color: var(--ocr-ink);
+  font-size: var(--ocr-size-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.ocr-translate-live-size-popover .ocr-translate-popup-icon-button {
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ocr-translate-live-size-popover .ocr-translate-popup-icon-button:disabled {
+  color: var(--ocr-ink-subtle);
+  background: none;
+  opacity: 0.45;
+  cursor: default;
 }
 
 .ocr-translate-live-lines {
@@ -1971,7 +2020,7 @@
 .ocr-translate-live-translation {
   margin: 0;
   color: var(--ocr-ink-strong);
-  font-size: 17px;
+  font-size: calc(17px * var(--ocr-live-scale, 1));
   line-height: 1.4;
   overflow-wrap: anywhere;
   text-wrap: pretty;
@@ -1987,7 +2036,7 @@
 .ocr-translate-live-original {
   margin: 0;
   color: var(--ocr-ink-muted);
-  font-size: var(--ocr-size-sm);
+  font-size: calc(var(--ocr-size-sm) * var(--ocr-live-scale, 1));
   line-height: var(--ocr-leading-ui);
   overflow-wrap: anywhere;
 }
@@ -2065,6 +2114,10 @@
   line-height: var(--ocr-leading-ui);
 }
 
+.ocr-translate-live-line-note {
+  font-size: calc(var(--ocr-size-xs) * var(--ocr-live-scale, 1));
+}
+
 .ocr-translate-live-line-note.is-error,
 .ocr-translate-live-note.is-error {
   color: var(--ocr-danger);
@@ -2098,6 +2151,9 @@
     var(--ocr-ink-subtle) 70% 76%,
     transparent 76%
   );
+  background-size: 11px 11px;
+  background-position: right bottom;
+  background-repeat: no-repeat;
   opacity: 0.7;
 }
 

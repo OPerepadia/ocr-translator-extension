@@ -88,6 +88,30 @@ export async function setDefaultOverlayMode(mode: OverlayMode): Promise<void> {
   await browser.storage.local.set({ [DEFAULT_OVERLAY_MODE_KEY]: mode });
 }
 
+// The sizes of the text in the live translation panel, as a share of its
+// default. The largest still fits one line in the panel's smallest size.
+export const LIVE_TEXT_SCALES = [0.8, 0.9, 1, 1.1, 1.25, 1.5] as const;
+export type LiveTextScale = (typeof LIVE_TEXT_SCALES)[number];
+
+const LIVE_TEXT_SCALE_KEY = "liveTextScale";
+const DEFAULT_LIVE_TEXT_SCALE: LiveTextScale = 1;
+
+export async function getLiveTextScale(): Promise<LiveTextScale> {
+  try {
+    const values = await browser.storage.local.get(LIVE_TEXT_SCALE_KEY);
+    return (
+      LIVE_TEXT_SCALES.find((scale) => scale === values[LIVE_TEXT_SCALE_KEY]) ??
+      DEFAULT_LIVE_TEXT_SCALE
+    );
+  } catch {
+    return DEFAULT_LIVE_TEXT_SCALE;
+  }
+}
+
+export async function setLiveTextScale(scale: LiveTextScale): Promise<void> {
+  await browser.storage.local.set({ [LIVE_TEXT_SCALE_KEY]: scale });
+}
+
 export const defaultSettings: Settings = {
   ocr: {
     providerId: "paddle",

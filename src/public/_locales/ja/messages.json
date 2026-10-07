@@ -413,6 +413,9 @@
   "liveHideOriginal": {
     "message": "原文を非表示"
   },
+  "liveTextSize": {
+    "message": "文字サイズ"
+  },
   "overlayMoveToolbar": {
     "message": "ツールバーを移動"
   },
