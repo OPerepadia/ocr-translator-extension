@@ -50,15 +50,20 @@ After granting the permission, reload the image and try again.
 Use it for text that keeps changing on screen, such as hardcoded video subtitles.
 
 1. Click **Live translation** in the extension popup.
-2. Drag over the area where the text appears.
-3. The translation appears in a small panel next to the area.
+2. Drag over the area with the text you want to translate.
+3. The translation appears in a small panel next to the selected area.
 
 Things to know:
 
-- A fast provider works best, such as a local LLM or DeepL. Google Translate also works, but speed and quality may vary.
+- A fast provider works best, such as a local LLM or DeepL. Google Translate also works, but its quality and speed may vary.
 - Select the smallest area that fits the subtitles, so that logos and other text stay outside it. Do it while a subtitle is on screen, because the extension learns the subtitle size from the first lines it reads. Text much smaller than that, such as a watermark or player controls, is ignored.
 - When an LLM endpoint is used, the previous few lines are sent as context to achieve a better translation.
-- It may not works with DRM protected videos.
+- It may not work with DRM-protected videos.
+
+> [!NOTE]
+> If you notice growing RAM usage during live translation while using **llama.cpp**, start the server with `--cache-ram 0`.
+> This turns off llama.cpp's prompt cache, which keeps copies of earlier prompts in RAM.
+> Every line is its own request by design, so lines can be translated in parallel or skipped, and the context stays small in long sessions.
 
 ## Supported languages
 
