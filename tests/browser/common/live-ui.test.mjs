@@ -394,14 +394,14 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       // Pointer positions stay inside the viewport: Firefox reports odd
       // coordinates for synthetic moves outside it.
       const dragGripTo = async (toX, toY) => {
-        const grip = await box(page, ".ocr-translate-live-resize");
+        const grip = await box(page, ".ocr-translate-live-resize.is-se");
         await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
         await page.mouse.down();
         await page.mouse.move(toX, toY, { steps: 5 });
         await page.mouse.up();
       };
       const dragGrip = async (dx, dy) => {
-        const grip = await box(page, ".ocr-translate-live-resize");
+        const grip = await box(page, ".ocr-translate-live-resize.is-se");
         await dragGripTo(grip.x + grip.width / 2 + dx, grip.y + grip.height / 2 + dy);
       };
       const near = (actual, expected) => Math.abs(actual - expected) <= 1;

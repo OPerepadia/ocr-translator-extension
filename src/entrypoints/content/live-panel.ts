@@ -16,11 +16,14 @@ import {
   placeLivePanel,
   rectsOverlap,
   resizePanelBox,
+  type ResizeEdge,
   type PanelBox,
   type ViewportSize,
 } from "./live-layout";
 import { languageName } from "./language-picker";
 import type { LiveLine, LiveState } from "./live-session";
+
+const RESIZE_EDGES: ResizeEdge[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 
 export interface LivePanelCallbacks {
   onPause(): void;
@@ -216,11 +219,19 @@ export function showLivePanel(
   footer.setAttribute("aria-live", "polite");
   footer.append(note, retry, latestButton);
 
-  const resizeGrip = document.createElement("div");
-  resizeGrip.className = "ocr-translate-live-resize";
-  resizeGrip.setAttribute("aria-hidden", "true");
+  const resizeHandles = RESIZE_EDGES.map((edge) => {
+    const handle = document.createElement("div");
+    handle.className = `ocr-translate-live-resize is-${edge}`;
+    handle.setAttribute("aria-hidden", "true");
+    return { edge, handle };
+  });
 
-  panel.append(topbar, lineList, footer, resizeGrip);
+  panel.append(
+    topbar,
+    lineList,
+    footer,
+    ...resizeHandles.map(({ handle }) => handle),
+  );
   root.append(frame, panel);
 
   function setSizeOpen(open: boolean): void {
@@ -404,9 +415,11 @@ export function showLivePanel(
     left: start.left + dx,
     top: start.top + dy,
   }));
-  followPointer(resizeGrip, (start, dx, dy) =>
-    resizePanelBox(start, start.width + dx, start.height + dy, viewport()),
-  );
+  for (const { edge, handle } of resizeHandles) {
+    followPointer(handle, (start, dx, dy) =>
+      resizePanelBox(start, edge, dx, dy, viewport()),
+    );
+  }
 
   for (const type of CONTAINED_EVENTS) {
     panel.addEventListener(type, (event) => event.stopPropagation());

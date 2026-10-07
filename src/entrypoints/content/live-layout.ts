@@ -143,23 +143,43 @@ export function clampPanelBox(box: PanelBox, viewport: ViewportSize): PanelBox {
   };
 }
 
-/** `box` resized from its bottom right corner to `width` by `height`, no
- * smaller than the minimum and not past the viewport's edges. */
+export type ResizeEdge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+/** `box` with the `edge` dragged by `dx` and `dy`. The opposite edges stay
+ * put. The box is no smaller than the minimum and stays inside the viewport. */
 export function resizePanelBox(
   box: PanelBox,
-  width: number,
-  height: number,
+  edge: ResizeEdge,
+  dx: number,
+  dy: number,
   viewport: ViewportSize,
 ): PanelBox {
-  return {
-    ...box,
-    width: clamp(width, PANEL_MIN_WIDTH, viewport.width - box.left - PANEL_MARGIN),
-    height: clamp(
-      height,
+  let { left, top, width, height } = box;
+  if (edge.includes("e")) {
+    width = clamp(
+      box.width + dx,
+      PANEL_MIN_WIDTH,
+      viewport.width - box.left - PANEL_MARGIN,
+    );
+  }
+  if (edge.includes("s")) {
+    height = clamp(
+      box.height + dy,
       PANEL_MIN_HEIGHT,
       viewport.height - box.top - PANEL_MARGIN,
-    ),
-  };
+    );
+  }
+  if (edge.includes("w")) {
+    const right = box.left + box.width;
+    width = clamp(box.width - dx, PANEL_MIN_WIDTH, right - PANEL_MARGIN);
+    left = right - width;
+  }
+  if (edge.includes("n")) {
+    const bottom = box.top + box.height;
+    height = clamp(box.height - dy, PANEL_MIN_HEIGHT, bottom - PANEL_MARGIN);
+    top = bottom - height;
+  }
+  return { left, top, width, height };
 }
 
 export function rectsOverlap(a: Rect, b: Rect): boolean {

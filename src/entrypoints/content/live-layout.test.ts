@@ -169,26 +169,61 @@ describe("resizePanelBox", () => {
   const box = { left: 100, top: 200, width: 300, height: 120 };
 
   it("moves the bottom right corner and keeps the top left one", () => {
-    expect(resizePanelBox(box, 700, 400, viewport)).toEqual({
+    expect(resizePanelBox(box, "se", 400, 280, viewport)).toEqual({
       ...box,
       width: 700,
       height: 400,
     });
   });
 
+  it("moves only one side from an edge", () => {
+    expect(resizePanelBox(box, "e", 50, 50, viewport)).toEqual({
+      ...box,
+      width: 350,
+    });
+    expect(resizePanelBox(box, "s", 50, 50, viewport)).toEqual({
+      ...box,
+      height: 170,
+    });
+  });
+
+  it("keeps the right and bottom edges when dragging left and top", () => {
+    expect(resizePanelBox(box, "nw", -40, -30, viewport)).toEqual({
+      left: 60,
+      top: 170,
+      width: 340,
+      height: 150,
+    });
+  });
+
   it("does not shrink below the minimum", () => {
-    expect(resizePanelBox(box, 10, 10, viewport)).toEqual({
+    expect(resizePanelBox(box, "se", -290, -110, viewport)).toEqual({
       ...box,
       width: PANEL_MIN_WIDTH,
       height: PANEL_MIN_HEIGHT,
     });
   });
 
+  it("keeps the far edge in place when the minimum stops a left or top drag", () => {
+    const result = resizePanelBox(box, "nw", 290, 110, viewport);
+
+    expect(result.left + result.width).toBe(400);
+    expect(result.top + result.height).toBe(320);
+    expect(result.width).toBe(PANEL_MIN_WIDTH);
+    expect(result.height).toBe(PANEL_MIN_HEIGHT);
+  });
+
   it("stops at the viewport's edges", () => {
-    expect(resizePanelBox(box, 5000, 5000, viewport)).toEqual({
+    expect(resizePanelBox(box, "se", 5000, 5000, viewport)).toEqual({
       ...box,
       width: viewport.width - 100 - PANEL_MARGIN,
       height: viewport.height - 200 - PANEL_MARGIN,
+    });
+    expect(resizePanelBox(box, "nw", -5000, -5000, viewport)).toEqual({
+      left: PANEL_MARGIN,
+      top: PANEL_MARGIN,
+      width: 400 - PANEL_MARGIN,
+      height: 320 - PANEL_MARGIN,
     });
   });
 });

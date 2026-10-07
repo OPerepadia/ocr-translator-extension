@@ -2134,28 +2134,22 @@
   display: none;
 }
 
-/* Two diagonal strokes in the bottom right corner, like a text area's. */
+/* Invisible strips along the edges and corners, like a window's. They sit
+   inside the panel because it clips its overflow. */
 .ocr-translate-live-resize {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
+  z-index: 2;
   touch-action: none;
-  background: linear-gradient(
-    135deg,
-    transparent 52%,
-    var(--ocr-ink-subtle) 52% 58%,
-    transparent 58% 70%,
-    var(--ocr-ink-subtle) 70% 76%,
-    transparent 76%
-  );
-  background-size: 11px 11px;
-  background-position: right bottom;
-  background-repeat: no-repeat;
-  opacity: 0.7;
 }
+
+.ocr-translate-live-resize.is-n { top: 0; left: 12px; right: 12px; height: 5px; cursor: ns-resize; }
+.ocr-translate-live-resize.is-s { bottom: 0; left: 12px; right: 12px; height: 5px; cursor: ns-resize; }
+.ocr-translate-live-resize.is-e { top: 12px; right: 0; bottom: 12px; width: 5px; cursor: ew-resize; }
+.ocr-translate-live-resize.is-w { top: 12px; left: 0; bottom: 12px; width: 5px; cursor: ew-resize; }
+.ocr-translate-live-resize.is-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.ocr-translate-live-resize.is-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.ocr-translate-live-resize.is-se { bottom: 0; right: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.ocr-translate-live-resize.is-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
 
 @media (prefers-reduced-motion: reduce) {
   .ocr-translate-popup,
