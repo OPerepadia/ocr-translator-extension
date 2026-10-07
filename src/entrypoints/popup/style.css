@@ -208,6 +208,13 @@ select:disabled,
   cursor: pointer;
 }
 
+.popup-divider {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
 .popup-actions .primary-button {
   flex-direction: column;
   gap: 1px;
@@ -224,6 +231,12 @@ select:disabled,
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.popup-actions .button-main svg {
+  width: 16px;
+  height: 16px;
+  transform: translateY(1px);
 }
 
 .secondary-button {
