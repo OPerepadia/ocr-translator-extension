@@ -1986,36 +1986,38 @@
 
 .ocr-translate-live-lines {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: 10px 12px 12px;
 }
 
 .ocr-translate-live-lines.is-empty {
   display: none;
 }
 
-/* The lines slide up together when a new one comes in. */
-.ocr-translate-live-track {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px 12px 12px;
-}
-
-/* The bar marks the line the region shows now. It is always there, so the
-   text does not shift when it comes and goes. A line clips its text while its
-   height animates; flex: none keeps that clipping from shrinking it. */
+/* The bar marks the line the region shows now. Its space stays reserved.
+   Keep rows at their natural height when the list overflows. */
 .ocr-translate-live-line {
   display: flex;
   flex: none;
   flex-direction: column;
   gap: 2px;
-  overflow: hidden;
   margin-left: -8px;
   padding-left: 6px;
   border-left: 2px solid transparent;
   transition: opacity var(--ocr-duration) var(--ocr-ease-out);
+}
+
+.ocr-translate-live-line.is-new {
+  animation: ocr-translate-live-line-in 0.18s var(--ocr-ease-out);
+}
+
+@keyframes ocr-translate-live-line-in {
+  from { opacity: 0; }
 }
 
 .ocr-translate-live-line.is-current {
@@ -2143,6 +2145,7 @@
 
 .ocr-translate-live-line-note {
   font-size: calc(var(--ocr-size-xs) * var(--ocr-live-scale, 1));
+  overflow-wrap: anywhere;
 }
 
 .ocr-translate-live-line-note.is-error,
@@ -2185,7 +2188,8 @@
   .ocr-translate-overlay-status.is-loading,
   .ocr-translate-overlay-toolbar,
   .ocr-translate-overlay-toolbar.is-closing,
-  .ocr-translate-overlay-popover {
+  .ocr-translate-overlay-popover,
+  .ocr-translate-live-line.is-new {
     animation: none;
   }
 

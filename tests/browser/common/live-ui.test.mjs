@@ -234,9 +234,8 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
             translation: "Translated line " + number,
             state: "ready",
           });
-          // "tail" replaces the newest lines. Reports, right after drawing,
-          // whether the lines slide and the newest fades in (both only show
-          // while the animations run), and where the line above the newest is.
+          // "tail" replaces the newest lines. Reports whether the newest line
+          // fades right after drawing.
           window.showLines = (count, { onScreen = true, tail = [] } = {}) => {
             const lines = Array.from({ length: count }, (_, index) => lineAt(index + 1));
             lines.splice(count - tail.length, tail.length, ...tail);
@@ -247,9 +246,9 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
             });
             const views = container.querySelectorAll(".ocr-translate-live-line");
             return {
-              slid: container.querySelector(".ocr-translate-live-track").getAnimations().length > 0,
-              faded: views[views.length - 1].getAnimations().length > 0,
-              aboveY: views.length > 1 ? views[views.length - 2].getBoundingClientRect().y : 0,
+              faded: views[views.length - 1].getAnimations().some(
+                (animation) => animation.animationName === "ocr-translate-live-line-in"
+              ),
             };
           };
         `,
@@ -286,6 +285,12 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal((await box(page, ".ocr-translate-live")).height, 180);
       assert.ok((await scroll()).end > 0, JSON.stringify(await scroll()));
       assert.equal(await atEnd(), true);
+      const listBottom = await list.evaluate((element) => element.getBoundingClientRect().bottom);
+      const bottomPadding = await list.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).paddingBottom)
+      );
+      const lastBox = await lines.last().boundingBox();
+      assert.ok(near(listBottom - (lastBox.y + lastBox.height), bottomPadding));
       assert.equal(await translationOf(lines.first()), "Translated line 1");
       assert.equal(await translationOf(lines.last()), "Translated line 20");
       const current = page.locator(".ocr-translate-live-line.is-current");
@@ -306,7 +311,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await settle(page);
       const before = await lines.first().boundingBox();
       const unwatched = await showLines(21);
-      assert.equal(unwatched.slid || unwatched.faded, false);
+      assert.equal(unwatched.faded, true);
       assert.equal((await scroll()).top, 0);
       assert.deepEqual(await lines.first().boundingBox(), before);
       assert.equal(await lines.first().getAttribute("data-marked"), "yes");
@@ -327,17 +332,11 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal(await atEnd(), true);
       assert.equal(await latest.isVisible(), false);
 
-      // At the end, it follows the newest line, sliding it in.
+      // At the end, it follows the newest line as it fades in.
       const following = await showLines(22);
-      assert.equal(following.slid, true);
       assert.equal(following.faded, true);
       assert.equal(await atEnd(), true);
       assert.equal(await translationOf(lines.last()), "Translated line 22");
-
-      // The lines start where they were, so nothing jumps: the one above the
-      // newest has moved up only once the slide is over.
-      const settled = (await lines.nth(20).boundingBox()).y;
-      assert.ok(settled < following.aboveY - 10, JSON.stringify({ settled, following }));
 
       // Earlier lines are faded, the newest is not.
       const opacityOf = (line) =>
@@ -368,23 +367,27 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await showLines(25, { tail: [{ original: "Line 25", state: "pending" }] });
       const pendingY = (await lines.nth(23).boundingBox()).y;
       const ready = await showLines(25);
-      assert.ok(near(ready.aboveY, pendingY), JSON.stringify({ pendingY, ready }));
-      assert.equal(ready.slid, false);
+      assert.ok(near((await lines.nth(23).boundingBox()).y, pendingY));
+      assert.equal(ready.faded, false);
 
-      // A translation that is taller pushes the lines above it up. They start
-      // where they were and slide.
+      // A taller translation pushes the lines above it up without reanimating
+      // the existing line.
       const long = "Translated line 25 ".repeat(12);
       const tall = await showLines(25, {
         tail: [{ original: "Line 25", translation: long, state: "ready" }],
       });
-      assert.equal(tall.slid, true);
-      assert.ok(near(tall.aboveY, ready.aboveY), JSON.stringify({ ready, tall }));
+      assert.equal(tall.faded, false);
       assert.equal(await atEnd(), true);
 
       await page.emulateMedia({ reducedMotion: "reduce" });
       const reduced = await showLines(26);
-      assert.equal(reduced.slid || reduced.faded, false);
+      assert.equal(reduced.faded, false);
       assert.equal(await atEnd(), true);
+
+      await showLines(27, {
+        tail: [{ original: "Line 27", state: "failed", error: "FailureCode".repeat(40) }],
+      });
+      assert.equal(await list.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), true);
     });
   });
 

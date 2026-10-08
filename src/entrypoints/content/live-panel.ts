@@ -51,11 +51,6 @@ const FRAME_SETTLE_MS = 2000;
 const MASK_PADDING = 3;
 // Lines scrolled this close to the end still count as being at the end.
 const SCROLL_END_SLACK = 8;
-// How long the lines take to slide up for a new line, and the line to fade in.
-const LINE_ANIMATION_MS = 180;
-// The same curve as --ocr-ease-out in the stylesheet.
-const LINE_EASING = "cubic-bezier(0.16, 0.84, 0.44, 1)";
-
 // Mouse and touch events that would otherwise reach the page's own handlers.
 // The panel can sit inside a video player, where a click pauses the video and
 // a double click goes full screen.
@@ -190,13 +185,6 @@ export function showLivePanel(
   const lineList = document.createElement("div");
   lineList.className = "ocr-translate-live-lines";
   lineList.setAttribute("role", "log");
-  // The lines sit in a track so that they can slide as one.
-  const track = document.createElement("div");
-  track.className = "ocr-translate-live-track";
-  lineList.append(track);
-  // The slide that is still running, and the new lines to fade in.
-  let slide: Animation | undefined;
-  const added: HTMLElement[] = [];
 
   const note = textElement("ocr-translate-live-note");
   const retry = document.createElement("button");
@@ -289,10 +277,8 @@ export function showLivePanel(
     };
   }
 
-
-  // From the track's height, not `scrollHeight`, which grows while it slides.
   function maxScroll(): number {
-    return Math.max(0, track.offsetHeight - lineList.clientHeight);
+    return Math.max(0, lineList.scrollHeight - lineList.clientHeight);
   }
 
   function updateLatestButton(): void {
@@ -303,52 +289,16 @@ export function showLivePanel(
   }
   lineList.addEventListener("scroll", updateLatestButton);
 
-  /** How far the track is from its place while it slides. */
-  function slideOffset(): number {
-    if (slide?.playState !== "running") {
-      return 0;
-    }
-    return new DOMMatrixReadOnly(getComputedStyle(track).transform).m42;
-  }
-
   /** Runs `change`, and keeps showing the newest line if it was in view. Once
    * the user scrolls up to read, the lines they read stay where they are as
-   * new lines come in below them.
-   *
-   * With `animate`, the lines slide up to their new place, and new lines fade
-   * in. */
-  function keepingScroll(change: () => void, animate = false): void {
+   * new lines come in below them. */
+  function keepingScroll(change: () => void): void {
     const atEnd = lineList.scrollTop >= maxScroll() - SCROLL_END_SLACK;
-    const scrolledFrom = lineList.scrollTop;
-    const offset = slideOffset();
-    slide?.cancel();
-    slide = undefined;
     change();
-    const fadeIn = added.splice(0);
     if (atEnd) {
       lineList.scrollTop = maxScroll();
     }
     updateLatestButton();
-    if (!atEnd || !animate || prefersReducedMotion()) {
-      return;
-    }
-
-    // The scroll moved the lines up at once. Start them where they were.
-    const shift = lineList.scrollTop - scrolledFrom + offset;
-    if (shift >= 1) {
-      slide = track.animate(
-        [{ transform: `translateY(${shift}px)` }, { transform: "none" }],
-        { duration: LINE_ANIMATION_MS, easing: LINE_EASING },
-      );
-    }
-    for (const element of fadeIn) {
-      // It ends at the opacity the stylesheet gives it, which for the newest
-      // line is full.
-      element.animate([{ opacity: 0 }], {
-        duration: LINE_ANIMATION_MS,
-        easing: LINE_EASING,
-      });
-    }
   }
 
   function position(): void {
@@ -493,9 +443,14 @@ export function showLivePanel(
       const existing = views[index];
       const view = existing ?? createLineView();
       if (!existing) {
+        view.element.classList.add("is-new");
+        view.element.addEventListener(
+          "animationend",
+          () => view.element.classList.remove("is-new"),
+          { once: true },
+        );
         views.push(view);
-        track.append(view.element);
-        added.push(view.element);
+        lineList.append(view.element);
       }
       if (view.line !== line) {
         fillLineView(view, line);
@@ -513,7 +468,7 @@ export function showLivePanel(
   return {
     render(next) {
       state = next;
-      keepingScroll(draw, true);
+      keepingScroll(draw);
     },
 
     getMask() {
@@ -604,10 +559,6 @@ function statusNote(state: LiveState): { text: string; isError: boolean } {
     };
   }
   return { text: "", isError: false };
-}
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
 function iconButton(
