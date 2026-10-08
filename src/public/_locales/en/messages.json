@@ -454,10 +454,6 @@
     "message": "Waiting for text…",
     "description": "Shown in the live translation panel while the selected area contains no text."
   },
-  "livePaused": {
-    "message": "Paused",
-    "description": "Status shown in the live translation panel while it is paused."
-  },
   "livePause": {
     "message": "Pause",
     "description": "Button that pauses live translation."

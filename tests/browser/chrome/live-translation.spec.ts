@@ -415,7 +415,6 @@ test("pauses, resumes and closes from the panel", async () => {
 
     await countCaptures(worker);
     await pause.click();
-    await expect(page.locator(".ocr-translate-live-note")).toHaveText("Paused");
     await page.waitForTimeout(3_000);
     expect(await capturesSoFar(worker)).toBe(0);
 

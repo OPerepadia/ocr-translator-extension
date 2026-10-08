@@ -568,7 +568,7 @@ function statusNote(state: LiveState): { text: string; isError: boolean } {
     return { text: state.error ?? "", isError: true };
   }
   if (state.status === "paused") {
-    return { text: t("livePaused"), isError: false };
+    return { text: "", isError: false };
   }
   // Once there are lines, the gaps between them need no note.
   if (state.lines.length === 0) {

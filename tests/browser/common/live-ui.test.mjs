@@ -207,7 +207,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       // Pause becomes resume while paused.
       await page.locator(".ocr-translate-live-actions > button").nth(1).click();
       await render({ status: "paused", lines: [] });
-      assert.equal(await text(".ocr-translate-live-note"), "livePaused");
+      assert.equal(await text(".ocr-translate-live-note"), "");
       await page.locator(".ocr-translate-live-actions > button").nth(1).click();
 
       await render({ status: "error", lines: [], error: "worker crashed" });

@@ -398,9 +398,6 @@
   "liveWaitingForText": {
     "message": "テキストを待っています…"
   },
-  "livePaused": {
-    "message": "一時停止中"
-  },
   "livePause": {
     "message": "一時停止"
   },

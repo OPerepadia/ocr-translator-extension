@@ -398,9 +398,6 @@
   "liveWaitingForText": {
     "message": "Очікування тексту…"
   },
-  "livePaused": {
-    "message": "На паузі"
-  },
   "livePause": {
     "message": "Призупинити"
   },

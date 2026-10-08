@@ -398,9 +398,6 @@
   "liveWaitingForText": {
     "message": "正在等待文字…"
   },
-  "livePaused": {
-    "message": "已暂停"
-  },
   "livePause": {
     "message": "暂停"
   },
