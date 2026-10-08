@@ -103,9 +103,13 @@ export async function handleLiveFrameRequest(
     return { status: "hidden" };
   }
 
-  const minLineThickness =
-    Math.max(MIN_LINE_THICKNESS, message.minLineThickness ?? 0) *
-    frame.pixelRatio;
+  // The session asks for a share of the region's height. The region grows and
+  // shrinks with the video under it, and so do the subtitles.
+  const regionHeight = message.rect.height * frame.pixelRatio;
+  const minLineThickness = Math.max(
+    MIN_LINE_THICKNESS * frame.pixelRatio,
+    (message.minLineThickness ?? 0) * regionHeight,
+  );
   const previous = sessions.get(message.sessionId);
   if (
     previous &&
@@ -128,7 +132,7 @@ export async function handleLiveFrameRequest(
       signal,
     );
 
-  const lineThickness = thickestLine(recognized.blocks, frame.pixelRatio);
+  const lineThickness = thickestLine(recognized.blocks, regionHeight);
   sessions.set(message.sessionId, {
     signature: frame.signature,
     text: recognized.text,
@@ -142,16 +146,17 @@ export async function handleLiveFrameRequest(
   };
 }
 
-/** The thickest line of a result, in CSS pixels. */
+/** The thickest line of a result, as a share of `regionHeight`, which is in
+ * image pixels. */
 function thickestLine(
   blocks: OcrBlock[] | undefined,
-  pixelRatio: number,
+  regionHeight: number,
 ): number | undefined {
   const thickest = (blocks ?? []).reduce(
     (max, block) => Math.max(max, block.oriented?.rect.height ?? 0),
     0,
   );
-  return thickest > 0 ? thickest / pixelRatio : undefined;
+  return thickest > 0 ? thickest / regionHeight : undefined;
 }
 
 /** Translate a line the live loop read, into the saved target language. */

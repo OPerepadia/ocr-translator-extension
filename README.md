@@ -57,6 +57,7 @@ Things to know:
 
 - A fast provider works best, such as a local LLM or DeepL. Google Translate also works, but its quality and speed may vary.
 - Select the smallest area that fits the subtitles, so that logos and other text stay outside it. Do it while a subtitle is on screen, because the extension learns the subtitle size from the first lines it reads. Text much smaller than that, such as a watermark or player controls, is ignored.
+- The area stays on the video when you scroll, zoom, or switch to full screen.
 - When an LLM endpoint is used, the previous few lines are sent as context to achieve a better translation.
 - It may not work with DRM-protected videos.
 

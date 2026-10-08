@@ -41,7 +41,7 @@ export interface LiveState {
 
 export interface LiveSessionDeps {
   /** Capture the region and read its text. Lines thinner than
-   * `minLineThickness`, in CSS pixels, are left out. */
+   * `minLineThickness`, as a share of the region's height, are left out. */
   readFrame(
     requestId: string,
     minLineThickness: number | undefined,

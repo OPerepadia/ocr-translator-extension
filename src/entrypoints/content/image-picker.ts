@@ -184,7 +184,7 @@ export function findImageAtPoint(
 
 // Hit testing reports a shadow tree as its host. Open shadow trees are
 // expanded in place, each element listed just above its host.
-function elementsAtPoint(
+export function elementsAtPoint(
   root: Document | ShadowRoot,
   x: number,
   y: number,

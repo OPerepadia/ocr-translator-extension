@@ -36,6 +36,9 @@ export interface LivePanelCallbacks {
 
 export interface LivePanel {
   render(state: LiveState): void;
+  /** Draws the frame where the region is now. The panel goes along unless the
+   * user has placed it. */
+  moveRegion(region: Rect): void;
   /** Where the panel covers the region, in viewport coordinates, or nothing
    * when it does not. The live loop blanks this before reading so the panel's
    * own text is not read back. */
@@ -46,8 +49,9 @@ export interface LivePanel {
 // The frame around the region sits this far outside it, which leaves a clear
 // strip between the frame and the pixels that get read.
 const FRAME_OUTSET = 4;
-// After this long the frame fades back, so it stops distracting from the page.
-const FRAME_SETTLE_MS = 2000;
+// After this long in one place the frame fades back, so it stops distracting
+// from the page.
+const FRAME_SETTLE_MS = 1500;
 // The panel's edge blurs a little past its box.
 const MASK_PADDING = 3;
 // Lines scrolled this close to the end still count as being at the end.
@@ -69,11 +73,12 @@ const CONTAINED_EVENTS = [
 
 export function showLivePanel(
   root: HTMLElement,
-  region: Rect,
+  initialRegion: Rect,
   callbacks: LivePanelCallbacks,
   initialTextScale: LiveTextScale,
 ): LivePanel {
   let state: LiveState = { status: "starting", lines: [] };
+  let region = initialRegion;
   let showOriginal = false;
   let textScale = initialTextScale;
   // One view per line in `state.lines`, in the same order.
@@ -84,14 +89,8 @@ export function showLivePanel(
 
   const frame = document.createElement("div");
   frame.className = "ocr-translate-live-region";
-  frame.style.left = `${region.x - FRAME_OUTSET}px`;
-  frame.style.top = `${region.y - FRAME_OUTSET}px`;
-  frame.style.width = `${region.width + FRAME_OUTSET * 2}px`;
-  frame.style.height = `${region.height + FRAME_OUTSET * 2}px`;
-  const settleTimer = window.setTimeout(
-    () => frame.classList.add("is-settled"),
-    FRAME_SETTLE_MS,
-  );
+  let settleTimer: number | undefined;
+  drawFrame();
 
   const panel = document.createElement("div");
   panel.className = "ocr-translate-live";
@@ -302,11 +301,27 @@ export function showLivePanel(
     updateLatestButton();
   }
 
+  /** Draws the frame around the region in full. It fades back later. */
+  function drawFrame(): void {
+    frame.style.left = `${region.x - FRAME_OUTSET}px`;
+    frame.style.top = `${region.y - FRAME_OUTSET}px`;
+    frame.style.width = `${region.width + FRAME_OUTSET * 2}px`;
+    frame.style.height = `${region.height + FRAME_OUTSET * 2}px`;
+    frame.classList.remove("is-settled");
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(
+      () => frame.classList.add("is-settled"),
+      FRAME_SETTLE_MS,
+    );
+  }
+
   function position(): void {
-    // A window that shrinks squeezes the panel only for as long as it is small.
-    const box = placed
-      ? clampPanelBox(placed, viewport())
-      : placeLivePanel(region, viewport());
+    // A window that shrinks squeezes the panel only for as long as it is
+    // small. A region that scrolls out of view leaves the panel at the edge.
+    const box = clampPanelBox(
+      placed ?? placeLivePanel(region, viewport()),
+      viewport(),
+    );
     panel.style.left = `${box.left}px`;
     panel.style.top = `${box.top}px`;
     panel.style.width = `${box.width}px`;
@@ -470,6 +485,12 @@ export function showLivePanel(
     render(next) {
       state = next;
       keepingScroll(draw);
+    },
+
+    moveRegion(next) {
+      region = next;
+      drawFrame();
+      keepingScroll(position);
     },
 
     getMask() {

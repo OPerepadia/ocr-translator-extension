@@ -47,6 +47,20 @@ describe("captureLiveFrame", () => {
     });
     expect(query).toHaveBeenCalledTimes(2);
   });
+
+  it("does not capture a region scrolled out of view", async () => {
+    vi.resetModules();
+    const { captureLiveFrame } = await import("./capture");
+    const query = vi.fn(async () => [{ id: 7 }]);
+    const captureVisibleTab = vi.fn();
+    vi.stubGlobal("browser", {
+      tabs: { query, captureVisibleTab },
+    });
+
+    const above = { x: 0, y: -40, width: 100, height: 40 };
+    await expect(captureLiveFrame({ ...args, rect: above })).resolves.toBeUndefined();
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+  });
 });
 
 describe("loadImage", () => {

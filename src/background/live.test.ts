@@ -112,7 +112,7 @@ describe("handleLiveFrameRequest", () => {
     await handleLiveFrameRequest(
       dependencies,
       sessions,
-      frameMessage({ minLineThickness: 30 }),
+      frameMessage({ minLineThickness: 0.5 }),
       visibleTab,
       signal(),
     );
@@ -123,13 +123,36 @@ describe("handleLiveFrameRequest", () => {
     );
   });
 
+  it("measures lines against the region, as it grows with the video", async () => {
+    const { dependencies, recognize, sessions } = setup({
+      frames: [frameOf(10), frameOf(200)],
+    });
+
+    for (const height of [60, 120]) {
+      await handleLiveFrameRequest(
+        dependencies,
+        sessions,
+        frameMessage({
+          rect: { x: 10, y: 20, width: 400, height },
+          minLineThickness: 0.5,
+        }),
+        visibleTab,
+        signal(),
+      );
+    }
+
+    expect(recognize.mock.calls.map(([input]) => input.minLineThickness)).toEqual([
+      30, 60,
+    ]);
+  });
+
   it("never reads below the floor, whatever the session asks", async () => {
     const { dependencies, recognize, sessions } = setup({});
 
     await handleLiveFrameRequest(
       dependencies,
       sessions,
-      frameMessage({ minLineThickness: 5 }),
+      frameMessage({ minLineThickness: 0.1 }),
       visibleTab,
       signal(),
     );
@@ -149,7 +172,7 @@ describe("handleLiveFrameRequest", () => {
     await handleLiveFrameRequest(
       dependencies,
       sessions,
-      frameMessage({ minLineThickness: 30 }),
+      frameMessage({ minLineThickness: 0.5 }),
       visibleTab,
       signal(),
     );
@@ -159,11 +182,11 @@ describe("handleLiveFrameRequest", () => {
     ]);
   });
 
-  it("reports the thickest line it read, in CSS pixels", async () => {
+  it("reports the thickest line it read, as a share of the region's height", async () => {
     const { dependencies, sessions } = setup({
       frames: [frameOf(10, 2)],
       texts: ["Good morning. Goodbye."],
-      blocks: [[lineOf("Good morning.", 44), lineOf("Goodbye.", 30)]],
+      blocks: [[lineOf("Good morning.", 48), lineOf("Goodbye.", 30)]],
     });
 
     const response = await handleLiveFrameRequest(
@@ -178,7 +201,7 @@ describe("handleLiveFrameRequest", () => {
       status: "ok",
       text: "Good morning. Goodbye.",
       unchanged: false,
-      lineThickness: 22,
+      lineThickness: 0.4,
     });
   });
 
@@ -292,7 +315,7 @@ describe("handleLiveFrameRequest", () => {
     const second = await handleLiveFrameRequest(
       dependencies,
       sessions,
-      frameMessage({ minLineThickness: 30 }),
+      frameMessage({ minLineThickness: 0.5 }),
       visibleTab,
       signal(),
     );

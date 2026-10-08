@@ -22,6 +22,7 @@ declare const chrome: {
       options?: { frameId: number },
     ): Promise<unknown>;
     captureVisibleTab(...args: unknown[]): Promise<string>;
+    setZoom(tabId: number, zoomFactor: number): Promise<void>;
   };
   storage: { local: { set(values: Record<string, unknown>): Promise<void> } };
 };
@@ -476,6 +477,86 @@ test("keeps the panel on screen while a container is full screen", async () => {
     await expect.poll(hostParent).toBe("stage");
     expect(await panelIsOnTop()).toBe(true);
     expect(server.requests).toEqual(["Where did you put the keys?"]);
+  } finally {
+    await session.context.close();
+    server.close();
+  }
+});
+
+test("follows the video when the page zooms and goes full screen", async () => {
+  const session = await openSession();
+  const { page, worker, server } = session;
+  const setZoom = (factor: number) =>
+    worker.evaluate(
+      async ({ url, factor }) => {
+        const [tab] = await chrome.tabs.query({ url });
+        await chrome.tabs.setZoom(tab.id, factor);
+      },
+      { url: `${PAGE_URL}*`, factor },
+    );
+  // Whether the frame drawn around the region takes in every line of the
+  // subtitle.
+  const frameHoldsSubtitle = async () => {
+    const frame = await page.locator(".ocr-translate-live-region").boundingBox();
+    const subtitle = await page.locator("#subtitle").boundingBox();
+    return Boolean(
+      frame &&
+        subtitle &&
+        frame.y <= subtitle.y &&
+        frame.y + frame.height >= subtitle.y + subtitle.height,
+    );
+  };
+  try {
+    // A player that takes a share of the window, like on most video sites,
+    // with a real video element and subtitles drawn to its scale. Zooming in
+    // makes it smaller in CSS pixels.
+    await page.addStyleTag({
+      content: `
+        #stage { left: 10vw; top: 5vh; width: 80vw; height: 45vw; }
+        #video { container-type: size; }
+        #subtitle { bottom: 5cqh; padding: 0 3cqw; font-size: 5.8cqh; }
+      `,
+    });
+    await page.evaluate(() => {
+      document.getElementById("hud")!.remove();
+      const video = document.createElement("video");
+      video.style.cssText = "position: absolute; inset: 0; width: 100%; height: 100%";
+      document.getElementById("video")!.prepend(video);
+    });
+    await startLiveTranslation(session, { x1: 200, y1: 470, x2: 1080, y2: 600 });
+
+    await showSubtitle(page, "The weather is nice today.");
+    await expect(translation(page)).toHaveText("[uk] The weather is nice today.", {
+      timeout: 20_000,
+    });
+
+    await setZoom(1.5);
+    await showSubtitle(page, "We should walk to the market.");
+    await expect(translation(page)).toHaveText(
+      ["[uk] The weather is nice today.", "[uk] We should walk to the market."],
+      { timeout: 10_000 },
+    );
+    expect(await frameHoldsSubtitle()).toBe(true);
+
+    await setZoom(1);
+    await page.click("#fullscreen");
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe("stage");
+    await showSubtitle(page, "See you tomorrow.");
+    await expect(translation(page)).toHaveText(
+      [
+        "[uk] The weather is nice today.",
+        "[uk] We should walk to the market.",
+        "[uk] See you tomorrow.",
+      ],
+      { timeout: 10_000 },
+    );
+    expect(await frameHoldsSubtitle()).toBe(true);
+
+    expect(server.requests).toEqual([
+      "The weather is nice today.",
+      "We should walk to the market.",
+      "See you tomorrow.",
+    ]);
   } finally {
     await session.context.close();
     server.close();

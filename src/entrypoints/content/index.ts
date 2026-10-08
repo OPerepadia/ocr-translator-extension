@@ -71,6 +71,7 @@ import {
 import { closeRegionOutline, showRegionOutline } from "./region-outline";
 import { LiveSession } from "./live-session";
 import { showLivePanel, type LivePanel } from "./live-panel";
+import { followRegion } from "./live-region";
 import {
   setNavigationContext,
   startNavigationWatch,
@@ -118,7 +119,7 @@ let live:
       session: LiveSession;
       panel: LivePanel;
       sessionId: string;
-      stopWatchingVisibility: () => void;
+      stopWatching: () => void;
     }
   | undefined;
 
@@ -482,13 +483,21 @@ function startLive(rect: Rect, textScale: LiveTextScale): void {
     },
     textScale,
   );
+  // Hit testing reports the panel as its shadow host.
+  const shadow = uiRoot.getRootNode();
+  const region = followRegion(
+    rect,
+    shadow instanceof ShadowRoot ? shadow.host : undefined,
+    (moved) => panel.moveRegion(moved),
+  );
   const session = new LiveSession({
     readFrame: (requestId, minLineThickness) =>
       sendRequest<LiveFrameResponse>({
         type: "LIVE_FRAME_REQUEST",
         requestId,
         sessionId,
-        rect,
+        // Measured first, so the mask below is taken with the panel moved.
+        rect: region.measure(),
         viewport: { width: window.innerWidth, height: window.innerHeight },
         mask: panel.getMask(),
         minLineThickness,
@@ -522,8 +531,10 @@ function startLive(rect: Rect, textScale: LiveTextScale): void {
     session,
     panel,
     sessionId,
-    stopWatchingVisibility: () =>
-      document.removeEventListener("visibilitychange", wakeWhenVisible),
+    stopWatching: () => {
+      document.removeEventListener("visibilitychange", wakeWhenVisible);
+      region.dispose();
+    },
   };
   startNavigationWatch(closePageUi);
   // The selection overlay is torn down above, but a screenshot can lag a few
@@ -540,10 +551,10 @@ function stopLive(): void {
   if (!live) {
     return;
   }
-  const { session, panel, sessionId, stopWatchingVisibility } = live;
+  const { session, panel, sessionId, stopWatching } = live;
   live = undefined;
   session.stop();
-  stopWatchingVisibility();
+  stopWatching();
   panel.dispose();
   void sendRequest({ type: "LIVE_STOP", sessionId }).catch(() => {});
 }

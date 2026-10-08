@@ -52,11 +52,11 @@ export function watchFullscreen(host: HTMLElement): () => void {
     if (anchor) {
       if (host.parentElement !== anchor) {
         home ??= host.parentNode;
-        anchor.append(host);
+        moveHost(host, anchor);
       }
       inside = true;
     } else if (inside) {
-      (home?.isConnected ? home : document.body).appendChild(host);
+      moveHost(host, home?.isConnected ? home : document.body);
       home = null;
       inside = false;
     }
@@ -65,6 +65,24 @@ export function watchFullscreen(host: HTMLElement): () => void {
   document.addEventListener("fullscreenchange", follow);
   follow();
   return () => document.removeEventListener("fullscreenchange", follow);
+}
+
+// Moving an element scrolls everything inside it back to the start. The live
+// panel would take that as the user scrolling up, and stop following new lines.
+function moveHost(host: HTMLElement, parent: Node): void {
+  const scrolled = Array.from(
+    host.shadowRoot?.querySelectorAll("*") ?? [],
+    (element) => ({
+      element,
+      top: element.scrollTop,
+      left: element.scrollLeft,
+    }),
+  ).filter(({ top, left }) => top !== 0 || left !== 0);
+  parent.appendChild(host);
+  for (const { element, top, left } of scrolled) {
+    element.scrollTop = top;
+    element.scrollLeft = left;
+  }
 }
 
 export function watchUiModal(

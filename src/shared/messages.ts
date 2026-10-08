@@ -140,8 +140,8 @@ export type RuntimeMessage =
       rect: Rect;
       viewport: Viewport;
       mask?: Rect;
-      /** Lines thinner than this, in CSS pixels, are not read. Absent until
-       * the session has learned how thick its text is. */
+      /** Lines thinner than this share of the region's height are not read.
+       * Absent until the session has learned how thick its text is. */
       minLineThickness?: number;
     }
   // Content -> background: translate text the live loop read. `context` holds
@@ -183,7 +183,8 @@ export interface CaptureSnapshotResponse {
 }
 
 export type LiveFrameResponse =
-  /** The sending tab was not the visible one, so nothing was captured. */
+  /** The sending tab was not the visible one, or the region was out of view,
+   * so nothing was captured. */
   | { status: "hidden" }
   | {
       status: "ok";
@@ -192,9 +193,9 @@ export type LiveFrameResponse =
       /** The region looked the same as at the last read, so `text` is that
        * read's result and no recognition ran. */
       unchanged: boolean;
-      /** The thickest line in `text`, in CSS pixels. Absent when `text` is
-       * empty or `unchanged`: the session learns from the first read with
-       * text, which is never an unchanged one. */
+      /** The thickest line in `text`, as a share of the region's height.
+       * Absent when `text` is empty or `unchanged`: the session learns from
+       * the first read with text, which is never an unchanged one. */
       lineThickness?: number;
     };
 

@@ -133,7 +133,8 @@ const waitForLiveCaptureSlot = createThrottle(LIVE_CAPTURE_GAP_MS);
  *
  * The screenshot is of the active tab in `windowId`. Resolves to `undefined`
  * when `tabId` is not that tab before or after the capture, since the user
- * switched tabs and the screenshot would be of another page.
+ * switched tabs and the screenshot would be of another page. Also resolves to
+ * `undefined` while the page has scrolled the region out of view.
  */
 export async function captureLiveFrame(args: {
   rect: Rect;
@@ -142,6 +143,9 @@ export async function captureLiveFrame(args: {
   tabId: number;
   windowId: number;
 }): Promise<LiveFrame | undefined> {
+  if (!isInView(args.rect, args.viewport)) {
+    return undefined;
+  }
   await waitForLiveCaptureSlot();
   if (!(await isActiveTab(args.tabId, args.windowId))) {
     return undefined;
@@ -177,6 +181,16 @@ export async function captureLiveFrame(args: {
   } finally {
     bitmap.close();
   }
+}
+
+/** Whether any of `rect` is inside the viewport. */
+function isInView(rect: Rect, viewport: Viewport): boolean {
+  return (
+    rect.x < viewport.width &&
+    rect.y < viewport.height &&
+    rect.x + rect.width > 0 &&
+    rect.y + rect.height > 0
+  );
 }
 
 async function isActiveTab(tabId: number, windowId: number): Promise<boolean> {

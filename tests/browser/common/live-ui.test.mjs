@@ -22,12 +22,26 @@ async function compile(files, name, stubs = []) {
   return code;
 }
 
-const panelCode = await compile(["icons.ts", "live-layout.ts", "live-panel.ts"], "live-panel", [
+const panelStubs = [
   "const languageName = (code: string) => `Language ${code}`;",
   "const LIVE_TEXT_SCALES = [1];",
-]);
+];
+const panelCode = await compile(
+  ["icons.ts", "live-layout.ts", "live-panel.ts"],
+  "live-panel",
+  panelStubs,
+);
+const fullscreenPanelCode = await compile(
+  ["icons.ts", "live-layout.ts", "live-panel.ts", "modal-ui.ts"],
+  "live-panel-fullscreen",
+  panelStubs,
+);
 const selectionCode = await compile(["image-picker.ts", "selection-overlay.ts"], "selection");
 const modalCode = await compile(["modal-ui.ts"], "modal-ui");
+const regionCode = await compile(
+  ["image-picker.ts", "overlay-layout.ts", "live-region.ts"],
+  "live-region",
+);
 
 const svg =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E";
@@ -530,6 +544,223 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await page.mouse.up();
       const clamped = await box(page, ".ocr-translate-live");
       assert.ok(clamped.x >= 0 && clamped.y >= 0);
+    });
+  });
+
+  test(`${name}: the live frame and panel go where the region moves`, async () => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`<body style="margin:0"></body>`);
+      await page.addScriptTag({
+        type: "module",
+        content: `${panelCode}
+          ${uiSetup}
+          window.panel = showLivePanel(container, { x: 100, y: 100, width: 600, height: 80 }, {
+            onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
+            onTextScaleChange() {},
+          }, 1);
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.panel));
+      await settle(page);
+      const move = (region) => page.evaluate((region) => window.panel.moveRegion(region), region);
+      const frame = () => box(page, ".ocr-translate-live-region");
+      const panel = () => box(page, ".ocr-translate-live");
+      const settledFrame = page.locator(".ocr-translate-live-region.is-settled");
+
+      // The frame fades back after a while, and shows in full again once the
+      // region moves.
+      await settledFrame.waitFor({ timeout: 5000 });
+      await move({ x: 50, y: 300, width: 400, height: 60 });
+      assert.equal(await settledFrame.count(), 0);
+      assert.deepEqual(await frame(), { x: 46, y: 296, width: 408, height: 68 });
+      assert.ok((await panel()).y >= 360 + 12);
+      assert.equal(await page.evaluate(() => window.panel.getMask()), undefined);
+
+      // Scrolled out of view, the region leaves the panel at the nearest edge.
+      await move({ x: 100, y: -300, width: 600, height: 80 });
+      assert.equal((await panel()).y, 8);
+      await move({ x: 100, y: 900, width: 600, height: 80 });
+      const below = await panel();
+      assert.equal(below.y + below.height, 600 - 8);
+
+      // A panel the user moved stays put, and the frame still follows.
+      await move({ x: 100, y: 100, width: 600, height: 80 });
+      const start = await panel();
+      await page.mouse.move(start.x + 60, start.y + 14);
+      await page.mouse.down();
+      await page.mouse.move(start.x + 60, start.y + 114, { steps: 5 });
+      await page.mouse.up();
+      const placed = await panel();
+      await move({ x: 150, y: 50, width: 400, height: 60 });
+      assert.deepEqual(await panel(), placed);
+      assert.deepEqual(await frame(), { x: 146, y: 46, width: 408, height: 68 });
+
+      await settledFrame.waitFor({ timeout: 5000 });
+    });
+  });
+
+  test(`${name}: the live panel keeps its place in the lines in and out of full screen`, async (context) => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`
+        <body style="margin:0">
+          <div id="stage" style="position:absolute; left:50px; top:50px; width:600px; height:300px; background:#468"></div>
+          <button id="fullscreen" style="position:absolute; left:700px; top:10px"
+            onclick="document.getElementById('stage').requestFullscreen()">full screen</button>
+        </body>
+      `);
+      await page.addScriptTag({
+        type: "module",
+        content: `${fullscreenPanelCode}
+          ${uiSetup}
+          window.host = host;
+          watchFullscreen(host);
+          window.panel = showLivePanel(container, { x: 100, y: 150, width: 500, height: 60 }, {
+            onPause() {}, onResume() {}, onSelectNewRegion() {}, onRetry() {}, onClose() {},
+            onTextScaleChange() {},
+          }, 1);
+          window.showLines = (count) => {
+            const lines = Array.from({ length: count }, (_, index) => ({
+              original: "Line " + index,
+              translation: "Hello " + index,
+              state: "ready",
+            }));
+            window.panel.render({ status: "running", lines, line: lines.at(-1) });
+          };
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.panel));
+      await settle(page);
+      const list = page.locator(".ocr-translate-live-lines");
+      const scrollTop = () => list.evaluate((element) => element.scrollTop);
+      const atEnd = () =>
+        list.evaluate(
+          (element) => element.scrollTop >= element.scrollHeight - element.clientHeight - 1,
+        );
+      const latestButton = page.locator(".ocr-translate-live-latest.is-visible");
+
+      // Enough lines that the list scrolls, with the newest in view.
+      await page.evaluate(() => window.showLines(12));
+      assert.ok((await scrollTop()) > 0);
+      assert.equal(await atEnd(), true);
+
+      await page.click("#fullscreen");
+      try {
+        await page.waitForFunction(() => document.fullscreenElement?.id === "stage", null, { timeout: 5000 });
+      } catch {
+        context.skip(`${name} does not enter full screen in this environment`);
+        return;
+      }
+      await page.waitForFunction(() => window.host.parentElement.id === "stage");
+      // The newest line stays in view, and so does the next one.
+      assert.equal(await atEnd(), true);
+      await page.evaluate(() => window.showLines(13));
+      assert.equal(await atEnd(), true);
+      assert.equal(await latestButton.count(), 0);
+
+      // Lines the user scrolled up to read stay where they are.
+      await list.evaluate((element) => {
+        element.scrollTop = 40;
+      });
+      await page.evaluate(() => document.exitFullscreen());
+      await page.waitForFunction(() => window.host.parentElement === document.body);
+      // Firefox scrolls by fractions of a pixel.
+      const isAt40 = async () => Math.abs((await scrollTop()) - 40) < 1;
+      assert.equal(await isAt40(), true);
+      await page.evaluate(() => window.showLines(14));
+      assert.equal(await isAt40(), true);
+      assert.equal(await latestButton.count(), 1);
+    });
+  });
+
+  test(`${name}: a live region keeps to the picture it was selected on`, async (context) => {
+    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
+      await page.setContent(`
+        <body style="margin:0; height:2000px">
+          <div id="stage" style="position:absolute; left:calc(50vw - 300px); top:50px; width:400px; height:300px">
+            <video id="video" style="display:block; width:100%; height:100%"></video>
+            <div style="position:absolute; left:0; right:0; bottom:10px; height:50px"></div>
+          </div>
+          <canvas id="game" width="160" height="90"
+            style="position:absolute; left:550px; top:50px; width:200px; height:200px; object-fit:contain"></canvas>
+          <p style="position:absolute; left:100px; top:400px; width:400px; height:100px">Hello there</p>
+          <button id="fullscreen" onclick="document.getElementById('stage').requestFullscreen()">full screen</button>
+        </body>
+      `);
+      await page.addScriptTag({
+        type: "module",
+        content: `${regionCode}
+          ${uiSetup}
+          window.follow = (rect) => {
+            const moves = [];
+            const region = followRegion(rect, host, (moved) => moves.push(moved));
+            return { moves, measure: () => region.measure(), dispose: () => region.dispose() };
+          };
+          window.regions = {
+            video: follow({ x: 150, y: 260, width: 300, height: 60 }),
+            game: follow({ x: 560, y: 180, width: 180, height: 20 }),
+            text: follow({ x: 120, y: 410, width: 300, height: 60 }),
+          };
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.regions));
+      const measure = (name) => page.evaluate((name) => window.regions[name].measure(), name);
+      // Waits for the region to report a move to `expected`, as it does on its
+      // own when the page changes.
+      const movesTo = (name, expected) =>
+        page.waitForFunction(
+          ([name, expected]) => {
+            const last = window.regions[name].moves.at(-1);
+            return (
+              last &&
+              ["x", "y", "width", "height"].every((key) => Math.abs(last[key] - expected[key]) < 0.5)
+            );
+          },
+          [name, expected],
+          { timeout: 5000 },
+        );
+
+      // A wider window moves the player, and the region goes with it.
+      await page.setViewportSize({ width: 1000, height: 600 });
+      await movesTo("video", { x: 250, y: 260, width: 300, height: 60 });
+
+      // So does a larger player, in proportion.
+      await page.evaluate(() => {
+        Object.assign(document.getElementById("stage").style, { width: "800px", height: "600px" });
+      });
+      await movesTo("video", { x: 300, y: 470, width: 600, height: 120 });
+
+      await page.evaluate(() => window.scrollTo(0, 100));
+      await movesTo("video", { x: 300, y: 370, width: 600, height: 120 });
+
+      // A picture drawn smaller than its element keeps its shape. The region
+      // stays on the picture, which sits lower in a taller element.
+      await page.evaluate(() => {
+        document.getElementById("game").style.height = "300px";
+      });
+      await movesTo("game", { x: 560, y: 130, width: 180, height: 20 });
+
+      // A region over anything else stays where it was selected.
+      assert.deepEqual(await measure("text"), { x: 120, y: 410, width: 300, height: 60 });
+
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        Object.assign(document.getElementById("stage").style, { width: "400px", height: "300px" });
+      });
+      await movesTo("video", { x: 250, y: 260, width: 300, height: 60 });
+      await page.click("#fullscreen");
+      try {
+        await page.waitForFunction(() => document.fullscreenElement?.id === "stage", null, { timeout: 5000 });
+      } catch {
+        context.skip(`${name} does not enter full screen in this environment`);
+        return;
+      }
+      const screen = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+      await movesTo("video", {
+        x: screen.width * 0.125,
+        y: screen.height * 0.7,
+        width: screen.width * 0.75,
+        height: screen.height * 0.2,
+      });
     });
   });
 
