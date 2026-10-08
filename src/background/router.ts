@@ -49,11 +49,11 @@ export interface RouterDependencies {
   /** Screenshots retained past the request that took them. */
   captureStore: CaptureStore;
   captureVisibleArea(args: { rect: Rect; viewport: Viewport }): Promise<Blob>;
-  /** Capture a region for live translation, with `mask` rects painted over. */
+  /** Capture a region for live translation, with the `mask` rect painted over. */
   captureLiveFrame(args: {
     rect: Rect;
     viewport: Viewport;
-    mask: Rect[];
+    mask?: Rect;
     tabId: number;
     windowId: number;
   }): Promise<LiveFrame | undefined>;

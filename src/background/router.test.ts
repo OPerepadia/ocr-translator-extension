@@ -1130,7 +1130,6 @@ describe("background router", () => {
       sessionId: "session-1",
       rect: { x: 0, y: 0, width: 100, height: 40 },
       viewport: { width: 800, height: 600 },
-      mask: [],
     };
     const tab = { tab: { id: 7, active: true, windowId: 3 }, frameId: 0 };
 

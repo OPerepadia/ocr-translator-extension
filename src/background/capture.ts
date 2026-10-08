@@ -128,7 +128,7 @@ const LIVE_MASK_FILL = "#808080";
 const waitForLiveCaptureSlot = createThrottle(LIVE_CAPTURE_GAP_MS);
 
 /**
- * Capture a region for live translation. `mask` lists viewport rects to paint
+ * Capture a region for live translation. `mask` is a viewport rect to paint
  * over first, which hides the extension's own panel where it overlaps.
  *
  * The screenshot is of the active tab in `windowId`. Resolves to `undefined`
@@ -138,7 +138,7 @@ const waitForLiveCaptureSlot = createThrottle(LIVE_CAPTURE_GAP_MS);
 export async function captureLiveFrame(args: {
   rect: Rect;
   viewport: Viewport;
-  mask: Rect[];
+  mask?: Rect;
   tabId: number;
   windowId: number;
 }): Promise<LiveFrame | undefined> {
@@ -161,9 +161,10 @@ export async function captureLiveFrame(args: {
       throw new Error(t("errorCanvasContext"));
     }
 
-    context.fillStyle = LIVE_MASK_FILL;
-    for (const rect of maskRectsInCrop(args.mask, crop, bitmap, args.viewport)) {
-      context.fillRect(rect.x, rect.y, rect.width, rect.height);
+    if (args.mask) {
+      const mask = maskRectInCrop(args.mask, crop, bitmap, args.viewport);
+      context.fillStyle = LIVE_MASK_FILL;
+      context.fillRect(mask.x, mask.y, mask.width, mask.height);
     }
 
     return {
@@ -183,24 +184,22 @@ async function isActiveTab(tabId: number, windowId: number): Promise<boolean> {
   return activeTab?.id === tabId;
 }
 
-/** Viewport rects as positions in the cropped canvas, rounded outwards so the
- * mask covers every pixel it touches. */
-export function maskRectsInCrop(
-  mask: Rect[],
+/** A viewport rect as a position in the cropped canvas, rounded outwards so
+ * the mask covers every pixel it touches. */
+export function maskRectInCrop(
+  mask: Rect,
   crop: Rect,
   bitmap: { width: number; height: number },
   viewport: Viewport,
-): Rect[] {
+): Rect {
   const dprX = bitmap.width / viewport.width;
   const dprY = bitmap.height / viewport.height;
 
-  return mask.map((rect) => {
-    const left = Math.floor(rect.x * dprX - crop.x);
-    const top = Math.floor(rect.y * dprY - crop.y);
-    const right = Math.ceil((rect.x + rect.width) * dprX - crop.x);
-    const bottom = Math.ceil((rect.y + rect.height) * dprY - crop.y);
-    return { x: left, y: top, width: right - left, height: bottom - top };
-  });
+  const left = Math.floor(mask.x * dprX - crop.x);
+  const top = Math.floor(mask.y * dprY - crop.y);
+  const right = Math.ceil((mask.x + mask.width) * dprX - crop.x);
+  const bottom = Math.ceil((mask.y + mask.height) * dprY - crop.y);
+  return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
 function clamp(value: number, min: number, max: number): number {

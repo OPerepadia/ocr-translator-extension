@@ -98,6 +98,9 @@ function setup(options: { visible?: boolean } = {}) {
       visible = next;
     },
     last: () => states.at(-1),
+    // What the panel shows: the last state it was given, or its own initial
+    // one when it has been given none.
+    shown: (): LiveState => states.at(-1) ?? { status: "starting", lines: [] },
   };
 }
 
@@ -207,7 +210,7 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(5000);
 
-    expect(t.session.current.status).toBe("starting");
+    expect(t.shown().status).toBe("starting");
     t.session.stop();
   });
 
@@ -625,7 +628,7 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(READ_INTERVAL_MS);
 
-    expect(t.session.current).toEqual({ status: "starting", lines: [] });
+    expect(t.shown()).toEqual({ status: "starting", lines: [] });
     t.session.stop();
   });
 
@@ -636,15 +639,15 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(0);
     t.session.pause();
-    expect(t.session.current.status).toBe("paused");
+    expect(t.shown().status).toBe("paused");
     const readsBefore = t.readFrame.mock.calls.length;
     await advance(IDLE_INTERVAL_MS * 3);
     expect(t.readFrame.mock.calls.length).toBe(readsBefore);
-    expect(t.session.current.line?.original).toBe("Good morning.");
+    expect(t.shown().line?.original).toBe("Good morning.");
 
     t.session.resume();
     await advance(0);
-    expect(t.session.current.status).toBe("running");
+    expect(t.shown().status).toBe("running");
     expect(t.readFrame.mock.calls.length).toBe(readsBefore + 1);
     t.session.stop();
   });
@@ -660,7 +663,7 @@ describe("LiveSession", () => {
     finish(read("Good morning."));
     await advance(0);
 
-    expect(t.session.current).toEqual({ status: "paused", lines: [] });
+    expect(t.shown()).toEqual({ status: "paused", lines: [] });
     expect(t.translate).not.toHaveBeenCalled();
     t.session.stop();
   });
@@ -673,7 +676,7 @@ describe("LiveSession", () => {
     t.session.pause();
     t.session.resume();
 
-    expect(t.session.current.status).toBe("starting");
+    expect(t.shown().status).toBe("starting");
     t.session.stop();
   });
 
@@ -683,10 +686,10 @@ describe("LiveSession", () => {
 
     t.session.start();
     await advance(0);
-    expect(t.session.current.status).toBe("starting");
+    expect(t.shown().status).toBe("starting");
 
     await advance(RETRY_INTERVAL_MS);
-    expect(t.session.current.status).toBe("running");
+    expect(t.shown().status).toBe("running");
     expect(t.last()?.line?.original).toBe("Good morning.");
     t.session.stop();
   });
@@ -698,7 +701,7 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(RETRY_INTERVAL_MS * MAX_FAILED_READS);
 
-    expect(t.session.current).toEqual({
+    expect(t.shown()).toEqual({
       status: "error",
       lines: [],
       error: "worker crashed",
@@ -713,8 +716,8 @@ describe("LiveSession", () => {
     t.session.retry();
     await advance(0);
 
-    expect(t.session.current.status).toBe("running");
-    expect(t.session.current.error).toBeUndefined();
+    expect(t.shown().status).toBe("running");
+    expect(t.shown().error).toBeUndefined();
     t.session.stop();
   });
 
@@ -732,7 +735,7 @@ describe("LiveSession", () => {
     t.session.start();
     await advance(RETRY_INTERVAL_MS * 6);
 
-    expect(t.session.current.status).toBe("running");
+    expect(t.shown().status).toBe("running");
     t.session.stop();
   });
 

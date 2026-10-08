@@ -39,7 +39,6 @@ function frameMessage(overrides: Partial<FrameMessage> = {}): FrameMessage {
     sessionId: "session-1",
     rect: { x: 10, y: 20, width: 400, height: 60 },
     viewport: { width: 1280, height: 720 },
-    mask: [],
     ...overrides,
   };
 }
@@ -199,7 +198,7 @@ describe("handleLiveFrameRequest", () => {
 
   it("captures the sender's window with the mask it was given", async () => {
     const { dependencies, sessions } = setup({});
-    const mask = [{ x: 0, y: 100, width: 300, height: 80 }];
+    const mask = { x: 0, y: 100, width: 300, height: 80 };
 
     await handleLiveFrameRequest(
       dependencies,

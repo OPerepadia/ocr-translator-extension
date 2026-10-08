@@ -118,7 +118,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const { width, height } = await box(page, panel);
       assert.deepEqual({ width, height }, { width: 480, height: 180 });
       assert.ok((await box(page, panel)).y >= 180 + 12);
-      assert.deepEqual(await page.evaluate(() => window.panel.getMask()), []);
+      assert.equal(await page.evaluate(() => window.panel.getMask()), undefined);
       // The frame stays clear of the pixels that are read.
       assert.deepEqual(await box(page, frame), { x: 96, y: 96, width: 608, height: 88 });
 
@@ -502,7 +502,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await page.waitForFunction(() => Boolean(window.panel));
       await settle(page);
       const panel = await box(page, ".ocr-translate-live");
-      const [mask] = await page.evaluate(() => window.panel.getMask());
+      const mask = await page.evaluate(() => window.panel.getMask());
 
       // No room beside a region this large, so the panel covers part of it.
       assert.ok(mask);
@@ -520,7 +520,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const where = JSON.stringify({ panel, moved });
       assert.ok(Math.abs(moved.x - (panel.x + 120)) <= 1, where);
       assert.ok(Math.abs(moved.y - (panel.y + 150)) <= 1, where);
-      const [movedMask] = await page.evaluate(() => window.panel.getMask());
+      const movedMask = await page.evaluate(() => window.panel.getMask());
       assert.ok(movedMask.x <= moved.x && movedMask.y <= moved.y);
 
       // It cannot be dragged out of the viewport.

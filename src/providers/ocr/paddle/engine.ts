@@ -262,18 +262,16 @@ export class PaddleEngine {
       result.providerMeta = {
         ...(result.providerMeta as Record<string, unknown>),
         modelId: recognized.modelId,
-        grouping: single
-          ? { modelId: "single-region", groupCount: grouping.groups.length }
-          : {
-              modelId: this.regionGrouper.metadata.id,
-              backend: this.regionGrouper.metadata.backend,
-              confidenceThreshold:
-                this.regionGrouper.metadata.confidenceThreshold,
-              nmsIouThreshold: this.regionGrouper.metadata.nmsIouThreshold,
-              regionCount: grouping.regionCount,
-              matchedLineCount: grouping.matchedLineCount,
-              groupCount: grouping.groups.length,
-            },
+        grouping: {
+          modelId: this.regionGrouper.metadata.id,
+          backend: this.regionGrouper.metadata.backend,
+          confidenceThreshold:
+            this.regionGrouper.metadata.confidenceThreshold,
+          nmsIouThreshold: this.regionGrouper.metadata.nmsIouThreshold,
+          regionCount: grouping.regionCount,
+          matchedLineCount: grouping.matchedLineCount,
+          groupCount: grouping.groups.length,
+        },
         ...(autoRecognition
           ? {
               autoSelection: autoRecognition.autoSelection,

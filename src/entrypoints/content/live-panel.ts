@@ -36,9 +36,10 @@ export interface LivePanelCallbacks {
 
 export interface LivePanel {
   render(state: LiveState): void;
-  /** Where the panel covers the region, in viewport coordinates. The live loop
-   * blanks these before reading so the panel's own text is not read back. */
-  getMask(): Rect[];
+  /** Where the panel covers the region, in viewport coordinates, or nothing
+   * when it does not. The live loop blanks this before reading so the panel's
+   * own text is not read back. */
+  getMask(): Rect | undefined;
   dispose(): void;
 }
 
@@ -477,7 +478,7 @@ export function showLivePanel(
         { x: box.left, y: box.top, width: box.width, height: box.height },
         MASK_PADDING,
       );
-      return rectsOverlap(covered, region) ? [covered] : [];
+      return rectsOverlap(covered, region) ? covered : undefined;
     },
 
     dispose() {

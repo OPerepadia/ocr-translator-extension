@@ -21,8 +21,8 @@ export type RuntimeMessage =
   | {
       type: "START_SELECTION";
     }
-  // Popup, context menu or shortcut -> content (top frame): pick a screen
-  // region to translate continuously.
+  // Popup or shortcut -> content (top frame): pick a screen region to
+  // translate continuously.
   | {
       type: "START_LIVE_SELECTION";
     }
@@ -129,8 +129,8 @@ export type RuntimeMessage =
       text: string;
     }
   // Content -> background: read the text currently inside a screen region. The
-  // live translation loop sends this repeatedly. `mask` lists viewport rects
-  // (the live panel, where it overlaps the region) to blank out first, so the
+  // live translation loop sends this repeatedly. `mask` is a viewport rect
+  // (the live panel, when it overlaps the region) to blank out first, so the
   // panel's own text is never read back. The response resolves to a
   // LiveFrameResponse.
   | {
@@ -139,7 +139,7 @@ export type RuntimeMessage =
       sessionId: string;
       rect: Rect;
       viewport: Viewport;
-      mask: Rect[];
+      mask?: Rect;
       /** Lines thinner than this, in CSS pixels, are not read. Absent until
        * the session has learned how thick its text is. */
       minLineThickness?: number;

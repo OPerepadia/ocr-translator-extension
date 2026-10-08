@@ -141,10 +141,6 @@ export class LiveSession {
 
   constructor(private readonly deps: LiveSessionDeps) {}
 
-  get current(): LiveState {
-    return this.state;
-  }
-
   start(): void {
     void this.run(++this.generation);
   }

@@ -5,18 +5,12 @@ export interface ViewportSize {
   height: number;
 }
 
-export type PanelSide = "below" | "above" | "right" | "left" | "overlap";
-
 /** The panel's box, in viewport coordinates. */
 export interface PanelBox {
   left: number;
   top: number;
   width: number;
   height: number;
-}
-
-export interface PanelPlacement extends PanelBox {
-  side: PanelSide;
 }
 
 // The region's frame is drawn this far outside it; the panel clears that.
@@ -41,7 +35,7 @@ export const PANEL_MIN_HEIGHT = 96;
 export function placeLivePanel(
   region: Rect,
   viewport: ViewportSize,
-): PanelPlacement {
+): PanelBox {
   const width = Math.max(
     0,
     Math.min(PANEL_WIDTH, viewport.width - PANEL_MARGIN * 2),
@@ -62,7 +56,6 @@ export function placeLivePanel(
   const roomBelow = viewport.height - (regionBottom + PANEL_GAP) - PANEL_MARGIN;
   if (roomBelow >= PANEL_MIN_HEIGHT) {
     return {
-      side: "below",
       left: centered,
       top: regionBottom + PANEL_GAP,
       width,
@@ -74,7 +67,6 @@ export function placeLivePanel(
   if (roomAbove >= PANEL_MIN_HEIGHT) {
     const aboveHeight = Math.min(height, roomAbove);
     return {
-      side: "above",
       left: centered,
       top: region.y - PANEL_GAP - aboveHeight,
       width,
@@ -92,7 +84,6 @@ export function placeLivePanel(
   const roomRight = viewport.width - (regionRight + PANEL_GAP) - PANEL_MARGIN;
   if (roomRight >= PANEL_MIN_WIDTH) {
     return {
-      side: "right",
       left: regionRight + PANEL_GAP,
       top,
       width: Math.min(width, roomRight),
@@ -104,7 +95,6 @@ export function placeLivePanel(
   if (roomLeft >= PANEL_MIN_WIDTH) {
     const leftWidth = Math.min(width, roomLeft);
     return {
-      side: "left",
       left: region.x - PANEL_GAP - leftWidth,
       top,
       width: leftWidth,
@@ -113,7 +103,6 @@ export function placeLivePanel(
   }
 
   return {
-    side: "overlap",
     left: clamp(
       (viewport.width - width) / 2,
       PANEL_MARGIN,

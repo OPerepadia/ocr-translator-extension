@@ -29,7 +29,6 @@ describe("placeLivePanel", () => {
     const region = { x: 200, y: 100, width: 600, height: 80 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("below");
     expect(placement.top).toBe(100 + 80 + PANEL_GAP);
     expect(placement.width).toBe(PANEL_WIDTH);
     expect(placement.height).toBe(PANEL_HEIGHT);
@@ -40,7 +39,6 @@ describe("placeLivePanel", () => {
     const region = { x: 200, y: 600, width: 880, height: 80 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("above");
     expect(placement.top + placement.height).toBe(600 - PANEL_GAP);
     expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
   });
@@ -49,7 +47,7 @@ describe("placeLivePanel", () => {
     const region = { x: 200, y: 100, width: 600, height: 440 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("below");
+    expect(placement.top).toBe(540 + PANEL_GAP);
     expect(placement.height).toBe(
       viewport.height - (540 + PANEL_GAP) - PANEL_MARGIN,
     );
@@ -88,7 +86,6 @@ describe("placeLivePanel", () => {
     const region = { x: 20, y: 20, width: 500, height: 680 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("right");
     expect(placement.left).toBe(520 + PANEL_GAP);
     expect(placement.top).toBe(20);
     expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
@@ -98,7 +95,6 @@ describe("placeLivePanel", () => {
     const region = { x: 760, y: 20, width: 500, height: 680 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("left");
     expect(placement.left + placement.width).toBe(760 - PANEL_GAP);
     expect(rectsOverlap(rectOf(placement), growRect(region, 4))).toBe(false);
   });
@@ -107,7 +103,7 @@ describe("placeLivePanel", () => {
     const region = { x: 20, y: 20, width: 980, height: 680 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("right");
+    expect(placement.left).toBe(1000 + PANEL_GAP);
     expect(placement.width).toBe(
       viewport.width - (1000 + PANEL_GAP) - PANEL_MARGIN,
     );
@@ -118,7 +114,7 @@ describe("placeLivePanel", () => {
     const region = { x: 0, y: 0, width: 1280, height: 720 };
     const placement = placeLivePanel(region, viewport);
 
-    expect(placement.side).toBe("overlap");
+    expect(rectsOverlap(rectOf(placement), region)).toBe(true);
     expect(placement.top).toBe(PANEL_MARGIN);
   });
 
