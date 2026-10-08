@@ -42,32 +42,21 @@ interface LiveReading {
   /** The thinnest line that was read, in image pixels. A look at the same
    * frame with a higher one would give different text. */
   minLineThickness: number;
-  readAt: number;
 }
 
 export interface LiveSessions {
   get(sessionId: string): LiveReading | undefined;
-  set(sessionId: string, reading: Omit<LiveReading, "readAt">): void;
+  set(sessionId: string, reading: LiveReading): void;
   end(sessionId: string): void;
 }
 
-// A session whose tab went away never says goodbye. The state is small, so
-// this only keeps the map from growing across a long browser session.
-const SESSION_TTL_MS = 10 * 60_000;
-
-export function createLiveSessions(now: () => number = Date.now): LiveSessions {
+export function createLiveSessions(): LiveSessions {
   const readings = new Map<string, LiveReading>();
 
   return {
     get: (sessionId) => readings.get(sessionId),
-    set(sessionId, reading) {
-      const current = now();
-      for (const [id, existing] of readings) {
-        if (current - existing.readAt > SESSION_TTL_MS) {
-          readings.delete(id);
-        }
-      }
-      readings.set(sessionId, { ...reading, readAt: current });
+    set: (sessionId, reading) => {
+      readings.set(sessionId, reading);
     },
     end: (sessionId) => {
       readings.delete(sessionId);

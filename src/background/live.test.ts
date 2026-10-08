@@ -425,29 +425,6 @@ describe("handleLiveFrameRequest", () => {
   });
 });
 
-describe("createLiveSessions", () => {
-  it("forgets sessions that were never ended once they are old", () => {
-    let time = 0;
-    const sessions = createLiveSessions(() => time);
-    const reading = {
-      signature: createFrameSignature({
-        width: 1,
-        height: 1,
-        data: new Uint8ClampedArray(4),
-      }),
-      text: "Hello",
-      minLineThickness: 18,
-    };
-
-    sessions.set("abandoned", reading);
-    time += 11 * 60_000;
-    sessions.set("current", reading);
-
-    expect(sessions.get("abandoned")).toBeUndefined();
-    expect(sessions.get("current")?.text).toBe("Hello");
-  });
-});
-
 describe("handleLiveTranslateRequest", () => {
   const message: Extract<RuntimeMessage, { type: "LIVE_TRANSLATE_REQUEST" }> = {
     type: "LIVE_TRANSLATE_REQUEST",
