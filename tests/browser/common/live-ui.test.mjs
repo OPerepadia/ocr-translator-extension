@@ -139,9 +139,23 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await page.locator(".ocr-translate-live-actions > button").nth(0).click();
       assert.equal(await original.isVisible(), true);
       assert.equal(await text(".ocr-translate-live-original"), "Hello there");
+      // The original sits above the translation.
+      const shownOriginal = await box(page, ".ocr-translate-live-original");
+      const shownTranslation = await box(page, ".ocr-translate-live-translation");
+      assert.ok(shownOriginal.y + shownOriginal.height <= shownTranslation.y);
 
+      // While the translation is on its way, the original waits above a note.
       await render(onScreen({ original: "Hello there", state: "pending" }));
+      assert.equal(await original.isVisible(), true);
+      assert.equal(await text(".ocr-translate-live-original"), "Hello there");
+      assert.equal(await page.locator(".ocr-translate-live-translation").isVisible(), false);
+      assert.equal(await text(".ocr-translate-live-waiting"), "statusTranslating");
+
+      // With the original hidden, the line shows what was read in grey.
+      await page.locator(".ocr-translate-live-actions > button").nth(0).click();
+      assert.equal(await page.locator(".ocr-translate-live-waiting").isVisible(), false);
       assert.equal(await text(".ocr-translate-live-translation"), "Hello there");
+      await page.locator(".ocr-translate-live-actions > button").nth(0).click();
       assert.equal(await page.locator(".ocr-translate-live-line-note").isVisible(), false);
 
       await render(onScreen({ original: "Hello there", state: "failed", error: "HTTP 429" }));

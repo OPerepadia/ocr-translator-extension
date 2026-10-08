@@ -2043,6 +2043,21 @@
   color: var(--ocr-ink-muted);
 }
 
+/* With the original shown above, a waiting line says so below it instead of
+   repeating the original in grey. */
+.ocr-translate-live-waiting {
+  margin: 0;
+  color: var(--ocr-ink-muted);
+  font-size: calc(17px * var(--ocr-live-scale, 1));
+  line-height: 1.4;
+}
+
+.ocr-translate-live-lines.is-showing-original
+  .ocr-translate-live-line[data-state="pending"]
+  .ocr-translate-live-translation {
+  display: none;
+}
+
 .ocr-translate-live-original {
   margin: 0;
   color: var(--ocr-ink-muted);
@@ -2052,6 +2067,8 @@
 }
 
 .ocr-translate-live-lines:not(.is-showing-original) .ocr-translate-live-original,
+.ocr-translate-live-lines:not(.is-showing-original) .ocr-translate-live-waiting,
+.ocr-translate-live-waiting:empty,
 .ocr-translate-live-translation:empty,
 .ocr-translate-live-original:empty,
 .ocr-translate-live-line-note:empty,

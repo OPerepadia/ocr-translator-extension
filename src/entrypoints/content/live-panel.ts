@@ -540,19 +540,21 @@ interface LineView {
   element: HTMLDivElement;
   translation: HTMLParagraphElement;
   original: HTMLParagraphElement;
+  waiting: HTMLParagraphElement;
   note: HTMLParagraphElement;
 }
 
 function createLineView(): LineView {
   const element = document.createElement("div");
   element.className = "ocr-translate-live-line";
-  const translation = textElement("ocr-translate-live-translation");
-  translation.dir = "auto";
   const original = textElement("ocr-translate-live-original");
   original.dir = "auto";
+  const waiting = textElement("ocr-translate-live-waiting");
+  const translation = textElement("ocr-translate-live-translation");
+  translation.dir = "auto";
   const note = textElement("ocr-translate-live-line-note");
-  element.append(translation, original, note);
-  return { element, translation, original, note };
+  element.append(original, waiting, translation, note);
+  return { element, translation, original, waiting, note };
 }
 
 function fillLineView(view: LineView, line: LiveLine): void {
@@ -564,7 +566,11 @@ function fillLineView(view: LineView, line: LiveLine): void {
   const ready = line.state === "ready";
   // Without a translation the text that was read is all there is to show.
   view.translation.textContent = ready ? line.translation ?? "" : line.original;
-  view.original.textContent = ready ? line.original : "";
+  // A pending line has both, so the original can stay put above while the
+  // translation comes in below it.
+  const pending = line.state === "pending";
+  view.original.textContent = ready || pending ? line.original : "";
+  view.waiting.textContent = pending ? t("statusTranslating") : "";
 
   const message = lineNote(line);
   view.note.textContent = message.text;
