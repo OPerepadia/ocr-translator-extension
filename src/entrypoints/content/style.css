@@ -2019,7 +2019,7 @@
 .ocr-translate-live-translation {
   margin: 0;
   color: var(--ocr-ink-strong);
-  font-size: calc(17px * var(--ocr-live-scale, 1));
+  font-size: calc(18px * var(--ocr-live-scale, 1));
   line-height: 1.4;
   overflow-wrap: anywhere;
   text-wrap: pretty;
@@ -2037,7 +2037,7 @@
 .ocr-translate-live-waiting {
   margin: 0;
   color: var(--ocr-ink-muted);
-  font-size: calc(17px * var(--ocr-live-scale, 1));
+  font-size: calc(18px * var(--ocr-live-scale, 1));
   line-height: 1.4;
 }
 
@@ -2050,7 +2050,7 @@
 .ocr-translate-live-original {
   margin: 0;
   color: var(--ocr-ink-muted);
-  font-size: calc(var(--ocr-size-sm) * var(--ocr-live-scale, 1));
+  font-size: calc(14px * var(--ocr-live-scale, 1));
   line-height: var(--ocr-leading-ui);
   overflow-wrap: anywhere;
 }
@@ -2126,12 +2126,12 @@
 .ocr-translate-live-note {
   margin: 0;
   color: var(--ocr-ink-subtle);
-  font-size: var(--ocr-size-xs);
+  font-size: 14px;
   line-height: var(--ocr-leading-ui);
 }
 
 .ocr-translate-live-line-note {
-  font-size: calc(var(--ocr-size-xs) * var(--ocr-live-scale, 1));
+  font-size: calc(14px * var(--ocr-live-scale, 1));
   overflow-wrap: anywhere;
 }
 
