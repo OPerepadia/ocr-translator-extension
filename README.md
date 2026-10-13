@@ -47,17 +47,17 @@ After granting the permission, reload the image and try again.
 
 ## Live translation
 
-Live translation can be used for text that keeps changing on screen, such as hardcoded video subtitles.
+Live translation can be used for on-screen text that keeps changing, like subtitles burned into a video.
 
 1. Click **Live translation** in the extension popup.
-2. Drag over the area with the text you want to translate.
+2. Drag to select the area containing the text.
 3. The translation appears in a small panel next to the selected area.
 
 Tips:
 
-- Select the area around the subtitles while they are on screen. It learns the subtitle size from the first lines it reads and ignores much smaller text, such as player controls or small background text.
-- The area is read directly from the video when possible; and from a screenshot otherwise. When reading from a screenshot, the panel should not obscure the captured area.
-- When an LLM endpoint is used, the previous few lines are sent as context for better translation.
+- Select the area while subtitles are visible. The extension learns the subtitle size from the first capture and ignores much smaller text.
+- The extension reads directly from the video frame when possible, and falls back to a screenshot otherwise. In screenshot mode, keep the panel clear of the selected area; the extension will warn you if it's in the way.
+- When using an LLM endpoint, the previous few lines are sent as context to improve the translation.
 - DRM-protected videos may not work.
 
 > [!NOTE]
