@@ -93,6 +93,13 @@ export interface PipelineTranslationResult {
   providerMeta?: unknown;
 }
 
+/** A line that came before the text being translated, such as an earlier
+ * subtitle, with the translation shown for it once there is one. */
+export interface TranslationContextLine {
+  text: string;
+  translation?: string;
+}
+
 export interface Settings {
   ocr: {
     providerId: string;

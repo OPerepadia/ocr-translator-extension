@@ -3,6 +3,7 @@ import type {
   LiveFrameResponse,
   LiveTranslationResponse,
 } from "@/shared/messages";
+import type { TranslationContextLine } from "@/shared/types";
 import {
   CONTEXT_GAP_MS,
   EMPTY_READS_BEFORE_CLEAR,
@@ -47,6 +48,11 @@ const translated = (
   translationStatus: { state: "ok" },
 });
 
+// The context of a line shown after `texts`, once the default translations of
+// them have come in.
+const after = (...texts: string[]): TranslationContextLine[] =>
+  texts.map((text) => ({ text, translation: `[uk] ${text}` }));
+
 type Reply = LiveFrameResponse | Error;
 
 function setup(options: { visible?: boolean } = {}) {
@@ -72,7 +78,7 @@ function setup(options: { visible?: boolean } = {}) {
     async (
       _requestId: string,
       text: string,
-      _context: string[],
+      _context: TranslationContextLine[],
     ): Promise<LiveTranslationResponse> => translated(`[uk] ${text}`),
   );
   const cancel = vi.fn();
@@ -389,8 +395,8 @@ describe("LiveSession", () => {
 
     expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
       ["Yes, of course.", []],
-      ["Are you sure about that?", ["Yes, of course."]],
-      ["Yes, of course.", ["Yes, of course.", "Are you sure about that?"]],
+      ["Are you sure about that?", after("Yes, of course.")],
+      ["Yes, of course.", after("Yes, of course.", "Are you sure about that?")],
     ]);
     t.session.stop();
   });
@@ -437,7 +443,7 @@ describe("LiveSession", () => {
     t.session.stop();
   });
 
-  it("gives each line the lines shown just before it as context", async () => {
+  it("gives each line the lines shown just before it and their translations as context", async () => {
     const t = setup();
     t.replies.push(
       read("I was going to tell you"),
@@ -450,8 +456,8 @@ describe("LiveSession", () => {
 
     expect(t.translate.mock.calls.map(([, , context]) => context)).toEqual([
       [],
-      ["I was going to tell you"],
-      ["I was going to tell you", "that I am leaving"],
+      after("I was going to tell you"),
+      after("I was going to tell you", "that I am leaving"),
     ]);
     t.session.stop();
   });
@@ -465,7 +471,7 @@ describe("LiveSession", () => {
     await advance(READ_INTERVAL_MS * lines.length);
 
     expect(MAX_CONTEXT_LINES).toBe(3);
-    expect(t.translate.mock.calls.at(-1)?.[2]).toEqual(lines.slice(1, 4));
+    expect(t.translate.mock.calls.at(-1)?.[2]).toEqual(after(...lines.slice(1, 4)));
     t.session.stop();
   });
 
@@ -483,7 +489,34 @@ describe("LiveSession", () => {
 
     expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
       ["The first line", []],
-      ["The second line", ["The first line"]],
+      ["The second line", after("The first line")],
+    ]);
+    t.session.stop();
+  });
+
+  it("sends an earlier line without its translation until that comes in", async () => {
+    const t = setup();
+    t.replies.push(read("The first line"), read("The second line"));
+    let finishFirst = (_response: LiveTranslationResponse): void => {};
+    t.translate
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishFirst = resolve)),
+      )
+      .mockResolvedValueOnce({
+        translationStatus: { state: "failed", reason: "HTTP 429", targetLang: "uk" },
+      });
+
+    t.session.start();
+    await advance(READ_INTERVAL_MS);
+    finishFirst(translated("[uk] The first line"));
+    // The second line is translated again after its failure, by which time
+    // the first one's translation is in.
+    await advance(RETRY_TRANSLATION_MS + READ_INTERVAL_MS);
+
+    expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
+      ["The first line", []],
+      ["The second line", [{ text: "The first line" }]],
+      ["The second line", after("The first line")],
     ]);
     t.session.stop();
   });
@@ -804,8 +837,8 @@ describe("LiveSession", () => {
 
     expect(t.translate.mock.calls.map(([, text, context]) => [text, context])).toEqual([
       ["The first line", []],
-      ["The second line", ["The first line"]],
-      ["The second line", ["The first line"]],
+      ["The second line", after("The first line")],
+      ["The second line", after("The first line")],
     ]);
     t.session.stop();
   });

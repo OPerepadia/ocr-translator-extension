@@ -2,6 +2,7 @@ import type {
   LiveFrameResponse,
   LiveTranslationResponse,
 } from "@/shared/messages";
+import type { TranslationContextLine } from "@/shared/types";
 import { comparisonKey, isReadable, isSameLine } from "./live-text";
 
 export type LiveStatus = "starting" | "running" | "paused" | "error";
@@ -46,11 +47,12 @@ export interface LiveSessionDeps {
     requestId: string,
     minLineThickness: number | undefined,
   ): Promise<LiveFrameResponse>;
-  /** `context` holds the lines shown just before `text`, oldest first. */
+  /** `context` holds the lines shown just before `text`, oldest first, with
+   * the translations shown for them so far. */
   translate(
     requestId: string,
     text: string,
-    context: string[],
+    context: TranslationContextLine[],
   ): Promise<LiveTranslationResponse>;
   /** Abandon a request that is still running. */
   cancel(requestId: string): void;
@@ -103,8 +105,10 @@ interface ShownLine {
   text: string;
   firstSeenAt: number;
   lastSeenAt: number;
-  /** The lines before it that it was translated with. */
-  context: string[];
+  /** Where the lines before it that it is translated with are in
+   * `LiveState.lines`. Their translations are looked up when its request goes
+   * out, so any that came in meanwhile go along. */
+  context: number[];
   /** The translation request that is still out for it. */
   requestId?: string;
   failedAt?: number;
@@ -320,7 +324,7 @@ export class LiveSession {
       this.update({ line: this.state.lines[shown.index] });
       return;
     }
-    const cached = this.cache.get(cacheKey(text, shown.context));
+    const cached = this.cache.get(cacheKey(text, this.contextOf(shown)));
     if (cached && cached.targetLang === this.targetLang) {
       this.setLine(
         shown,
@@ -358,9 +362,10 @@ export class LiveSession {
     return shown;
   }
 
-  /** The recent lines that run on into a line first seen at `time`. */
-  private contextBefore(time: number): string[] {
-    const context: string[] = [];
+  /** Where the recent lines that run on into a line first seen at `time` are
+   * in `LiveState.lines`. */
+  private contextBefore(time: number): number[] {
+    const context: number[] = [];
     let next = time;
     for (
       let index = this.history.length - 1;
@@ -371,10 +376,19 @@ export class LiveSession {
       if (next - earlier.lastSeenAt > CONTEXT_GAP_MS) {
         break;
       }
-      context.unshift(earlier.text);
+      context.unshift(earlier.index);
       next = earlier.firstSeenAt;
     }
     return context;
+  }
+
+  private contextOf(shown: ShownLine): TranslationContextLine[] {
+    return shown.context.map((index) => {
+      const { original, translation } = this.state.lines[index];
+      return translation === undefined
+        ? { text: original }
+        : { text: original, translation };
+    });
   }
 
   private translateLine(shown: ShownLine, text: string): void {
@@ -400,7 +414,7 @@ export class LiveSession {
       return true;
     };
 
-    this.deps.translate(requestId, text, shown.context).then(
+    this.deps.translate(requestId, text, this.contextOf(shown)).then(
       (response) => {
         if (finish()) {
           this.applyTranslation(shown, text, response);
@@ -438,7 +452,7 @@ export class LiveSession {
     }
 
     if (translation) {
-      this.cacheTranslation(text, shown.context, {
+      this.cacheTranslation(text, this.contextOf(shown), {
         translation: translation.text,
         targetLang,
       });
@@ -476,7 +490,7 @@ export class LiveSession {
 
   private cacheTranslation(
     text: string,
-    context: string[],
+    context: TranslationContextLine[],
     entry: CachedTranslation,
   ): void {
     const key = cacheKey(text, context);
@@ -529,7 +543,10 @@ export class LiveSession {
 }
 
 // The same words can translate differently after different lines, so a cached
-// translation only applies where the lines before it match too.
-function cacheKey(text: string, context: string[]): string {
-  return [...context, text].map(comparisonKey).join("\n");
+// translation only applies where the lines before it match too. Their
+// translations are left out: they may still be on the way.
+function cacheKey(text: string, context: TranslationContextLine[]): string {
+  return [...context.map((line) => line.text), text]
+    .map(comparisonKey)
+    .join("\n");
 }

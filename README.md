@@ -57,7 +57,7 @@ Tips:
 
 - Select the area while subtitles are visible. The extension learns the subtitle size from the first capture and ignores much smaller text.
 - The extension reads directly from the video frame when possible, and falls back to a screenshot otherwise. In screenshot mode, keep the panel clear of the selected area; the extension will warn you if it's in the way.
-- When using an LLM endpoint, the previous few lines are sent as context to improve the translation.
+- When using an LLM endpoint, the previous few lines and their translations are included as context to improve translation quality.
 - DRM-protected videos may not work.
 
 > [!NOTE]

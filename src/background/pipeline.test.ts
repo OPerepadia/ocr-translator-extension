@@ -299,7 +299,7 @@ describe("translateText", () => {
       translationProvider,
       sourceLang: "en",
       targetLang: "uk",
-      context: ["I was going to tell you"],
+      context: [{ text: "I was going to tell you", translation: "Я хотів тобі сказати" }],
     });
 
     expect(calls).toEqual([
@@ -307,7 +307,7 @@ describe("translateText", () => {
         text: "that I am leaving",
         sourceLang: "en",
         targetLang: "uk",
-        context: ["I was going to tell you"],
+        context: [{ text: "I was going to tell you", translation: "Я хотів тобі сказати" }],
       },
     ]);
   });

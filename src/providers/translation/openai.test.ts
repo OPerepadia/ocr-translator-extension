@@ -252,7 +252,7 @@ describe("createOpenAiTranslationProvider", () => {
     });
   });
 
-  it("sends the context as its own field and tells the model not to translate it", async () => {
+  it("sends the context and its translations as their own field and tells the model not to translate them", async () => {
     const { fetchImpl, requests } = llmFetchMock((segments) =>
       translationReply(segments.map((s) => `T:${s}`)),
     );
@@ -262,18 +262,27 @@ describe("createOpenAiTranslationProvider", () => {
       text: "that I am leaving",
       sourceLang: "en",
       targetLang: "uk",
-      context: ["I was going to tell you", "  ", "and I hope"],
+      context: [
+        { text: "I was going to tell you", translation: "Я хотів тобі сказати" },
+        { text: "  ", translation: "  " },
+        // A line whose translation has not come in yet.
+        { text: "and I hope", translation: " " },
+      ],
     });
 
     // Only the segment comes back as the translation.
     expect(result.text).toBe("T:that I am leaving");
     const [request] = requests;
     expect(JSON.parse(request.body.messages[1].content)).toEqual({
-      context: ["I was going to tell you", "and I hope"],
+      context: [
+        { text: "I was going to tell you", translation: "Я хотів тобі сказати" },
+        { text: "and I hope" },
+      ],
       segments: [{ id: 0, text: "that I am leaving" }],
     });
-    expect(request.body.messages[0].content).toContain('"context"');
-    expect(request.body.messages[0].content).toContain("never translate or return it");
+    const prompt = request.body.messages[0].content;
+    expect(prompt).toContain('"context"');
+    expect(prompt).toContain("never translate or return it");
   });
 
   it("does not mention context when there is none", async () => {
@@ -283,7 +292,11 @@ describe("createOpenAiTranslationProvider", () => {
     const provider = createOpenAiTranslationProvider({ llm, fetchImpl });
 
     await provider.translate({ text: "hello", targetLang: "uk", context: [] });
-    await provider.translate({ text: "hello", targetLang: "uk", context: ["  "] });
+    await provider.translate({
+      text: "hello",
+      targetLang: "uk",
+      context: [{ text: "  ", translation: "Привіт" }],
+    });
 
     for (const { body } of requests) {
       expect(JSON.parse(body.messages[1].content)).not.toHaveProperty("context");
@@ -302,12 +315,12 @@ describe("createOpenAiTranslationProvider", () => {
     await provider.translate({
       text: "that I am leaving",
       targetLang: "uk",
-      context: ["I was going to tell you"],
+      context: [{ text: "I was going to tell you", translation: "Я хотів тобі сказати" }],
     });
 
     expect(requests).toHaveLength(2);
     expect(JSON.parse(requests[1].body.messages[1].content)).toMatchObject({
-      context: ["I was going to tell you"],
+      context: [{ text: "I was going to tell you", translation: "Я хотів тобі сказати" }],
     });
   });
 

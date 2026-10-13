@@ -623,18 +623,15 @@ describe("handleLiveTranslateRequest", () => {
 
   it("hands the lines shown before it to the provider as context", async () => {
     const { dependencies, translate } = setup({});
+    const context = [
+      { text: "Good morning.", translation: "[de] Good morning." },
+      { text: "Is it still early?" },
+    ];
 
-    await handleLiveTranslateRequest(
-      dependencies,
-      { ...message, context: ["Good morning.", "Is it still early?"] },
-      signal(),
-    );
+    await handleLiveTranslateRequest(dependencies, { ...message, context }, signal());
 
     expect(translate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        text: "Good evening",
-        context: ["Good morning.", "Is it still early?"],
-      }),
+      expect.objectContaining({ text: "Good evening", context }),
       expect.anything(),
     );
   });

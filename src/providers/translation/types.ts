@@ -1,6 +1,7 @@
 import type {
   LangCode,
   PipelineTranslationResult,
+  TranslationContextLine,
 } from "../../shared/types";
 
 export class RemoteTranslationError extends Error {
@@ -32,10 +33,10 @@ export interface TranslationInput {
   sourceLang?: LangCode | "auto";
   targetLang: LangCode;
   format?: "plain" | "html";
-  /** Source-language text that came just before `text`, such as the previous
-   * subtitles. Providers that can use it to resolve what `text` means do so,
-   * and none of them translate it. */
-  context?: string[];
+  /** Lines that came just before `text`, such as the previous subtitles, with
+   * the translations shown for them. Providers that can use them to resolve
+   * what `text` means do so, and none of them translate them. */
+  context?: TranslationContextLine[];
 }
 
 export interface TranslationResult extends PipelineTranslationResult {}

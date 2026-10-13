@@ -6,6 +6,7 @@ import type {
   PipelineStatus,
   Rect,
   SerializedError,
+  TranslationContextLine,
   Viewport,
 } from "./types";
 
@@ -161,14 +162,14 @@ export type RuntimeMessage =
       minLineThickness?: number;
     }
   // Content -> background: translate text the live loop read. `context` holds
-  // the lines shown just before it, so a sentence split over several subtitles
-  // can be translated as one. Unlike RETRANSLATE_REQUEST it leaves the saved
+  // the lines shown just before it and their translations, so a sentence split
+  // over several subtitles can be translated as one. Unlike RETRANSLATE_REQUEST it leaves the saved
   // settings alone. The response resolves to a LiveTranslationResponse.
   | {
       type: "LIVE_TRANSLATE_REQUEST";
       requestId: string;
       text: string;
-      context: string[];
+      context: TranslationContextLine[];
     }
   // Content -> background: live translation ended; forget its last frame and
   // model.

@@ -9,6 +9,7 @@ import type {
   PipelineResult,
   PipelineStatus,
   PipelineTranslationResult,
+  TranslationContextLine,
   TranslationStatus,
 } from "../shared/types";
 
@@ -71,8 +72,8 @@ export async function translateText(args: {
   translationProvider: TranslationProvider;
   sourceLang?: LangCode | "auto";
   targetLang: LangCode;
-  /** Text that came just before `text`, for providers that can use it. */
-  context?: string[];
+  /** Lines that came just before `text`, for providers that can use them. */
+  context?: TranslationContextLine[];
   detectLanguage?: (text: string) => Promise<LangCode | undefined>;
   onStatus?: (status: PipelineStatus) => void;
   signal?: AbortSignal;

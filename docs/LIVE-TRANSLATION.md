@@ -31,7 +31,7 @@ The area is read from the video itself when possible, and from a screenshot othe
 - With source language **Auto**, the first non-empty OCR result selects the recognizer for the session. An explicit language bypasses script detection.
 - Similar lines are treated as one to tolerate OCR noise. Reads need at least two letters or digits; two empty reads clear the current line.
 - Each line is a separate translation request. Up to three run concurrently; a newer request cancels the oldest when full.
-- LLM requests include up to three earlier lines as context, stopping at gaps over 5 s. Other providers ignore context. A session cache reuses translations when the line, context, and target language match.
+- LLM requests include up to three earlier lines as context, stopping at gaps over 5 s. Each line goes with its translation once that has arrived, which helps keep names and grammatical gender consistent. Other providers ignore context. A session cache reuses translations when the line, the earlier lines, and the target language match.
 - Failed reads retry at 1.5 s intervals. Three consecutive failures stop reading and show **Retry**. Translation failures do not stop reading and can retry after 5 s while the line remains current.
 
 ## Errors
