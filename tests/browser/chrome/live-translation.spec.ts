@@ -111,18 +111,23 @@ function videoPage(width = 1000, height = 560): string {
 </script></body></html>`;
 }
 
+interface ContextLine {
+  text: string;
+  translation?: string;
+}
+
 interface TranslationServer {
   port: number;
   /** Every text the extension asked to translate. */
   requests: string[];
   /** The context that went with each of them. */
-  contexts: string[][];
+  contexts: ContextLine[][];
   close(): void;
 }
 
 async function startTranslationServer(): Promise<TranslationServer> {
   const requests: string[] = [];
-  const contexts: string[][] = [];
+  const contexts: ContextLine[][] = [];
   const server = createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
@@ -132,7 +137,7 @@ async function startTranslationServer(): Promise<TranslationServer> {
         payload.messages.at(-1)!.content,
       ) as {
         segments: Array<{ id: number; text: string }>;
-        context?: string[];
+        context?: ContextLine[];
       };
       for (const segment of segments) {
         requests.push(segment.text);
@@ -358,8 +363,12 @@ test("translates the subtitles in a region and reuses earlier translations", asy
       "The weather is nice today.",
       "We should walk to the market before it starts to rain.",
     ]);
-    // The second line was translated knowing what came before it.
-    expect(server.contexts).toEqual([[], ["The weather is nice today."]]);
+    // The second line was translated knowing what came before it and how that
+    // was translated.
+    expect(server.contexts).toEqual([
+      [],
+      [{ text: "The weather is nice today.", translation: "[uk] The weather is nice today." }],
+    ]);
   } finally {
     await session.context.close();
     server.close();
