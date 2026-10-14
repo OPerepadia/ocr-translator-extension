@@ -1,6 +1,7 @@
 import { chromium, expect, test } from "@playwright/test";
 import { resolve } from "node:path";
 import type { Settings } from "../../../src/shared/types";
+import en from "../../../src/public/_locales/en/messages.json" with { type: "json" };
 
 declare const chrome: typeof import("wxt/browser").browser;
 
@@ -36,12 +37,12 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
       has: options.locator('select[name="translationProvider"]'),
     });
     const chooseProvider = async (name: string) => {
-      await providerField.getByRole("button", { name: /^Translation provider:/ }).click();
+      await providerField.getByRole("button", { expanded: false }).click();
       await providerField.getByRole("option", { name }).click();
     };
     const plan = options.locator('select[name="deeplPlan"]');
     const key = options.locator('input[name="deeplApiKey"]');
-    await chooseProvider("DeepL");
+    await chooseProvider(en.providerDeepL.message);
     await expect(options.locator(".deepl-settings")).toBeVisible();
     await expect(options.locator(".llm-settings")).toBeHidden();
     await expect(plan).toHaveValue("free");
@@ -62,9 +63,9 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
     await key.blur();
     await expect.poll(stored).toEqual({ apiKey: "replacement-key:fx", plan: "pro" });
     expect((await translate()).value.translation.text).toBe("api.deepl.com|DeepL-Auth-Key replacement-key:fx");
-    await chooseProvider("Google");
+    await chooseProvider(en.providerGoogle.message);
     await expect(options.locator(".deepl-settings")).toBeHidden();
-    await chooseProvider("DeepL");
+    await chooseProvider(en.providerDeepL.message);
     await expect(plan).toHaveValue("pro");
     await options.reload();
     await expect(plan).toHaveValue("pro");
@@ -74,7 +75,7 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
     const popup = await context.newPage();
     await popup.goto(`${extensionUrl}/popup.html`);
     await expect(popup.locator('#translation-provider')).toHaveValue("deepl");
-    await expect(popup.locator('#translation-provider option[value="deepl"]')).toHaveText("DeepL");
+    await expect(popup.locator('#translation-provider option[value="deepl"]')).toHaveText(en.providerDeepL.message);
   } finally {
     await context.close();
   }

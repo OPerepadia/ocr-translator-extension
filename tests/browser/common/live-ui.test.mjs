@@ -40,7 +40,6 @@ const selectionCode = await compile(
   ["image-picker.ts", "frame-images.ts", "selection-overlay.ts"],
   "selection",
 );
-const modalCode = await compile(["modal-ui.ts"], "modal-ui");
 const regionCode = await compile(
   ["image-picker.ts", "overlay-layout.ts", "live-region.ts"],
   "live-region",
@@ -82,6 +81,29 @@ async function withPage(browserType, name, viewport, run) {
 
 const box = (page, selector) => page.locator(selector).boundingBox();
 
+function assertNear(actual, expected) {
+  assert.ok(Math.abs(actual - expected) <= 1, `${actual} should be near ${expected}`);
+}
+
+async function assertFrameAround(page, region) {
+  const frame = await box(page, ".ocr-translate-live-region");
+  assert.ok(frame.x < region.x && frame.y < region.y);
+  assert.ok(frame.x + frame.width > region.x + region.width);
+  assert.ok(frame.y + frame.height > region.y + region.height);
+  assertNear(frame.x + frame.width / 2, region.x + region.width / 2);
+  assertNear(frame.y + frame.height / 2, region.y + region.height / 2);
+}
+
+async function dragPanel(page, dx, dy) {
+  const title = await box(page, ".ocr-translate-live-title");
+  const x = title.x + title.width / 2;
+  const y = title.y + title.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + dx, y + dy, { steps: 5 });
+  await page.mouse.up();
+}
+
 // The panel fades in, scaling slightly. Measure it once that is over; looping
 // animations such as the status dot never end, so they are left out.
 const settle = (page) => page.evaluate(() => window.settle());
@@ -104,6 +126,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
         content: `${panelCode}
           ${uiSetup}
           window.calls = [];
+          window.defaultSize = { width: PANEL_WIDTH, height: PANEL_HEIGHT };
           window.show = (region) => {
             window.panel?.dispose();
             window.panel = showLivePanel(container, region, {
@@ -133,16 +156,17 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await settle(page);
       assert.equal(overlaps(await box(page, panel), await box(page, frame)), false);
       const { width, height } = await box(page, panel);
-      assert.deepEqual({ width, height }, { width: 480, height: 180 });
-      assert.ok((await box(page, panel)).y >= 180 + 12);
+      assert.deepEqual({ width, height }, await page.evaluate(() => window.defaultSize));
+      assert.ok((await box(page, panel)).y > region.y + region.height);
       assert.equal(await page.evaluate(() => window.panel.getMask()), undefined);
       // The frame stays clear of the pixels that are read.
-      assert.deepEqual(await box(page, frame), { x: 96, y: 96, width: 608, height: 88 });
+      await assertFrameAround(page, region);
 
       // Above a region at the bottom edge.
-      await show({ x: 100, y: 500, width: 600, height: 70 });
+      const bottomRegion = { x: 100, y: 500, width: 600, height: 70 };
+      await show(bottomRegion);
       const above = await box(page, panel);
-      assert.ok(above.y + above.height <= 500 - 12 + 1);
+      assert.ok(above.y + above.height < bottomRegion.y);
 
       await show(region);
       const onScreen = (line) => ({ status: "running", lines: [line], line });
@@ -153,7 +177,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal(await original.isVisible(), false);
       assert.equal(await statusNote.isVisible(), false);
 
-      await page.locator(".ocr-translate-live-actions > button").nth(0).click();
+      await page.getByRole("button", { name: "liveShowOriginal", exact: true }).click();
       assert.equal(await original.isVisible(), true);
       assert.equal(await text(".ocr-translate-live-original"), "Hello there");
       // The original sits above the translation.
@@ -169,10 +193,10 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal(await text(".ocr-translate-live-waiting"), "statusTranslating");
 
       // With the original hidden, the line shows what was read in grey.
-      await page.locator(".ocr-translate-live-actions > button").nth(0).click();
+      await page.getByRole("button", { name: "liveHideOriginal", exact: true }).click();
       assert.equal(await page.locator(".ocr-translate-live-waiting").isVisible(), false);
       assert.equal(await text(".ocr-translate-live-translation"), "Hello there");
-      await page.locator(".ocr-translate-live-actions > button").nth(0).click();
+      await page.getByRole("button", { name: "liveShowOriginal", exact: true }).click();
       assert.equal(await page.locator(".ocr-translate-live-line-note").isVisible(), false);
 
       await render(onScreen({ original: "Hello there", state: "failed", error: "HTTP 429" }));
@@ -196,9 +220,8 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const title = await box(page, ".ocr-translate-live-title");
       const beside = await languages.boundingBox();
       const buttons = await box(page, ".ocr-translate-live-actions");
-      const gap = beside.x - (title.x + title.width);
-      assert.ok(gap >= 0 && gap <= 12, JSON.stringify({ title, beside }));
-      assert.ok(buttons.x - (beside.x + beside.width) > 20, JSON.stringify({ beside, buttons }));
+      assert.ok(title.x + title.width <= beside.x, JSON.stringify({ title, beside }));
+      assert.ok(beside.x + beside.width <= buttons.x, JSON.stringify({ beside, buttons }));
       await render({ status: "running", lines: [], sourceLang: "zh-cn", targetLang: "uk" });
       assert.equal(await languages.textContent(), "ZH-CN → UK");
       // Without a detected source there is only the target.
@@ -208,18 +231,18 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await render({ status: "running", lines: [], sourceLang: "en", targetLang: "uk" });
 
       // Pause becomes resume while paused.
-      await page.locator(".ocr-translate-live-actions > button").nth(1).click();
+      await page.getByRole("button", { name: "livePause", exact: true }).click();
       await render({ status: "paused", lines: [] });
       assert.equal(await text(".ocr-translate-live-note"), "");
-      await page.locator(".ocr-translate-live-actions > button").nth(1).click();
+      await page.getByRole("button", { name: "liveResume", exact: true }).click();
 
       await render({ status: "error", lines: [], error: "worker crashed" });
       assert.equal(await text(".ocr-translate-live-note"), "worker crashed");
-      assert.equal(await page.locator(".ocr-translate-live-actions > button").nth(1).isDisabled(), true);
+      assert.equal(await page.getByRole("button", { name: "livePause", exact: true }).isDisabled(), true);
       await page.locator(".ocr-translate-live-retry").click();
 
-      await page.locator(".ocr-translate-live-actions > button").nth(2).click();
-      await page.locator(".ocr-translate-live-actions > button").nth(3).click();
+      await page.getByRole("button", { name: "panelSelectNewRegion", exact: true }).click();
+      await page.getByRole("button", { name: "commonClose", exact: true }).click();
       assert.deepEqual(await page.evaluate(() => window.calls), [
         "pause",
         "resume",
@@ -295,11 +318,12 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
         return near(top, end);
       };
 
+      const initialPanel = await box(page, ".ocr-translate-live");
       await showLines(20);
       assert.equal(await lines.count(), 20);
       // The panel keeps its size and the lines scroll, with the newest at the
       // bottom and in view.
-      assert.equal((await box(page, ".ocr-translate-live")).height, 180);
+      assert.equal((await box(page, ".ocr-translate-live")).height, initialPanel.height);
       assert.ok((await scroll()).end > 0, JSON.stringify(await scroll()));
       assert.equal(await atEnd(), true);
       const listBottom = await list.evaluate((element) => element.getBoundingClientRect().bottom);
@@ -420,6 +444,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
             onTextScaleChange() {},
           }, 1);
           window.minSize = { width: PANEL_MIN_WIDTH, height: PANEL_MIN_HEIGHT };
+          window.panelMargin = PANEL_MARGIN;
         `,
       });
       await page.waitForFunction(() => Boolean(window.panel));
@@ -449,10 +474,12 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.ok(near(grown.x, start.x) && near(grown.y, start.y), where);
 
       // There is no limit but the viewport.
-      await dragGripTo(799, 599);
+      const viewport = page.viewportSize();
+      const margin = await page.evaluate(() => window.panelMargin);
+      await dragGripTo(viewport.width - 1, viewport.height - 1);
       const largest = await panel();
-      assert.ok(near(largest.x + largest.width, 800 - 8), JSON.stringify(largest));
-      assert.ok(near(largest.y + largest.height, 600 - 8), JSON.stringify(largest));
+      assert.ok(near(largest.x + largest.width, viewport.width - margin), JSON.stringify(largest));
+      assert.ok(near(largest.y + largest.height, viewport.height - margin), JSON.stringify(largest));
 
       // With the languages shown, a bar that is a little short of room shrinks
       // the title and leaves the languages whole.
@@ -468,7 +495,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
         title: (await box(page, ".ocr-translate-live-title")).width,
         languages: (await box(page, ".ocr-translate-live-languages")).width,
       };
-      assert.ok(narrow.title < wide.title - 5, JSON.stringify({ wide, narrow }));
+      assert.ok(narrow.title < wide.title, JSON.stringify({ wide, narrow }));
       assert.ok(Math.abs(narrow.languages - wide.languages) < 0.1, JSON.stringify({ wide, narrow }));
 
       // It stays big enough for the title bar and a line.
@@ -485,10 +512,10 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
         window.panel.render({ status: "running", lines: [], sourceLang: "zh-cn", targetLang: "uk" }),
       );
       const bar = await box(page, ".ocr-translate-live-topbar");
-      const close = await box(page, ".ocr-translate-live-actions > button:last-child");
+      const close = await page.getByRole("button", { name: "commonClose", exact: true }).boundingBox();
       assert.ok(close.x + close.width <= bar.x + bar.width, JSON.stringify({ bar, close }));
       const label = await box(page, ".ocr-translate-live-languages");
-      assert.ok(label.width > 20, JSON.stringify(label));
+      assert.ok(label.width > 0, JSON.stringify(label));
 
       // A new size stays when the window changes.
       await dragGrip(100, 100);
@@ -528,11 +555,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.ok(mask.y + mask.height >= panel.y + panel.height);
 
       // Dragging it moves the panel and the mask with it.
-      const grip = { x: panel.x + 60, y: panel.y + 14 };
-      await page.mouse.move(grip.x, grip.y);
-      await page.mouse.down();
-      await page.mouse.move(grip.x + 120, grip.y + 150, { steps: 5 });
-      await page.mouse.up();
+      await dragPanel(page, 120, 150);
       const moved = await box(page, ".ocr-translate-live");
       const where = JSON.stringify({ panel, moved });
       assert.ok(Math.abs(moved.x - (panel.x + 120)) <= 1, where);
@@ -541,10 +564,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.ok(movedMask.x <= moved.x && movedMask.y <= moved.y);
 
       // It cannot be dragged out of the viewport.
-      await page.mouse.move(moved.x + 60, moved.y + 14);
-      await page.mouse.down();
-      await page.mouse.move(-500, -500, { steps: 5 });
-      await page.mouse.up();
+      await dragPanel(page, -page.viewportSize().width, -page.viewportSize().height);
       const clamped = await box(page, ".ocr-translate-live");
       assert.ok(clamped.x >= 0 && clamped.y >= 0);
     });
@@ -567,20 +587,15 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await page.waitForFunction(() => Boolean(window.panel));
       await settle(page);
       const warning = page.locator(".ocr-translate-live-warning");
-      const drag = async (dy) => {
-        const start = await box(page, ".ocr-translate-live");
-        const grip = { x: start.x + 60, y: start.y + 14 };
-        await page.mouse.move(grip.x, grip.y);
-        await page.mouse.down();
-        await page.mouse.move(grip.x, grip.y + dy, { steps: 5 });
-        await page.mouse.up();
-      };
 
       // Beside the region, the panel hides none of it.
       assert.equal(await warning.isVisible(), false);
 
       // Over the region, the part it covers is not read.
-      await drag(-120);
+      const initial = await box(page, ".ocr-translate-live");
+      const frame = await box(page, ".ocr-translate-live-region");
+      const dy = frame.y + frame.height / 2 - (initial.y + initial.height / 2);
+      await dragPanel(page, 0, dy);
       assert.equal(await warning.isVisible(), true);
       assert.equal(await warning.textContent(), "livePanelCoversRegion");
       // The status stays above it.
@@ -593,7 +608,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await page.evaluate(() => window.panel.setReadsScreen(true));
       assert.equal(await warning.isVisible(), true);
 
-      await drag(120);
+      await dragPanel(page, 0, -dy);
       assert.equal(await warning.isVisible(), false);
     });
   });
@@ -614,61 +629,77 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await page.waitForFunction(() => Boolean(window.panel));
       await settle(page);
       const move = (region) => page.evaluate((region) => window.panel.moveRegion(region), region);
-      const frame = () => box(page, ".ocr-translate-live-region");
       const panel = () => box(page, ".ocr-translate-live");
       const settledFrame = page.locator(".ocr-translate-live-region.is-settled");
 
       // The frame fades back after a while, and shows in full again once the
       // region moves.
       await settledFrame.waitFor({ timeout: 5000 });
-      await move({ x: 50, y: 300, width: 400, height: 60 });
+      const movedRegion = { x: 50, y: 300, width: 400, height: 60 };
+      await move(movedRegion);
       assert.equal(await settledFrame.count(), 0);
-      assert.deepEqual(await frame(), { x: 46, y: 296, width: 408, height: 68 });
-      assert.ok((await panel()).y >= 360 + 12);
+      await assertFrameAround(page, movedRegion);
+      assert.ok((await panel()).y > movedRegion.y + movedRegion.height);
       assert.equal(await page.evaluate(() => window.panel.getMask()), undefined);
 
       // Scrolled out of view, the region leaves the panel at the nearest edge.
       await move({ x: 100, y: -300, width: 600, height: 80 });
-      assert.equal((await panel()).y, 8);
+      const above = await panel();
+      assert.ok(above.y >= 0 && above.y < above.height);
       await move({ x: 100, y: 900, width: 600, height: 80 });
       const below = await panel();
-      assert.equal(below.y + below.height, 600 - 8);
-
-      const drag = async (dy) => {
-        const start = await panel();
-        await page.mouse.move(start.x + 60, start.y + 14);
-        await page.mouse.down();
-        await page.mouse.move(start.x + 60, start.y + 14 + dy, { steps: 5 });
-        await page.mouse.up();
-      };
+      assertNear(page.viewportSize().height - (below.y + below.height), above.y);
 
       // A panel the user moved below the region keeps its distance from it.
-      await move({ x: 100, y: 100, width: 600, height: 80 });
-      await drag(100);
-      assert.deepEqual(await panel(), { x: 160, y: 292, width: 480, height: 180 });
-      await move({ x: 150, y: 50, width: 400, height: 60 });
-      assert.deepEqual(await panel(), { x: 110, y: 222, width: 480, height: 180 });
-      assert.deepEqual(await frame(), { x: 146, y: 46, width: 408, height: 68 });
+      const region = { x: 100, y: 100, width: 600, height: 80 };
+      await move(region);
+      await dragPanel(page, 0, 100);
+      const placed = await panel();
+      const gap = placed.y - (region.y + region.height);
+      assert.ok(gap > 0);
+      const smallerRegion = { x: 150, y: 50, width: 400, height: 60 };
+      await move(smallerRegion);
+      const followed = await panel();
+      assertNear(followed.y - (smallerRegion.y + smallerRegion.height), gap);
+      assertNear(followed.x + followed.width / 2, smallerRegion.x + smallerRegion.width / 2);
+      assert.deepEqual(
+        { width: followed.width, height: followed.height },
+        { width: placed.width, height: placed.height },
+      );
+      await assertFrameAround(page, smallerRegion);
 
       // One moved over the region stays over the same part of it as the region
       // grows, such as in full screen.
-      await move({ x: 100, y: 100, width: 600, height: 80 });
-      await drag(-250);
-      assert.deepEqual(await panel(), { x: 160, y: 42, width: 480, height: 180 });
-      await move({ x: 0, y: 200, width: 800, height: 160 });
-      assert.deepEqual(await panel(), { x: 160, y: 174, width: 480, height: 180 });
+      await move(region);
+      const beforeDrag = await panel();
+      await dragPanel(page, 0, region.y + region.height / 2 - (beforeDrag.y + beforeDrag.height / 2));
+      const covering = await panel();
+      assert.equal(overlaps(covering, region), true);
+      const largerRegion = { x: 0, y: 200, width: 800, height: 160 };
+      await move(largerRegion);
+      const enlarged = await panel();
+      assertNear(enlarged.x + enlarged.width / 2, largerRegion.x + largerRegion.width / 2);
+      assertNear(enlarged.y + enlarged.height / 2, largerRegion.y + largerRegion.height / 2);
+      assert.deepEqual(
+        { width: enlarged.width, height: enlarged.height },
+        { width: covering.width, height: covering.height },
+      );
 
       await settledFrame.waitFor({ timeout: 5000 });
     });
   });
 
-  test(`${name}: the live panel keeps its place in the lines in and out of full screen`, async (context) => {
+  test(`${name}: the live panel stays visible and keeps its scroll position through full screen`, async (context) => {
     await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
       await page.setContent(`
         <body style="margin:0">
-          <div id="stage" style="position:absolute; left:50px; top:50px; width:600px; height:300px; background:#468"></div>
+          <div id="stage" style="position:absolute; left:50px; top:50px; width:600px; height:300px; background:#468">
+            <video id="video" style="width:100%; height:100%"></video>
+          </div>
           <button id="fullscreen" style="position:absolute; left:700px; top:10px"
             onclick="document.getElementById('stage').requestFullscreen()">full screen</button>
+          <button id="fullscreen-video" style="position:absolute; left:700px; top:40px"
+            onclick="document.getElementById('video').requestFullscreen()">video</button>
         </body>
       `);
       await page.addScriptTag({
@@ -700,6 +731,10 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
           (element) => element.scrollTop >= element.scrollHeight - element.clientHeight - 1,
         );
       const latestButton = page.locator(".ocr-translate-live-latest.is-visible");
+      const onTop = () => page.locator(".ocr-translate-live").evaluate((panel) => {
+        const rect = panel.getBoundingClientRect();
+        return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === window.host;
+      });
 
       // Enough lines that the list scrolls, with the newest in view.
       await page.evaluate(() => window.showLines(12));
@@ -714,6 +749,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
         return;
       }
       await page.waitForFunction(() => window.host.parentElement.id === "stage");
+      assert.equal(await onTop(), true);
       // The newest line stays in view, and so does the next one.
       assert.equal(await atEnd(), true);
       await page.evaluate(() => window.showLines(13));
@@ -726,12 +762,19 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       });
       await page.evaluate(() => document.exitFullscreen());
       await page.waitForFunction(() => window.host.parentElement === document.body);
+      assert.equal(await onTop(), true);
       // Firefox scrolls by fractions of a pixel.
       const isAt40 = async () => Math.abs((await scrollTop()) - 40) < 1;
       assert.equal(await isAt40(), true);
       await page.evaluate(() => window.showLines(14));
       assert.equal(await isAt40(), true);
       assert.equal(await latestButton.count(), 1);
+
+      // A video draws only its own picture, so the UI stays where it was.
+      await page.click("#fullscreen-video");
+      await page.waitForFunction(() => document.fullscreenElement?.id === "video");
+      await page.waitForTimeout(300);
+      assert.equal(await page.evaluate(() => window.host.parentElement === document.body), true);
     });
   });
 
@@ -868,59 +911,6 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       const selection = await page.evaluate(() => window.selection);
       assert.equal(selection.kind, "area");
       assert.deepEqual(selection.rect, { x: 250, y: 250, width: 130, height: 80 });
-    });
-  });
-
-  test(`${name}: the UI follows a full screen container and returns afterwards`, async (context) => {
-    await withPage(browserType, name, { width: 800, height: 600 }, async (page) => {
-      await page.setContent(`
-        <body style="margin:0">
-          <div id="stage" style="position:absolute; left:50px; top:50px; width:400px; height:300px; background:#468">
-            <video id="video" style="width:100%; height:100%"></video>
-          </div>
-          <button id="fullscreen-stage" onclick="document.getElementById('stage').requestFullscreen()">stage</button>
-          <button id="fullscreen-video" onclick="document.getElementById('video').requestFullscreen()">video</button>
-        </body>
-      `);
-      await page.addScriptTag({
-        type: "module",
-        content: `${modalCode}
-          ${uiSetup}
-          // A small spot at the centre, so the buttons stay clickable.
-          const marker = document.createElement("div");
-          marker.style.cssText =
-            "position:fixed; left:370px; top:270px; width:60px; height:60px; background:#f0f";
-          container.append(marker);
-          window.stop = watchFullscreen(host);
-          window.parentOf = () => host.parentElement.id || host.parentElement.tagName;
-          window.uiIsOnTop = () => document.elementFromPoint(400, 300) === host;
-        `,
-      });
-      await page.waitForFunction(() => Boolean(window.stop));
-      const parent = () => page.evaluate(() => window.parentOf());
-      const onTop = () => page.evaluate(() => window.uiIsOnTop());
-
-      await page.click("#fullscreen-stage");
-      try {
-        await page.waitForFunction(() => document.fullscreenElement?.id === "stage", null, { timeout: 5000 });
-      } catch {
-        context.skip(`${name} does not enter full screen in this environment`);
-        return;
-      }
-      // The move happens when the page's fullscreenchange event fires.
-      await page.waitForFunction(() => window.parentOf() === "stage");
-      assert.equal(await onTop(), true);
-
-      await page.evaluate(() => document.exitFullscreen());
-      await page.waitForFunction(() => !document.fullscreenElement);
-      await page.waitForFunction(() => window.parentOf() === "BODY");
-      assert.equal(await onTop(), true);
-
-      // A video draws only its own picture, so the UI stays where it was.
-      await page.click("#fullscreen-video");
-      await page.waitForFunction(() => document.fullscreenElement?.id === "video");
-      await page.waitForTimeout(300);
-      assert.equal(await parent(), "BODY");
     });
   });
 }

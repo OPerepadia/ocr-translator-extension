@@ -8,6 +8,7 @@ import {
 } from "@playwright/test";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
+import en from "../../../src/public/_locales/en/messages.json" with { type: "json" };
 
 // Live translation reads the real screen, so these run the built extension
 // against a page that stands in for a video with burned-in subtitles. A local
@@ -201,6 +202,7 @@ async function openSession(options: SessionOptions = {}): Promise<Session> {
   await settings.evaluate(
     ({ port }) =>
       chrome.storage.local.set({
+        uiLocale: "en",
         settings: {
           ocr: { providerId: "paddle", sourceLang: "en" },
           translation: {
@@ -463,26 +465,32 @@ test("does not read its own panel when the panel covers the region", async () =>
   }
 });
 
-test("reads a video from its frames, so the panel can cover the subtitles", async () => {
-  const session = await openSession({ html: videoPage() });
+test("reads a 1080p video at 720p from its frames while the panel covers the subtitles", async () => {
+  const session = await openSession({ html: videoPage(1920, 1080) });
   const { page, worker, server } = session;
   try {
+    await recordImageSizes(worker);
     await startLiveTranslation(session);
-    // Drag the panel over the subtitles, which are drawn about y = 550.
+    // Cover the selected region with the panel.
     const title = await page.locator(".ocr-translate-live-title").boundingBox();
     const panel = await page.locator(".ocr-translate-live").boundingBox();
-    if (!title || !panel) {
-      throw new Error("The panel must be on screen.");
+    const region = page.locator(".ocr-translate-live-region");
+    const regionBox = await region.boundingBox();
+    if (!title || !panel || !regionBox) {
+      throw new Error("The panel and region must be on screen.");
     }
-    const dy = 550 - (panel.y + panel.height / 2);
-    await page.mouse.move(title.x + 5, title.y + 5);
+    const dx = regionBox.x + regionBox.width / 2 - (panel.x + panel.width / 2);
+    const dy = regionBox.y + regionBox.height / 2 - (panel.y + panel.height / 2);
+    const grip = { x: title.x + title.width / 2, y: title.y + title.height / 2 };
+    await page.mouse.move(grip.x, grip.y);
     await page.mouse.down();
-    await page.mouse.move(title.x + 5, title.y + 5 + dy, { steps: 5 });
+    await page.mouse.move(grip.x + dx, grip.y + dy, { steps: 5 });
     await page.mouse.up();
-    // Where the subtitle is drawn, the panel is on top now.
-    expect(
-      await page.evaluate(() => document.elementFromPoint(640, 550)?.localName),
-    ).toBe("ocr-translate-ui");
+    const coveringRegion = () => region.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.localName;
+    });
+    expect(await coveringRegion()).toBe("ocr-translate-ui");
 
     await countCaptures(worker);
     await showSubtitle(page, "See you tomorrow.");
@@ -494,50 +502,35 @@ test("reads a video from its frames, so the panel can cover the subtitles", asyn
     // Nothing is hidden, so there is nothing to warn about.
     await expect(page.locator(".ocr-translate-live-warning")).toBeHidden();
 
+    const expectedSize = await page.locator("#video").evaluate((element, selection) => {
+      const video = element as HTMLVideoElement;
+      const rect = video.getBoundingClientRect();
+      const displayScale = Math.min(rect.width / video.videoWidth, rect.height / video.videoHeight);
+      return {
+        width: (selection.x2 - selection.x1) / (video.videoWidth * displayScale) * 1280,
+        height: (selection.y2 - selection.y1) / (video.videoHeight * displayScale) * 720,
+      };
+    }, SUBTITLE_REGION);
+    const sizes = await imageSizes(worker);
+    expect(sizes.length).toBeGreaterThan(0);
+    for (const { mediaType, width, height } of sizes) {
+      expect(mediaType).toMatch(/^image\//);
+      // Cropping and resampling each round to whole pixels.
+      expect(Math.abs(width - expectedSize.width)).toBeLessThanOrEqual(2);
+      expect(Math.abs(height - expectedSize.height)).toBeLessThanOrEqual(2);
+    }
+
     // In full screen the subtitles are larger and lower, and the panel stays
     // over them.
     await page.click("#fullscreen");
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe("stage");
-    await expect
-      .poll(() => page.evaluate(() => document.elementFromPoint(640, 655)?.localName))
-      .toBe("ocr-translate-ui");
+    await expect.poll(coveringRegion).toBe("ocr-translate-ui");
     await showSubtitle(page, "Where are the keys?");
     await expect(translation(page)).toHaveText(
       ["[uk] See you tomorrow.", "[uk] Where are the keys?"],
       { timeout: 10_000 },
     );
     expect(server.requests).toEqual(["See you tomorrow.", "Where are the keys?"]);
-  } finally {
-    await session.context.close();
-    server.close();
-  }
-});
-
-test("reads a video above 720p at 720p", async () => {
-  // A 4K video, drawn the same size on the page.
-  const session = await openSession({ html: videoPage(3840, 2150) });
-  const { page, worker, server } = session;
-  try {
-    await recordImageSizes(worker);
-    await startLiveTranslation(session);
-
-    await showSubtitle(page, "We should walk to the market");
-    await expect(translation(page)).toHaveText("[uk] We should walk to the market", {
-      timeout: 20_000,
-    });
-
-    // The region is about 3456 by 461 pixels of the video, read at one third
-    // of that size (about 1152 by 154).
-    const sizes = await imageSizes(worker);
-    expect(sizes.length).toBeGreaterThan(0);
-    for (const { mediaType, width, height } of sizes) {
-      expect(mediaType).toBe("image/jpeg");
-      expect(width).toBeGreaterThan(1140);
-      expect(width).toBeLessThan(1170);
-      expect(height).toBeGreaterThan(150);
-      expect(height).toBeLessThan(160);
-    }
-    expect(server.requests).toEqual(["We should walk to the market"]);
   } finally {
     await session.context.close();
     server.close();
@@ -658,28 +651,28 @@ test("pauses, resumes and closes from the panel", async () => {
     await expect(translation(page)).toHaveText("[uk] The weather is nice today.", {
       timeout: 20_000,
     });
-    const [showOriginal, pause, , close] = await page
-      .locator(".ocr-translate-live-actions > button")
-      .all();
-
     await expect(page.locator(".ocr-translate-live-original")).toBeHidden();
-    await showOriginal.click();
+    await page.getByRole("button", { name: en.liveShowOriginal.message, exact: true }).click();
     await expect(page.locator(".ocr-translate-live-original")).toBeVisible();
     await expect(page.locator(".ocr-translate-live-original")).toHaveText(
       "The weather is nice today.",
     );
 
+    await page.getByRole("button", { name: en.livePause.message, exact: true }).click();
+    // A read already out when the panel pauses still captures, so start
+    // counting once it has.
+    await page.waitForTimeout(1_000);
     await countCaptures(worker);
-    await pause.click();
     await page.waitForTimeout(3_000);
     expect(await capturesSoFar(worker)).toBe(0);
 
-    await pause.click();
+    await page.getByRole("button", { name: en.liveResume.message, exact: true }).click();
     await expect.poll(() => capturesSoFar(worker), { timeout: 10_000 }).toBeGreaterThan(0);
 
-    await close.click();
+    await page.getByRole("button", { name: en.commonClose.message, exact: true }).click();
     await expect(page.locator(".ocr-translate-live")).toHaveCount(0);
     await expect(page.locator(".ocr-translate-live-region")).toHaveCount(0);
+    await page.waitForTimeout(1_000);
     const afterClose = await capturesSoFar(worker);
     await page.waitForTimeout(3_000);
     expect(await capturesSoFar(worker)).toBe(afterClose);

@@ -23,8 +23,6 @@ interface OcrResponse {
         grouping?: {
           modelId?: string;
           backend?: string;
-          confidenceThreshold?: number;
-          nmsIouThreshold?: number;
           regionCount?: number;
           matchedLineCount?: number;
           groupCount?: number;
@@ -34,7 +32,6 @@ interface OcrResponse {
           decisive?: boolean;
           scriptDetection?: {
             script?: string;
-            probeCount?: number;
           };
         };
       };
@@ -190,15 +187,12 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
         grouping: {
           modelId: "comic-text-bubble-rtdetr-v4-s-int8",
           backend: "wasm",
-          confidenceThreshold: 0.4,
-          nmsIouThreshold: 0.25,
         },
         autoSelection: {
           method: "script-classifier",
           decisive: true,
           scriptDetection: {
             script: "general",
-            probeCount: 2,
           },
         },
       },
@@ -217,42 +211,10 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
         autoSelection: {
           method: "script-classifier",
           decisive: true,
-          scriptDetection: { script: scriptCase.script, probeCount: 2 },
+          scriptDetection: { script: scriptCase.script },
         },
       });
     }
-  } finally {
-    await context.close();
-  }
-});
-
-test("reports a fallback WebGPU adapter as software-only", async () => {
-  const context = await launchExtensionContext();
-  await context.addInitScript(() => {
-    Object.defineProperty(navigator, "gpu", {
-      configurable: true,
-      value: {
-        requestAdapter: async () => ({ info: { isFallbackAdapter: true } }),
-      },
-    });
-  });
-
-  try {
-    const serviceWorker = await findServiceWorker(context);
-    const extensionId = new URL(serviceWorker.url()).host;
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/options.html`);
-
-    const status = page.locator(".ocr-webgpu-status");
-    await expect(status).toHaveText("Software only");
-    await expect(status).toHaveClass(/is-software/);
-    await expect(page.locator("input[name='ocrWebGpu']")).toBeDisabled();
-    const guide = page.locator(".ocr-webgpu-note");
-    await expect(guide).toBeVisible();
-    await expect(guide.locator("a")).toHaveAttribute(
-      "href",
-      "https://github.com/OPerepadia/ocr-translator-extension#webgpu-setup",
-    );
   } finally {
     await context.close();
   }

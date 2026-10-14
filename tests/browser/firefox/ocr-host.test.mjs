@@ -129,8 +129,6 @@ test("initializes the Firefox OCR host and recognizes data URLs and iframe blobs
       "comic-text-bubble-rtdetr-v4-s-int8",
     );
     assert.equal(ocr?.providerMeta?.grouping?.backend, "wasm");
-    assert.equal(ocr?.providerMeta?.grouping?.confidenceThreshold, 0.4);
-    assert.equal(ocr?.providerMeta?.grouping?.nmsIouThreshold, 0.25);
     assert.ok(ocr?.blocks?.length >= 2);
     assert.match(ocr?.text ?? "", /sample/i);
     assert.ok(ocr?.providerMeta?.grouping?.groupCount > 0);

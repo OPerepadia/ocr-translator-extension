@@ -262,27 +262,33 @@ test("reads the subtitles of a video from under the panel", {
       10_000,
     );
 
-    // Drag the panel over the subtitles, which are drawn about y = 550.
+    // Cover the selected region with the panel.
     const drag = await inPage(() => {
       const shadow = document.querySelector("ocr-translate-ui").shadowRoot;
       const title = shadow.querySelector(".ocr-translate-live-title").getBoundingClientRect();
       const panel = shadow.querySelector(".ocr-translate-live").getBoundingClientRect();
+      const region = shadow.querySelector(".ocr-translate-live-region").getBoundingClientRect();
       return {
-        x: Math.round(title.x + 5),
-        y: Math.round(title.y + 5),
-        dy: Math.round(550 - (panel.y + panel.height / 2)),
+        x: Math.round(title.x + title.width / 2),
+        y: Math.round(title.y + title.height / 2),
+        dx: Math.round(region.x + region.width / 2 - (panel.x + panel.width / 2)),
+        dy: Math.round(region.y + region.height / 2 - (panel.y + panel.height / 2)),
       };
     });
     await driver
       .actions({ async: true })
       .move({ x: drag.x, y: drag.y, origin: "viewport" })
       .press()
-      .move({ x: drag.x, y: drag.y + drag.dy, origin: "viewport", duration: 300 })
+      .move({ x: drag.x + drag.dx, y: drag.y + drag.dy, origin: "viewport", duration: 300 })
       .release()
       .perform();
     // Where the subtitle is drawn, the panel is on top now.
     assert.equal(
-      await inPage(() => document.elementFromPoint(640, 550)?.localName),
+      await inPage(() => {
+        const region = document.querySelector("ocr-translate-ui").shadowRoot
+          .querySelector(".ocr-translate-live-region").getBoundingClientRect();
+        return document.elementFromPoint(region.x + region.width / 2, region.y + region.height / 2)?.localName;
+      }),
       "ocr-translate-ui",
     );
 

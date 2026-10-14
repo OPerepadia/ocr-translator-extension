@@ -1,5 +1,6 @@
 import { chromium, expect, test } from "@playwright/test";
 import { resolve } from "node:path";
+import { readdir } from "node:fs/promises";
 import en from "../../../src/public/_locales/en/messages.json" with { type: "json" };
 import uk from "../../../src/public/_locales/uk/messages.json" with { type: "json" };
 
@@ -44,7 +45,11 @@ test("changes UI locale across settings, popup and refreshed content without los
       options.locator('form select[name="uiLocale"]'),
     ).toHaveCount(0);
     await expect(localeSelect).toHaveValue("uk");
-    await expect(localeSelect.locator("option")).toHaveCount(6);
+    const locales = await readdir(new URL("../../../src/public/_locales/", import.meta.url));
+    const offeredLocales = await localeSelect.locator("option").evaluateAll(
+      (options: HTMLOptionElement[]) => options.map((option) => option.value).sort(),
+    );
+    expect(offeredLocales).toEqual(["auto", ...locales].sort());
 
     await options.setViewportSize({ width: 700, height: 800 });
     const cardBox = await options.locator(".options-card").boundingBox();
@@ -122,7 +127,7 @@ test("changes UI locale across settings, popup and refreshed content without los
     expect(await worker.evaluate(async () => (await chrome.storage.local.get("uiLocale")).uiLocale)).toBe("en");
     await options.reload();
 
-    for (const locale of ["ja", "zh_CN", "ru", "uk", "auto"]) {
+    for (const locale of [...locales.filter((locale) => locale !== "en"), "auto"]) {
       await expect(localeSelect).toBeVisible();
       await Promise.all([
         options.waitForEvent("load"),

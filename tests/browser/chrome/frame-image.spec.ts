@@ -95,9 +95,14 @@ test("picks and recognizes an image inside a nested cross-origin iframe", async 
     await page.locator(".ocr-translate-selection-overlay").waitFor();
 
     // Both iframes offset the image: 200 + 4 + 50 + 40, 100 + 4 + 60 + 50.
-    await page.mouse.move(494, 314);
+    // Chrome sends input to the cross-origin iframe until it has drawn the
+    // overlay over it, so keep moving until the overlay gets the pointer.
     const outline = page.locator(".ocr-translate-image-picker-frame");
-    await expect(outline).toBeVisible();
+    await expect(async () => {
+      await page.mouse.move(493, 313);
+      await page.mouse.move(494, 314);
+      await expect(outline).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 10_000 });
     expect(await outline.boundingBox()).toEqual({
       x: 294,
       y: 214,
