@@ -12,7 +12,6 @@ import {
   createOffscreenWorker,
 } from "@/background/offscreen-host";
 import { startRouter } from "@/background/router";
-import { startUninstallFeedback } from "@/background/uninstall-feedback";
 import {
   OCR_MODELS,
   resolveOcrModel,
@@ -43,7 +42,8 @@ export default defineBackground(() => {
 
   startKeyboardCommand();
   startContextMenu(browser, localeReady);
-  startUninstallFeedback();
+  // Clear the uninstall URL retained by browsers that ran an older version.
+  void browser.runtime.setUninstallURL("").catch(() => {});
   startRouter(
     {
       settingsRepository,
