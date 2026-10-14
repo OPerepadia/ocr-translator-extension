@@ -16,6 +16,7 @@
   --danger-bg: #fef2f2;
   --control-bg: #ffffff;
   --hover-bg: rgba(33, 32, 28, 0.06);
+  --accent-text: #3269bd;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f6a5e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
@@ -34,6 +35,7 @@
     --danger-bg: rgba(127, 29, 29, 0.28);
     --control-bg: #20252a;
     --hover-bg: rgba(231, 237, 242, 0.08);
+    --accent-text: #8ab4f3;
     --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3adb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
@@ -192,6 +194,115 @@ select:disabled,
   cursor: default;
 }
 
+.ocr-translate-popup-langpill {
+  position: relative;
+  display: block;
+}
+
+.ocr-translate-popup-langpill-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 0 10px;
+  background-color: var(--control-bg);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-langpill-button:hover {
+  border-color: var(--muted);
+}
+
+.ocr-translate-popup-langpill-chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+.ocr-translate-option-main {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.ocr-translate-option-main > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocr-translate-option-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+.ocr-translate-option-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ocr-provider-icon-deepl {
+    fill: #a8c0dc;
+  }
+}
+
+.ocr-translate-popup-langpill-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--control-bg);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.ocr-translate-popup-langpill-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ocr-translate-popup-langpill-item {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 8px;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ocr-translate-popup-langpill-item:hover,
+.ocr-translate-popup-langpill-item.is-active {
+  background: var(--hover-bg);
+}
+
+.ocr-translate-popup-langpill-item.is-selected {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
 .popup-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -285,9 +396,14 @@ select:disabled,
 
 .icon-button:focus-visible,
 select:focus-visible,
+.ocr-translate-popup-langpill-button:focus-visible,
 .popup-actions button:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 1px;
+}
+
+.ocr-translate-popup-langpill-item:focus-visible {
+  outline-offset: -3px;
 }
 
 .popup-message {

@@ -355,6 +355,31 @@ select:focus-visible {
   color: var(--muted);
 }
 
+.ocr-translate-option-main {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.ocr-translate-option-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+.ocr-translate-option-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ocr-provider-icon-deepl {
+    fill: #a8c0dc;
+  }
+}
+
 .ocr-translate-popup-langpill-list {
   position: absolute;
   top: calc(100% + 4px);
@@ -403,6 +428,12 @@ select:focus-visible {
 .ocr-translate-popup-langpill-item.is-selected {
   color: var(--accent);
   font-weight: 600;
+}
+
+.ocr-translate-popup-langpill-item.has-icon {
+  display: flex;
+  gap: 9px;
+  align-items: center;
 }
 
 /* LLM endpoint card */

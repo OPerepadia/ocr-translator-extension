@@ -8,11 +8,13 @@ import {
   testLlmConnection,
 } from "@/providers/translation/openai";
 import { resolveTargetLanguage, translationTargetLanguages } from "@/providers/translation/target-languages";
+import { translationProviderIcon } from "@/entrypoints/content/icons";
 import {
   createLanguagePill,
   languageName,
   type LanguagePill,
 } from "@/entrypoints/content/language-picker";
+import { replaceSelectWithOptionPicker } from "@/entrypoints/content/option-picker";
 import {
   createSettingsRepository,
   getDefaultOverlayMode,
@@ -294,6 +296,10 @@ async function initOptions(): Promise<void> {
     void saveSettings();
   });
 
+  replaceSelectWithOptionPicker(elements.translationProviderSelect, {
+    icon: translationProviderIcon,
+    title: (current) => t("panelTranslationProvider", current.label),
+  });
   // Searchable language pickers replace the native selects, which stay hidden
   // as form value holders. Recreate each picker on change so its button and
   // selected item stay in sync.

@@ -33,6 +33,7 @@ import { createRequestId } from "@/shared/request-id";
 import { sendRequest } from "@/shared/runtime-messaging";
 import { LatestRequestRunner } from "./latest-request";
 import type { ContentControls } from "./content-controls";
+import { translationProviderIcon } from "./icons";
 import {
   initializeI18n,
   t,
@@ -1068,6 +1069,7 @@ async function loadTranslationProviders(): Promise<void> {
       const providers = response.providers.map(({ id }) => ({
         id,
         label: translationProviderLabel(id),
+        icon: translationProviderIcon(id),
       }));
       contentControls.translationProviders = providers;
       contentControls.currentTranslationProviderId = response.currentId;

@@ -2,10 +2,17 @@ import { CHEVRON_ICON } from "./icons";
 
 let nextPickerId = 0;
 
+export interface PickerOption {
+  id: string;
+  label: string;
+  /** Trusted SVG markup, set as innerHTML. */
+  icon?: string;
+}
+
 export function createOptionPicker(config: {
-  options: ReadonlyArray<{ id: string; label: string }>;
+  options: ReadonlyArray<PickerOption>;
   currentId: string | undefined;
-  title: (current: { id: string; label: string }) => string;
+  title: (current: PickerOption) => string;
   onSelect: (id: string) => void;
   overlay?: boolean;
 }): { element: HTMLElement; dispose: () => void } | undefined {
@@ -39,10 +46,14 @@ export function createOptionPicker(config: {
   }
   label.textContent = current.label;
 
+  const main = document.createElement("span");
+  main.className = "ocr-translate-option-main";
+  main.append(...optionIcon(current), label);
+
   const chevron = document.createElement("span");
   chevron.className = "ocr-translate-popup-langpill-chevron";
   chevron.innerHTML = CHEVRON_ICON;
-  button.append(label, chevron);
+  button.append(main, chevron);
 
   const list = document.createElement("div");
   list.className = "ocr-translate-popup-langpill-list";
@@ -76,7 +87,13 @@ export function createOptionPicker(config: {
     item.className = "ocr-translate-popup-langpill-item";
     item.setAttribute("role", "option");
     item.setAttribute("aria-selected", String(option.id === current.id));
-    item.textContent = option.label;
+    const itemLabel = document.createElement("span");
+    itemLabel.textContent = option.label;
+    const icon = optionIcon(option);
+    if (icon.length > 0) {
+      item.classList.add("has-icon");
+    }
+    item.append(...icon, itemLabel);
     if (option.id === current.id) {
       item.setAttribute("aria-selected", "true");
       item.classList.add("is-selected");
@@ -149,4 +166,60 @@ export function createOptionPicker(config: {
     element: wrapper,
     dispose: () => document.removeEventListener("click", handleOutsideClick),
   };
+}
+
+function optionIcon(option: PickerOption): HTMLElement[] {
+  if (!option.icon) {
+    return [];
+  }
+  const icon = document.createElement("span");
+  icon.className = "ocr-translate-option-icon";
+  icon.innerHTML = option.icon;
+  return [icon];
+}
+
+/** Replaces a native <select> with a picker. The select keeps the value and fires `change` on pick. */
+export function replaceSelectWithOptionPicker(
+  select: HTMLSelectElement,
+  config: {
+    icon?: (id: string) => string | undefined;
+    title: (current: PickerOption) => string;
+  },
+): void {
+  let current: { element: HTMLElement; dispose: () => void } | undefined;
+
+  const mount = (): void => {
+    const previous = current;
+    const hadFocus = previous?.element.contains(document.activeElement);
+    previous?.dispose();
+    current = createOptionPicker({
+      options: Array.from(select.options, (option) => ({
+        id: option.value,
+        label: option.textContent ?? option.value,
+        icon: config.icon?.(option.value),
+      })),
+      currentId: select.value,
+      title: config.title,
+      onSelect: (id) => {
+        select.value = id;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        mount();
+      },
+    });
+    select.hidden = current !== undefined;
+    if (!current) {
+      previous?.element.remove();
+      return;
+    }
+    if (previous) {
+      previous.element.replaceWith(current.element);
+    } else {
+      select.after(current.element);
+    }
+    if (hadFocus) {
+      current.element.querySelector("button")?.focus();
+    }
+  };
+
+  mount();
 }

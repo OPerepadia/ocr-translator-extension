@@ -21,6 +21,7 @@ with extension builds.
 | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) OCR models and dictionaries | PP-OCRv5 and PP-OCRv6 | Apache-2.0 |
 | [Tesseract OSD LSTM script classifier](https://huggingface.co/ogkalu/image-script-identification) ONNX port | revision `82c21077` | Apache-2.0 |
 | [Comic Text and Bubble Detector](https://huggingface.co/ogkalu/comic-text-and-bubble-detector) model | RT-DETR-v2 v4-s INT8 | Apache-2.0 |
+| [Simple Icons](https://github.com/simple-icons/simple-icons) Google Translate and DeepL glyphs | 16.35.0 | CC0-1.0 |
 
 The ONNX Runtime Web package uses FlatBuffers, guid-typescript, long.js,
 platform.js, and protobuf.js. Their notices are included because their code may
@@ -93,6 +94,19 @@ Source: <https://huggingface.co/ogkalu/comic-text-and-bubble-detector>
 The extension packages the upstream INT8 ONNX export without changing its
 weights. Source revision, preprocessing details, and checksums are in
 [`src/public/assets/layout-grouping/SOURCES.md`](src/public/assets/layout-grouping/SOURCES.md).
+
+## Translation provider icons
+
+The Google Translate and DeepL glyphs in the provider pickers come from
+Simple Icons 16.35.0. Simple Icons is released under CC0-1.0, which does not
+require a notice. Its disclaimer says this does not cover every icon, and the
+license data for these two icons is empty.
+
+Source: <https://github.com/simple-icons/simple-icons>
+
+Google, Google Translate, and DeepL are trademarks of their owners. The
+extension shows their glyphs only to identify the services it can use. It is
+not affiliated with or endorsed by them.
 
 ## Tesseract OSD LSTM script classifier
 

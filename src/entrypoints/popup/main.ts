@@ -26,8 +26,13 @@ import {
   type DisplayMode,
 } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
-import { LIVE_ICON, SETTINGS_ICON } from "@/entrypoints/content/icons";
+import {
+  LIVE_ICON,
+  SETTINGS_ICON,
+  translationProviderIcon,
+} from "@/entrypoints/content/icons";
 import { languageName } from "@/entrypoints/content/language-picker";
+import { replaceSelectWithOptionPicker } from "@/entrypoints/content/option-picker";
 import {
   getStartLiveSelectionShortcut,
   getStartSelectionShortcut,
@@ -74,6 +79,10 @@ async function initPopup(): Promise<void> {
       elements.translationProvider,
       settings.translation.providerId,
     );
+    replaceSelectWithOptionPicker(elements.translationProvider, {
+      icon: translationProviderIcon,
+      title: (current) => t("panelTranslationProvider", current.label),
+    });
     elements.displayMode.value = displayMode;
 
     elements.controls.addEventListener("change", () => {

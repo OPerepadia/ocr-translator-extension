@@ -32,10 +32,16 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
     });
     const options = await context.newPage();
     await options.goto(`${extensionUrl}/options.html#translation`);
-    const provider = options.locator('select[name="translationProvider"]');
+    const providerField = options.locator("label.field", {
+      has: options.locator('select[name="translationProvider"]'),
+    });
+    const chooseProvider = async (name: string) => {
+      await providerField.getByRole("button", { name: /^Translation provider:/ }).click();
+      await providerField.getByRole("option", { name }).click();
+    };
     const plan = options.locator('select[name="deeplPlan"]');
     const key = options.locator('input[name="deeplApiKey"]');
-    await provider.selectOption("deepl");
+    await chooseProvider("DeepL");
     await expect(options.locator(".deepl-settings")).toBeVisible();
     await expect(options.locator(".llm-settings")).toBeHidden();
     await expect(plan).toHaveValue("free");
@@ -56,9 +62,9 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
     await key.blur();
     await expect.poll(stored).toEqual({ apiKey: "replacement-key:fx", plan: "pro" });
     expect((await translate()).value.translation.text).toBe("api.deepl.com|DeepL-Auth-Key replacement-key:fx");
-    await provider.selectOption("google");
+    await chooseProvider("Google");
     await expect(options.locator(".deepl-settings")).toBeHidden();
-    await provider.selectOption("deepl");
+    await chooseProvider("DeepL");
     await expect(plan).toHaveValue("pro");
     await options.reload();
     await expect(plan).toHaveValue("pro");

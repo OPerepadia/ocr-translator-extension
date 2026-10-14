@@ -3,6 +3,7 @@ import type { LangCode } from "@/shared/types";
 export interface LabeledOption {
   id: string;
   label: string;
+  icon?: string;
 }
 
 export interface ContentControls {
