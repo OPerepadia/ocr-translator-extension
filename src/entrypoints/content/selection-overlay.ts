@@ -189,6 +189,16 @@ export function startSelectionOverlay(
       resolve(result);
     }
 
+    function onTouchStart(event: TouchEvent): void {
+      const target = event.target as Element;
+      if (currentRect && target.closest(".ocr-translate-selection-controls")) {
+        return;
+      }
+      // The overlay becomes click-through on pointerup. Suppress the later
+      // touch-generated click before it can activate the page underneath.
+      event.preventDefault();
+    }
+
     function onPointerDown(event: PointerEvent): void {
       const target = event.target as Element;
       if (currentRect && target.closest(".ocr-translate-selection-controls")) {
@@ -583,6 +593,7 @@ export function startSelectionOverlay(
 
     runButton.addEventListener("click", confirmSelection);
     cancelButton.addEventListener("click", () => cleanup(null));
+    overlay.addEventListener("touchstart", onTouchStart, { passive: false });
     overlay.addEventListener("pointerdown", onPointerDown);
     overlay.addEventListener("pointermove", onPointerMove);
     overlay.addEventListener("pointerup", onPointerUp);

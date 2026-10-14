@@ -155,6 +155,20 @@ npm test
 npm run typecheck
 ```
 
+### Firefox for Android
+
+Enable Android USB debugging and in Firefox Settings, enable **Remote debugging via USB**. Connect the device and run:
+
+```sh
+# Get the device serial
+adb devices
+
+# Load the extension
+npm run run:android -- --adb-device DEVICE_SERIAL
+```
+
+The installation is temporary and lasts until Firefox restarts.
+
 ## Localization
 
 Translations are stored in `src/public/_locales/<locale>/messages.json`.

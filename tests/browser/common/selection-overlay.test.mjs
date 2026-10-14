@@ -183,6 +183,82 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
     }
   });
 
+  test(`${name}: touch selection does not activate the page and controls remain tappable`, async () => {
+    const browser = await browserType.launch({
+      headless: true,
+      executablePath: process.env[`${name.toUpperCase()}_TEST_EXECUTABLE`],
+    });
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 800, height: 600 },
+        hasTouch: true,
+      });
+      await page.setContent(`
+        <body style="margin:0">
+          <a href="#post"><img id="photo" src="${svg}" style="position:absolute; left:100px; top:150px; width:300px; height:200px"></a>
+        </body>
+      `);
+      await page.addScriptTag({
+        type: "module",
+        content: `${code}
+          const host = document.createElement("div");
+          document.body.append(host);
+          const shadow = host.attachShadow({ mode: "open" });
+          const style = document.createElement("style");
+          style.textContent = ${JSON.stringify(css)};
+          const container = document.createElement("div");
+          shadow.append(style, container);
+          window.pageClicks = 0;
+          document.querySelector("a").addEventListener("click", () => window.pageClicks++);
+          window.start = (adjust) => {
+            window.selection = "pending";
+            startSelectionOverlay(container, adjust).then((result) => {
+              window.selection = result?.kind === "image"
+                ? { kind: "image", id: result.image.id }
+                : result;
+            });
+          };
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.start));
+      const start = async (adjust) => {
+        await page.evaluate((adjust) => window.start(adjust), adjust);
+        await nextPaint(page);
+      };
+      const settled = async () => {
+        await page.waitForFunction(() => window.selection !== "pending");
+        return page.evaluate(() => window.selection);
+      };
+
+      for (const adjust of [true, false]) {
+        await start(adjust);
+        await page.touchscreen.tap(250, 250);
+        assert.deepEqual(await settled(), { kind: "image", id: "photo" });
+        assert.equal(await page.evaluate(() => window.pageClicks), 0);
+        assert.equal(await page.evaluate(() => location.hash), "");
+      }
+
+      for (const action of ["run", "cancel"]) {
+        await start(true);
+        await page.mouse.move(450, 150);
+        await page.mouse.down();
+        await page.mouse.move(650, 350, { steps: 5 });
+        await page.mouse.up();
+        await page.locator(`.ocr-translate-selection-${action}`).tap();
+        assert.deepEqual(await settled(), action === "run"
+          ? { kind: "area", rect: { x: 450, y: 150, width: 200, height: 200 } }
+          : null);
+      }
+
+      await nextPaint(page);
+      await page.touchscreen.tap(250, 250);
+      assert.equal(await page.evaluate(() => window.pageClicks), 1);
+      assert.equal(await page.evaluate(() => location.hash), "#post");
+    } finally {
+      await browser.close();
+    }
+  });
+
   test(`${name}: region selection picks an image inside an iframe`, async () => {
     const browser = await browserType.launch({
       headless: true,
