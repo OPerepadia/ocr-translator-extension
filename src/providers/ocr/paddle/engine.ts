@@ -23,6 +23,7 @@ import {
   resolveBackend,
   runSingleInput,
   type OrtBackend,
+  warmUpSession,
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
 import type { InitRequest, WorkerModelConfig } from "./protocol";
@@ -97,6 +98,8 @@ interface AutoRecognition {
 
 const LOG_PREFIX = "[PP-OCR]";
 
+const RECOGNIZER_WARM_UP_WIDTHS = [48, 128];
+
 export class PaddleEngine {
   private constructor(
     private readonly detector: Manifest["detector"],
@@ -146,6 +149,9 @@ export class PaddleEngine {
       ),
       RegionGrouper.create(options.layoutModelBaseUrl),
     ]);
+    if (backend === "webgpu") {
+      await warmUpWebGpu(detSession, recSession, manifest, debug);
+    }
     const primaryRecognizer: LoadedRecognizer = {
       candidate: options.model,
       config: manifest.recognizer,
@@ -625,6 +631,29 @@ async function loadRecognizer(
     session,
     charAt: makeCharAt(parseDict(dictText)),
   };
+}
+
+/** Compile the WebGPU shaders on tiny inputs, while the engine initializes
+ * (often during the user's selection) instead of on the first image. Shaders
+ * compile slowly on some platforms: up to 15 s for both models on Firefox for
+ * Windows. The detector's shaders do not depend on the input size, so one
+ * small run covers it. The recognizer compiles a few more on its second width,
+ * so it gets two. */
+async function warmUpWebGpu(
+  detSession: ort.InferenceSession,
+  recSession: ort.InferenceSession,
+  manifest: Manifest,
+  debug: boolean,
+): Promise<void> {
+  const startedAt = now();
+  const height = manifest.recognizer.imageHeight;
+  await warmUpSession(detSession, [1, 3, 32, 32]);
+  for (const width of RECOGNIZER_WARM_UP_WIDTHS) {
+    await warmUpSession(recSession, [1, 3, height, width]);
+  }
+  if (debug) {
+    console.log(`${LOG_PREFIX} WebGPU warm-up took ${elapsed(startedAt)}`);
+  }
 }
 
 function throwIfCancelled(isCancelled: () => boolean): void {
