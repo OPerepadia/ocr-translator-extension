@@ -107,6 +107,12 @@ multi-column layouts. Selecting a smaller area can improve results.
 See the [Firefox guide on enableGPU.com](https://enablegpu.com/guides/firefox/)
 for a walkthrough.
 
+> [!NOTE]
+> In Firefox on Windows, with GPU acceleration enabled, the first recognition can take 15–20 seconds.
+> The cause is slow shader compilation in Firefox, which needs to be fixed upstream.
+> Until then, turn off **GPU acceleration** in the extension settings if this bothers you.
+> See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18).
+
 ### Chromium
 
 1. Open `chrome://flags`.
