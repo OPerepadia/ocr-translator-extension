@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   webgpu: {} as { device?: Promise<unknown> },
 }));
 
-vi.mock("onnxruntime-web", () => ({
+vi.mock("onnxruntime-web/webgpu", () => ({
   InferenceSession: { create: mocks.create },
   Tensor: class {
     constructor(

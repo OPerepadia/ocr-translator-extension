@@ -169,7 +169,8 @@ async function verifyScriptModel(modelDir) {
 }
 
 async function main() {
-  // Match the runtime: default onnxruntime-web import + locally hosted jsep wasm.
+  // Node runs the plain WASM build; the extension's WebGPU build shares its
+  // CPU kernels.
   ort.env.wasm.wasmPaths =
     path.resolve("node_modules/onnxruntime-web/dist") + "/";
   ort.env.wasm.numThreads = 1;

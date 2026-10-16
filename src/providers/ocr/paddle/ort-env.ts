@@ -1,7 +1,8 @@
-// ONNX Runtime Web setup. The default build ships the "jsep" WASM, which
-// carries both WASM and WebGPU kernels, so both backends use the same hosted
-// files.
-import * as ort from "onnxruntime-web";
+// ONNX Runtime Web setup. The "webgpu" build ships the "asyncify" WASM, which
+// carries both the WASM kernels and the native WebGPU execution provider, so
+// both backends use the same hosted files. The default build uses the older
+// JSEP WebGPU kernels, which ONNX Runtime deprecated in 1.29.
+import * as ort from "onnxruntime-web/webgpu";
 
 import { hasWebGpuAdapter } from "../../../shared/webgpu";
 
