@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   pipelineStatusMessage,
   pipelineStatusProgress,
+  pipelineStatusShowsSpinner,
 } from "./pipeline-status";
 
 describe("pipelineStatusMessage", () => {
@@ -38,10 +39,26 @@ describe("pipelineStatusProgress", () => {
     ).toBe(1);
   });
 
-  it("leaves indeterminate stages without progress", () => {
+  it("leaves other stages without progress", () => {
     expect(pipelineStatusProgress({ stage: "translating" })).toBeUndefined();
+    expect(pipelineStatusProgress({ stage: "initializing" })).toBeUndefined();
+  });
+
+  it("starts recognition at zero before the first line", () => {
+    expect(pipelineStatusProgress({ stage: "recognizing" })).toBe(0);
     expect(
       pipelineStatusProgress({ stage: "recognizing", lineCount: 4 }),
-    ).toBeUndefined();
+    ).toBe(0);
+  });
+});
+
+describe("pipelineStatusShowsSpinner", () => {
+  it("hides the spinner only while recognizing", () => {
+    expect(pipelineStatusShowsSpinner({ stage: "loading" })).toBe(true);
+    expect(pipelineStatusShowsSpinner({ stage: "initializing" })).toBe(true);
+    expect(
+      pipelineStatusShowsSpinner({ stage: "recognizing", line: 1, lineCount: 4 }),
+    ).toBe(false);
+    expect(pipelineStatusShowsSpinner({ stage: "translating" })).toBe(true);
   });
 });

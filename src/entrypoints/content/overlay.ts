@@ -12,6 +12,7 @@ import {
   COPY_ICON,
   DRAG_HANDLE_ICON,
   PANEL_ICON,
+  RECOGNIZE_TEXT_ICON,
   RETRANSLATE_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
@@ -33,6 +34,7 @@ import {
 import {
   pipelineStatusMessage,
   pipelineStatusProgress,
+  pipelineStatusShowsSpinner,
 } from "./pipeline-status";
 import {
   buildOverlayLayout,
@@ -1555,6 +1557,10 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
   const spinner = document.createElement("div");
   spinner.className = "ocr-translate-overlay-spinner";
 
+  const icon = document.createElement("span");
+  icon.className = "ocr-translate-overlay-status-icon";
+  icon.innerHTML = RECOGNIZE_TEXT_ICON;
+
   const label = document.createElement("p");
   label.className = "ocr-translate-overlay-status-label";
 
@@ -1566,6 +1572,9 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
 
   updateLoadingChip = (next: PipelineStatus): void => {
     label.textContent = pipelineStatusMessage(next);
+    const showsSpinner = pipelineStatusShowsSpinner(next);
+    spinner.hidden = !showsSpinner;
+    icon.hidden = showsSpinner;
     const fraction = pipelineStatusProgress(next);
     progress.hidden = fraction === undefined;
     fill.style.transform = `scaleX(${fraction ?? 0})`;
@@ -1574,6 +1583,7 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
 
   chip.append(
     spinner,
+    icon,
     label,
     iconButton(CLOSE_ICON, t("commonClose"), closeOverlay),
     progress,

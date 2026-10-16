@@ -11,6 +11,7 @@ import {
   CLOSE_ICON,
   COPY_ICON,
   OVERLAY_ICON,
+  RECOGNIZE_TEXT_ICON,
   SELECT_REGION_ICON,
   SETTINGS_ICON,
   SPEAK_ICON,
@@ -28,6 +29,7 @@ import {
 import {
   pipelineStatusMessage,
   pipelineStatusProgress,
+  pipelineStatusShowsSpinner,
 } from "./pipeline-status";
 import { sendRequest } from "@/shared/runtime-messaging";
 import { t } from "@/shared/i18n";
@@ -278,9 +280,9 @@ export function showRecognizedTextWhileTranslating(
   renderPopup(() => [createRecognizedSection(), createTranslatingSection()]);
 }
 
-// A centered loading state: a spinner with the current stage below it, plus a
-// progress bar while lines are being recognized. Returns a patcher so callers
-// can update it without a re-render.
+// A centered loading state: a spinner (a static icon while recognizing) with the
+// current stage below it, plus a progress bar while lines are being recognized.
+// Returns a patcher so callers can update it without a re-render.
 function createLoading(status: PipelineStatus): {
   element: HTMLElement;
   update: (status: PipelineStatus) => void;
@@ -290,6 +292,10 @@ function createLoading(status: PipelineStatus): {
 
   const spinner = document.createElement("div");
   spinner.className = "ocr-translate-popup-spinner";
+
+  const icon = document.createElement("span");
+  icon.className = "ocr-translate-popup-loading-icon";
+  icon.innerHTML = RECOGNIZE_TEXT_ICON;
 
   const label = document.createElement("p");
   label.className = "ocr-translate-popup-loading-label";
@@ -302,13 +308,16 @@ function createLoading(status: PipelineStatus): {
 
   const update = (next: PipelineStatus): void => {
     label.textContent = pipelineStatusMessage(next);
+    const showsSpinner = pipelineStatusShowsSpinner(next);
+    spinner.hidden = !showsSpinner;
+    icon.hidden = showsSpinner;
     const fraction = pipelineStatusProgress(next);
     progress.hidden = fraction === undefined;
     fill.style.transform = `scaleX(${fraction ?? 0})`;
   };
   update(status);
 
-  wrapper.append(spinner, label, progress);
+  wrapper.append(spinner, icon, label, progress);
   return { element: wrapper, update };
 }
 
