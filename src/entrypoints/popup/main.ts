@@ -84,6 +84,9 @@ async function initPopup(): Promise<void> {
       title: (current) => t("panelTranslationProvider", current.label),
     });
     elements.displayMode.value = displayMode;
+    replaceSelectWithOptionPicker(elements.displayMode, {
+      title: (current) => `${t("popupResultMode")}: ${current.label}`,
+    });
 
     elements.controls.addEventListener("change", () => {
       const supportedLanguages = translationTargetLanguages(
