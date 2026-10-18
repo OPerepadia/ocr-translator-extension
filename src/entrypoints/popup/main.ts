@@ -31,6 +31,8 @@ import {
 import type { Settings } from "@/shared/types";
 import {
   LIVE_ICON,
+  OVERLAY_ICON,
+  PANEL_ICON,
   SETTINGS_ICON,
   translationProviderIcon,
 } from "@/entrypoints/content/icons";
@@ -54,6 +56,12 @@ async function initPopup(): Promise<void> {
   const elements = getPopupElements();
   elements.openSettings.innerHTML = SETTINGS_ICON;
   elements.liveTranslate.insertAdjacentHTML("afterbegin", LIVE_ICON);
+  for (const input of elements.displayModeInputs) {
+    input.insertAdjacentHTML(
+      "afterend",
+      input.value === "panel" ? PANEL_ICON : OVERLAY_ICON,
+    );
+  }
   elements.openSettings.addEventListener("click", () => {
     void openSettings(elements);
   });
