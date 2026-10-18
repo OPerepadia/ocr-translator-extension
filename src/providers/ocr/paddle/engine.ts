@@ -51,6 +51,7 @@ interface Manifest {
     unclipRatio: number;
     minBoxSize: number;
     padding: number;
+    splitThreshold?: number;
   };
   recognizer: {
     modelPath: string;
@@ -352,6 +353,7 @@ export class PaddleEngine {
       unclipRatio: det.unclipRatio,
       minBoxSize: det.minBoxSize,
       padding: det.padding,
+      splitThreshold: det.splitThreshold,
     };
     // Map back to the original bitmap via the actual map size (robust to rounding).
     return extractBoxes(

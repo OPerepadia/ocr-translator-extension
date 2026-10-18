@@ -25,6 +25,9 @@ export interface DbConfig {
   minBoxSize: number;
   /** Extra pixels added around each box after scaling to original coords. */
   padding: number;
+  /** Higher threshold used to pull apart a blob made of stacked lines, such as
+   * the side-by-side columns of a vertical speech bubble. Off when unset. */
+  splitThreshold?: number;
 }
 
 export interface DetectedBox {
@@ -55,28 +58,39 @@ export function extractBoxes(
 ): DetectedBox[] {
   const bitmap = binarize(probMap, cfg.threshold);
   const components = connectedComponents(bitmap, mapW, mapH);
+  const units: Unit[] =
+    cfg.splitThreshold === undefined
+      ? components.map((pixels) => ({ pixels, bitmap }))
+      : splitStackedLines(
+          probMap,
+          bitmap,
+          components,
+          cfg.splitThreshold,
+          mapW,
+          mapH,
+        );
   const boxes: DetectedBox[] = [];
 
-  for (const component of components) {
-    const boundary = boundaryPoints(component, bitmap, mapW, mapH);
+  const buildBox = ({ pixels, bitmap: unitBitmap }: Unit): DetectedBox | null => {
+    const boundary = boundaryPoints(pixels, unitBitmap, mapW, mapH);
     if (boundary.length < 4) {
-      continue;
+      return null;
     }
 
     const rect = minAreaRect(boundary);
     if (Math.min(rect.width, rect.height) < cfg.minBoxSize) {
-      continue;
+      return null;
     }
 
     const score = boxScore(probMap, mapW, mapH, rect.corners);
     if (score < cfg.boxThreshold) {
-      continue;
+      return null;
     }
 
     const expanded = unclip(rect.corners, cfg.unclipRatio);
     const expandedRect = minAreaRect(expanded);
     if (Math.min(expandedRect.width, expandedRect.height) < cfg.minBoxSize + 2) {
-      continue;
+      return null;
     }
 
     const quad = expandedRect.corners.map((p) =>
@@ -87,13 +101,121 @@ export function extractBoxes(
       height: originalHeight,
     });
     if (bbox.width < 1 || bbox.height < 1) {
-      continue;
+      return null;
     }
 
-    boxes.push({ quad, bbox, score });
+    return { quad, bbox, score };
+  };
+
+  for (const unit of units) {
+    // The split stands only if every part survives the same filters. Thin
+    // cores would otherwise take a valid blob down with them.
+    const parts = unit.parts?.map(buildBox);
+    if (parts && parts.every((box) => box !== null)) {
+      boxes.push(...parts);
+      continue;
+    }
+    const box = buildBox(unit);
+    if (box) {
+      boxes.push(box);
+    }
   }
 
   return boxes;
+}
+
+interface Unit {
+  pixels: number[];
+  bitmap: Uint8Array;
+  /** The blob's lines, when it is several pressed together. */
+  parts?: Unit[];
+}
+
+interface Span {
+  min: number;
+  max: number;
+}
+
+/** Splits blobs that are several lines pressed together, like the columns of
+ * a vertical speech bubble. Rebinarizes each blob at `splitThreshold` and
+ * offers the parts only if they stack across the blob's short axis. A line
+ * that merely breaks between glyphs stays whole. */
+function splitStackedLines(
+  probMap: Float32Array,
+  bitmap: Uint8Array,
+  components: number[][],
+  splitThreshold: number,
+  width: number,
+  height: number,
+): Unit[] {
+  const strict = binarize(probMap, splitThreshold);
+  const parentOf = new Int32Array(probMap.length).fill(-1);
+  components.forEach((pixels, id) => {
+    for (const index of pixels) {
+      parentOf[index] = id;
+    }
+  });
+
+  const partsOf = new Map<number, number[][]>();
+  for (const part of connectedComponents(strict, width, height)) {
+    const id = parentOf[part[0]];
+    const parts = partsOf.get(id);
+    if (parts) {
+      parts.push(part);
+    } else {
+      partsOf.set(id, [part]);
+    }
+  }
+
+  const units: Unit[] = [];
+  components.forEach((pixels, id) => {
+    const parts = partsOf.get(id) ?? [];
+    units.push({
+      pixels,
+      bitmap,
+      ...(isStackedLines(parts, width)
+        ? { parts: parts.map((part) => ({ pixels: part, bitmap: strict })) }
+        : {}),
+    });
+  });
+  return units;
+}
+
+function isStackedLines(parts: number[][], width: number): boolean {
+  if (parts.length < 2) {
+    return false;
+  }
+  const spans = parts.map((part) => {
+    const x: Span = { min: Infinity, max: -Infinity };
+    const y: Span = { min: Infinity, max: -Infinity };
+    for (const index of part) {
+      const px = index % width;
+      const py = (index - px) / width;
+      x.min = Math.min(x.min, px);
+      x.max = Math.max(x.max, px);
+      y.min = Math.min(y.min, py);
+      y.max = Math.max(y.max, py);
+    }
+    return { x, y };
+  });
+  const whole = (axis: "x" | "y"): Span => ({
+    min: Math.min(...spans.map((span) => span[axis].min)),
+    max: Math.max(...spans.map((span) => span[axis].max)),
+  });
+  const wholeX = whole("x");
+  const wholeY = whole("y");
+  const acrossX = wholeX.max - wholeX.min < wholeY.max - wholeY.min;
+  const across = spans.map((span) => (acrossX ? span.x : span.y));
+
+  const order = across.map((_, i) => i).sort((a, b) => across[a].min - across[b].min);
+  for (let i = 1; i < order.length; i++) {
+    const prev = order[i - 1];
+    const next = order[i];
+    if (across[next].min <= across[prev].max) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function binarize(probMap: Float32Array, threshold: number): Uint8Array {
