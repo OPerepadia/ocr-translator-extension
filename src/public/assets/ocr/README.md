@@ -2,20 +2,21 @@
 
 One folder per recognizer, each with its own `model-manifest.json`, `dict.txt`,
 `rec.onnx`, and a `SOURCES.md` recording where the model came from and its
-checksum. `ppocrv6-small` holds the detector shared by the standard script
-recognizers. `ppocrv6-manga` has its own detector. The provider runs the chosen
-detector first, crops the detected text lines, then runs its recognizer.
-
-`ppocrv6-manga` is a separate manga-trained detector and recognizer. Its
-source and conversion hashes are in its own `SOURCES.md`.
+checksum. `ppocrv6-small` also holds `det.onnx`, the text detector shared by
+the five standard recognizers. `ppocrv6-manga` has its own. The provider runs
+the detector first, crops the detected text lines, then runs the recognizer on
+each one.
 
 `src/providers/ocr/paddle/` loads these files at runtime.
 `src/providers/catalog.ts` maps each language to the folder that handles it.
 
 ## Where the files come from
 
-The original six models are official PaddlePaddle ONNX exports, downloaded as
-`.tar` archives. The manga variant comes from the model repository above.
+The six standard models are official PaddlePaddle ONNX exports, downloaded as
+`.tar` archives. `ppocrv6-manga` comes from
+[Kellenok/PP-OCRv6_manga](https://huggingface.co/Kellenok/PP-OCRv6_manga) as
+FP32 ONNX graphs. Its `dict.txt` is a copy of `ppocrv6-small/dict.txt`, and its
+manifest is hand-authored from the repo's example inference script.
 
 Every archive contains `inference.onnx` and `inference.yml`. The `.onnx`
 becomes `det.onnx` or `rec.onnx`, after the quantization below. What the `.yml`
@@ -26,9 +27,9 @@ feeds depends on which kind of archive it came from:
   for the recognizer block of the hand-authored `model-manifest.json`.
 - The detector archive (`PP-OCRv6_small_det_onnx_infer`) has no dictionary and
   no `dict.txt` of its own. Its `inference.yml` is the source for the detector
-  block, which every folder's `model-manifest.json` repeats.
+  block, which every standard folder's `model-manifest.json` repeats.
 
-Each `SOURCES.md` records its archive URL and three checksums: the archive,
+Each standard `SOURCES.md` records its archive URL and three checksums: the archive,
 the upstream `inference.onnx`, and the packaged files.
 
 The official model cards license these PaddlePaddle models under Apache-2.0.
@@ -37,20 +38,20 @@ See the top-level `THIRD_PARTY_NOTICES.md`.
 The recognizers emit `dict.txt` lines + 2 classes: the CTC blank, the dictionary
 entries, then space. Their output is already softmaxed.
 
-The manifests are near-identical by design. Each carries the same detector block,
-since the detector is shared — its DB post-process values (`threshold` 0.2,
-`boxThreshold` 0.45, `unclipRatio` 1.4) come from `DBPostProcess` in
-`PP-OCRv6_small_det_onnx_infer/inference.yml` — and the same recognizer
-preprocessing (`imageHeight` 48, mean/std 0.5). Only `version` and
+The five standard manifests are near-identical by design. Each carries the same
+detector block, since the detector is shared — its DB post-process values
+(`threshold` 0.2, `boxThreshold` 0.45, `unclipRatio` 1.4) come from
+`DBPostProcess` in `PP-OCRv6_small_det_onnx_infer/inference.yml` — and the same
+recognizer preprocessing (`imageHeight` 48, mean/std 0.5). Only `version` and
 `detector.modelPath` differ between them.
 
 ## Quantization
 
-The models are stored weight-only int8 and are not the upstream archive files
+The models are stored weight-only int8 and are not the upstream files
 verbatim. Each Conv/MatMul weight over 4096 elements is a per-output-channel
 int8 tensor plus a `DequantizeLinear` node, while activations
 and the compute ops stay float32. Smaller weights (94 tensors, 459 KB across the
-six files) stay float32, since the scale and zero-point tensors would cancel out
+six standard files) stay float32, since the scale and zero-point tensors would cancel out
 the saving. For the four PP-OCRv5 recognizers the conversion also rewrites the
 export from opset 7 to 13 and moves their `Constant`-node weights into
 initializers.
@@ -82,6 +83,9 @@ already-converted models is a no-op.
    (CTC blank + dict + space), and the recognizer output is already softmaxed.
 6. Run `npm test && npm run build`.
 
+For `ppocrv6-manga`, replace both `det.onnx` and `rec.onnx`, take manifest
+values from the inference script instead of `inference.yml`, and keep `dict.txt`.
+
 Both scripts default to every packaged model when given no directory.
 
 ## Updating the shared detector
@@ -99,8 +103,10 @@ not supply — plus three things it does not cover.
 - Refresh `det.onnx` in `ppocrv6-small/SOURCES.md` (`sha256sum det.onnx`, on top
   of the recognizer hashes), and the `model-manifest.json` hash in every folder whose
   manifest you touched.
-- Run `npm run verify:models` with no directory, so every folder loads the new
-  detector through its own relative path.
+- Run `npm run verify:models` with no directory, so every standard folder loads
+  the new detector through its own relative path.
+
+`ppocrv6-manga` has its own detector and is not affected.
 
 ## Why not the standard int8 recipes
 
