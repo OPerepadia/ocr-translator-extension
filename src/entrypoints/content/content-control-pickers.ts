@@ -44,6 +44,17 @@ export function createOcrSourceLanguagePicker(
   });
 }
 
+export function createOcrProviderPicker(
+  controls: ContentControls,
+): ContentControlPicker | undefined {
+  return createOptionPicker({
+    options: controls.ocrProviders,
+    currentId: controls.currentOcrProviderId,
+    title: (current) => t("panelOcrModel", current.label),
+    onSelect: controls.selectOcrProvider,
+  });
+}
+
 export function createTargetLanguagePicker(args: {
   controls: ContentControls;
   target: LangCode | undefined;

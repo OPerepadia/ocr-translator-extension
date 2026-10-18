@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DetectedBox } from "./db-postprocess";
 import {
+  hasMajorityScript,
   chooseScript,
   decodeScriptScores,
   rankRepresentativeBoxes,
@@ -233,5 +234,35 @@ describe("representative script-classifier boxes", () => {
     );
 
     expect(rankRepresentativeBoxes(boxes, 1000, 400)).toHaveLength(3);
+  });
+});
+
+describe("hasMajorityScript", () => {
+  const prediction = (
+    counts: Partial<Record<"general" | "cyrillic", number>>,
+    totalEmissions: number,
+  ) => {
+    const full = { general: 0, cyrillic: 0, hangul: 0, arabic: 0, devanagari: 0, ...counts };
+    const evidence = Math.max(...Object.values(full));
+    return {
+      script: "cyrillic" as const,
+      decisive: false,
+      probeCount: 1,
+      evidence,
+      voteRatio: evidence / totalEmissions,
+      confidence: 0.4,
+      counts: full,
+      rawCounts: {},
+    };
+  };
+
+  it("accepts a clear majority despite low confidence", () => {
+    expect(hasMajorityScript(prediction({ cyrillic: 13, general: 2 }, 15))).toBe(true);
+  });
+
+  it("rejects a split vote or too little evidence", () => {
+    expect(hasMajorityScript(prediction({ cyrillic: 6, general: 6 }, 12))).toBe(false);
+    expect(hasMajorityScript(prediction({ cyrillic: 6, general: 4 }, 10))).toBe(false);
+    expect(hasMajorityScript(prediction({ cyrillic: 1 }, 1))).toBe(false);
   });
 });

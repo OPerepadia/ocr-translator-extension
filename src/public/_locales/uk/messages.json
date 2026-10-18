@@ -374,6 +374,33 @@
   "panelTranslationProvider": {
     "message": "Сервіс перекладу: $1"
   },
+  "optionsOcrModel": {
+    "message": "Модель розпізнавання"
+  },
+  "panelOcrModel": {
+    "message": "Модель розпізнавання: $1"
+  },
+  "errorOcrScriptUnsupported": {
+    "message": "Вибрана модель розпізнавання не підтримує цю писемність: $1."
+  },
+  "panelRecognizeWithModel": {
+    "message": "Розпізнати за допомогою $1"
+  },
+  "optionsOcrModelBuiltIn": {
+    "message": "Вбудована"
+  },
+  "optionsOcrModelStandardPurpose": {
+    "message": "Універсальна"
+  },
+  "optionsOcrModelStandardScripts": {
+    "message": "Широка підтримка мов"
+  },
+  "optionsOcrModelMangaPurpose": {
+    "message": "Донавчена на манзі"
+  },
+  "optionsOcrModelMangaScripts": {
+    "message": "Японська, китайська, латиниця"
+  },
   "panelTranslationHeading": {
     "message": "Переклад"
   },

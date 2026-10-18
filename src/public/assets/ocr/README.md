@@ -2,18 +2,20 @@
 
 One folder per recognizer, each with its own `model-manifest.json`, `dict.txt`,
 `rec.onnx`, and a `SOURCES.md` recording where the model came from and its
-checksum. `ppocrv6-small` also holds `det.onnx`, the text detector, which every
-recognizer shares — detection finds text boxes and does not depend on the
-script. The provider runs the detector first, crops the detected text lines,
-then runs the recognizer on each one.
+checksum. `ppocrv6-small` holds the detector shared by the standard script
+recognizers. `ppocrv6-manga` has its own detector. The provider runs the chosen
+detector first, crops the detected text lines, then runs its recognizer.
+
+`ppocrv6-manga` is a separate manga-trained detector and recognizer. Its
+source and conversion hashes are in its own `SOURCES.md`.
 
 `src/providers/ocr/paddle/` loads these files at runtime.
 `src/providers/catalog.ts` maps each language to the folder that handles it.
 
 ## Where the files come from
 
-All six models are official PaddlePaddle ONNX exports, downloaded as `.tar`
-archives.
+The original six models are official PaddlePaddle ONNX exports, downloaded as
+`.tar` archives. The manga variant comes from the model repository above.
 
 Every archive contains `inference.onnx` and `inference.yml`. The `.onnx`
 becomes `det.onnx` or `rec.onnx`, after the quantization below. What the `.yml`
@@ -84,13 +86,13 @@ Both scripts default to every packaged model when given no directory.
 
 ## Updating the shared detector
 
-`det.onnx` is not `ppocrv6-small`'s alone: all five folders point at it and all
-five manifests carry a copy of its settings. Replacing it is the procedure above
+`ppocrv6-small/det.onnx` is shared by the five standard recognizers. Their
+manifests carry a copy of its settings. Replacing it is the procedure above
 applied to `ppocrv6-small` — minus `dict.txt`, which the detector archive does
 not supply — plus three things it does not cover.
 
 - Diff the new archive's `inference.yml` against the detector block and copy any
-  changed value into **all five** `model-manifest.json` files. `verify:models` prints
+  changed value into those **five** `model-manifest.json` files. `verify:models` prints
   these values but never compares them against `inference.yml` or across folders,
   so a manifest still holding the old detector's `DBPostProcess` thresholds
   passes every check and silently degrades detection.

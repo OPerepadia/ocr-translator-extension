@@ -21,6 +21,7 @@ import {
 import { createActionMenu, type ActionMenu } from "./action-menu";
 import { languageName } from "./language-picker";
 import {
+  createOcrProviderPicker,
   createOcrSourceLanguagePicker,
   createTargetLanguagePicker,
   createTranslationProviderPicker,
@@ -357,17 +358,18 @@ export function showResult(result: PipelineResult): void {
 export function showError(
   error: SerializedError,
   onRetry?: () => void,
+  retryLabel?: string,
 ): void {
   setRecognizedReadOnly(false);
   renderPopup(() =>
     currentOcrText
       ? [
           createRecognizedSection(),
-          createTranslationError(error.message, onRetry),
+          createTranslationError(error.message, onRetry, retryLabel),
         ]
       : [
           createErrorMessage(error.message),
-          ...(onRetry ? [createRetryButton(onRetry)] : []),
+          ...(onRetry ? [createRetryButton(onRetry, retryLabel)] : []),
         ],
   );
 }
@@ -570,8 +572,8 @@ function createSourceBadge(source: LangCode | undefined): HTMLElement {
   return badge;
 }
 
-// The extras shown next to the "Source text" heading: the source-language
-// picker plus the detected-language badge.
+// The extras shown next to the "Source text" heading: the source-language and
+// OCR model pickers plus the detected-language badge.
 function createRecognizedExtras(): HTMLElement {
   const badge = createSourceBadge(currentSourceLang);
   const picker = mountControlPicker(
@@ -579,10 +581,16 @@ function createRecognizedExtras(): HTMLElement {
       ? createOcrSourceLanguagePicker(config.controls, { position: "auto" })
       : undefined,
   );
+  const modelPicker = mountControlPicker(
+    config ? createOcrProviderPicker(config.controls) : undefined,
+  );
   const wrapper = document.createElement("div");
   wrapper.className = "ocr-translate-popup-recognized-extras";
   if (picker) {
     wrapper.append(picker);
+  }
+  if (modelPicker) {
+    wrapper.append(modelPicker);
   }
   wrapper.append(badge);
   return wrapper;
@@ -810,6 +818,7 @@ function createTranslationNotice(message: string): HTMLElement {
 function createTranslationError(
   message: string,
   onRetry?: () => void,
+  retryLabel?: string,
 ): HTMLElement {
   const section = document.createElement("section");
   section.className = "ocr-translate-popup-section ocr-translate-popup-text";
@@ -818,17 +827,20 @@ function createTranslationError(
   const retryAction =
     onRetry ??
     (target ? () => config?.controls.selectTargetLanguage(target) : undefined);
-  const retry = createRetryButton(retryAction);
+  const retry = createRetryButton(retryAction, retryLabel);
 
   section.append(createTranslationHeader(), createErrorMessage(message), retry);
   return section;
 }
 
-function createRetryButton(onRetry?: () => void): HTMLButtonElement {
+function createRetryButton(
+  onRetry?: () => void,
+  label = t("commonRetry"),
+): HTMLButtonElement {
   const retry = document.createElement("button");
   retry.type = "button";
   retry.className = "ocr-translate-popup-retry";
-  retry.textContent = t("commonRetry");
+  retry.textContent = label;
   retry.disabled = !onRetry;
   if (onRetry) {
     retry.addEventListener("click", onRetry, { once: true });

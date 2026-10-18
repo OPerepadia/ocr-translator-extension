@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoOcrModels,
   DEFAULT_OCR_MODEL_ID,
   COMMON_OCR_SOURCE_LANGUAGES,
   OCR_MODELS,
   OCR_SOURCE_LANGUAGES,
+  ocrSourceLanguagesForProvider,
   TRANSLATION_PROVIDERS,
   resolveOcrModelDir,
   resolveOcrModelIdForSourceLanguage,
@@ -82,6 +84,7 @@ describe("OCR source languages", () => {
       "hangul",
       "arabic",
       "devanagari",
+      "general",
     ]);
   });
 
@@ -96,5 +99,50 @@ describe("OCR source languages", () => {
       false,
     );
     expect(resolveOcrSourceLanguage("ab").id).toBe("auto");
+  });
+});
+
+describe("manga OCR provider", () => {
+  it("offers only the languages its recognizer can read", () => {
+    const ids = ocrSourceLanguagesForProvider("paddle-manga").map(({ id }) => id);
+    expect(ids).toContain("auto");
+    expect(ids).toContain("ja");
+    expect(ids).toContain("en");
+    expect(ids).not.toContain("ru");
+    expect(ids).not.toContain("ko");
+    expect(ocrSourceLanguagesForProvider("paddle")).toBe(
+      COMMON_OCR_SOURCE_LANGUAGES,
+    );
+  });
+
+  it("swaps the general recognizer for the manga one", () => {
+    expect(resolveOcrModelIdForSourceLanguage("ja", "paddle-manga")).toBe(
+      "v6-manga",
+    );
+    expect(resolveOcrModelIdForSourceLanguage("auto", "paddle-manga")).toBe(
+      "v6-manga",
+    );
+    expect(resolveOcrModelIdForSourceLanguage("ja", "paddle")).toBe("v6-multi");
+    expect(resolveOcrModelDir("v6-manga")).toBe("assets/ocr/ppocrv6-manga/");
+  });
+
+  it("falls back to Auto for a language the manga recognizer can't read", () => {
+    expect(resolveOcrSourceLanguage("ru", "paddle-manga").id).toBe("auto");
+    expect(resolveOcrModelIdForSourceLanguage("ru", "paddle-manga")).toBe(
+      "v6-manga",
+    );
+  });
+
+  it("keeps the manga model alone in Auto", () => {
+    expect(autoOcrModels("paddle").map(({ id }) => id)).toEqual([
+      "v6-multi",
+      "cyrillic-v5",
+      "korean-v5",
+      "arabic-v5",
+      "devanagari-v5",
+    ]);
+    expect(autoOcrModels("paddle-manga").map(({ id }) => id)).toEqual([
+      "v6-manga",
+    ]);
   });
 });

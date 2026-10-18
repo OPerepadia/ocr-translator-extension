@@ -152,6 +152,65 @@ select {
   justify-self: end;
 }
 
+/* The first fieldset here, so it also matches .field:nth-of-type(1). */
+.popup-fields > .display-mode-field {
+  grid-area: auto / 1 / auto / -1;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.display-mode-field > legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 2px;
+  background: var(--hover-bg);
+}
+
+.segmented label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Invisible but focusable, so arrow keys still move between the options. */
+.segmented input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented label:hover {
+  color: var(--text);
+}
+
+.segmented label:has(input:checked) {
+  background: var(--control-bg);
+  box-shadow: 0 0 0 1px var(--border-strong);
+  color: var(--text);
+}
+
+.segmented label:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .direction {
   z-index: 1;
   grid-column: 1 / 3;

@@ -38,7 +38,7 @@ interface OcrResponse {
       text?: string;
     };
   };
-  error?: { message?: string };
+  error?: { message?: string; name?: string };
 }
 
 interface OcrCase {
@@ -215,6 +215,77 @@ test("initializes the offscreen OCR host and runs local recognition", async () =
         },
       });
     }
+  } finally {
+    await context.close();
+  }
+});
+
+test("runs the manga model and reports scripts it can't read in Auto", async () => {
+  const context = await launchExtensionContext();
+  try {
+    const serviceWorker = await findServiceWorker(context);
+    const extensionId = new URL(serviceWorker.url()).host;
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId}/popup.html`);
+    const responses = (await page.evaluate(async () => {
+      const extensionApi = (
+        globalThis as typeof globalThis & {
+          chrome: {
+            runtime: { sendMessage(message: unknown): Promise<unknown> };
+            storage: {
+              local: { set(values: Record<string, unknown>): Promise<void> };
+            };
+          };
+        }
+      ).chrome;
+      // An unreachable local endpoint keeps the text on this machine; its
+      // failure is reported as a translation status, not an OCR error.
+      await extensionApi.storage.local.set({
+        settings: {
+          ocr: { providerId: "paddle-manga", sourceLang: "auto" },
+          translation: {
+            providerId: "openai",
+            targetLang: "en",
+            llm: { baseUrl: "http://127.0.0.1:9/v1" },
+          },
+        },
+      });
+      const recognize = (text: string, requestId: string) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 500;
+        canvas.height = 128;
+        const drawing = canvas.getContext("2d")!;
+        drawing.fillStyle = "white";
+        drawing.fillRect(0, 0, canvas.width, canvas.height);
+        drawing.fillStyle = "black";
+        drawing.font = "bold 56px sans-serif";
+        drawing.fillText(text, 16, 80);
+        return extensionApi.runtime.sendMessage({
+          type: "OCR_TRANSLATE_REQUEST",
+          requestId,
+          imageUrl: canvas.toDataURL("image/png"),
+        });
+      };
+      return [
+        await recognize("こんにちは", "manga-model-japanese"),
+        await recognize("Пример текста", "manga-model-cyrillic"),
+      ];
+    })) as OcrResponse[];
+
+    const [japanese, cyrillic] = responses;
+    if (!japanese.ok) {
+      throw new Error(japanese.error?.message ?? "The OCR request failed.");
+    }
+    expect(japanese.value?.ocr?.providerMeta?.modelId).toBe("v6-manga");
+    expect(japanese.value?.ocr?.text).toContain("こんにちは");
+    expect(cyrillic).toMatchObject({
+      ok: false,
+      error: {
+        name: "UnsupportedScriptError",
+        message:
+          "The selected recognition model doesn't support this script: Cyrillic.",
+      },
+    });
   } finally {
     await context.close();
   }

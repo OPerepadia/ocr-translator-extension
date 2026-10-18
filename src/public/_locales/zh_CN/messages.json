@@ -374,6 +374,33 @@
   "panelTranslationProvider": {
     "message": "翻译服务：$1"
   },
+  "optionsOcrModel": {
+    "message": "识别模型"
+  },
+  "panelOcrModel": {
+    "message": "识别模型：$1"
+  },
+  "errorOcrScriptUnsupported": {
+    "message": "所选识别模型不支持此文字：$1"
+  },
+  "panelRecognizeWithModel": {
+    "message": "使用 $1 识别"
+  },
+  "optionsOcrModelBuiltIn": {
+    "message": "内置"
+  },
+  "optionsOcrModelStandardPurpose": {
+    "message": "通用"
+  },
+  "optionsOcrModelStandardScripts": {
+    "message": "广泛的语言支持"
+  },
+  "optionsOcrModelMangaPurpose": {
+    "message": "针对漫画微调"
+  },
+  "optionsOcrModelMangaScripts": {
+    "message": "日文、中文、拉丁字母"
+  },
   "panelTranslationHeading": {
     "message": "译文"
   },

@@ -2,6 +2,7 @@
 // recognition off the background thread.
 
 import { PaddleEngine } from "./paddle/engine";
+import { UNSUPPORTED_SCRIPT_ERROR } from "./types";
 import {
   serializeError,
   type WorkerRequest,
@@ -83,7 +84,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       type: "error",
       id: message.id,
       error: serializeError(error),
-      fatal: message.type === "recognize",
+      // An unsupported script is an answer about the image, not a broken engine.
+      fatal:
+        message.type === "recognize" &&
+        !(error instanceof Error && error.name === UNSUPPORTED_SCRIPT_ERROR),
     });
   }
 };

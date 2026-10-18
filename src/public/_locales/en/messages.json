@@ -425,6 +425,36 @@
     "message": "Translation provider: $1",
     "description": "$1 is the translation provider's display name."
   },
+  "optionsOcrModel": {
+    "message": "Recognition model"
+  },
+  "panelOcrModel": {
+    "message": "Recognition model: $1",
+    "description": "$1 is the OCR model's display name."
+  },
+  "errorOcrScriptUnsupported": {
+    "message": "The selected recognition model doesn't support this script: $1.",
+    "description": "$1 is a script name, such as Cyrillic."
+  },
+  "panelRecognizeWithModel": {
+    "message": "Recognize with $1",
+    "description": "$1 is an OCR model name, such as PP-OCRv6 / v5."
+  },
+  "optionsOcrModelBuiltIn": {
+    "message": "Built in"
+  },
+  "optionsOcrModelStandardPurpose": {
+    "message": "General purpose"
+  },
+  "optionsOcrModelStandardScripts": {
+    "message": "Wide language support"
+  },
+  "optionsOcrModelMangaPurpose": {
+    "message": "Fine-tuned on manga"
+  },
+  "optionsOcrModelMangaScripts": {
+    "message": "Japanese, Chinese, Latin"
+  },
   "panelTranslationHeading": {
     "message": "Translation",
     "description": "Heading above the translated text."

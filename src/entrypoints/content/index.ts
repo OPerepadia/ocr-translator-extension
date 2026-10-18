@@ -13,6 +13,8 @@ import type {
   TranslationProvidersResponse,
 } from "@/shared/messages";
 import { base64ToBlob } from "@/shared/image";
+import { DEFAULT_OCR_PROVIDER_ID } from "@/providers/catalog";
+import { UNSUPPORTED_SCRIPT_ERROR } from "@/providers/ocr/types";
 import type {
   LangCode,
   PipelineOcrResult,
@@ -36,6 +38,7 @@ import type { ContentControls } from "./content-controls";
 import { translationProviderIcon } from "./icons";
 import {
   initializeI18n,
+  ocrProviderLabel,
   t,
   translationProviderLabel,
   uiDirection,
@@ -127,6 +130,7 @@ const contentControls: ContentControls = {
   targetLanguages: [],
   ocrSourceLanguages: [],
   currentOcrSourceLanguageId: "auto",
+  ocrProviders: [],
   translationProviders: [],
   selectTargetLanguage: (targetLang) => {
     void runRetranslate(targetLang);
@@ -134,6 +138,10 @@ const contentControls: ContentControls = {
   selectOcrSourceLanguage: (sourceLang) => {
     contentControls.currentOcrSourceLanguageId = sourceLang;
     void runRerecognize(sourceLang);
+  },
+  selectOcrProvider: (providerId) => {
+    contentControls.currentOcrProviderId = providerId;
+    void runRerecognize(contentControls.currentOcrSourceLanguageId, providerId);
   },
   selectTranslationProvider: (providerId) => {
     contentControls.currentTranslationProviderId = providerId;
@@ -813,14 +821,27 @@ function presentError(
   error: ReturnType<typeof serializeError>,
   options: {
     retry?: () => void;
+    retryLabel?: string;
     showSourceLanguageToolbar?: boolean;
   } = {},
 ): void {
+  if (error.name === UNSUPPORTED_SCRIPT_ERROR) {
+    // The standard model has a recognizer for every script Auto detects.
+    options = {
+      ...options,
+      retry: () => contentControls.selectOcrProvider(DEFAULT_OCR_PROVIDER_ID),
+      retryLabel: t(
+        "panelRecognizeWithModel",
+        ocrProviderLabel(DEFAULT_OCR_PROVIDER_ID),
+      ),
+    };
+  }
   if (activeView === "overlay" && lastRect) {
     showOverlayError({
       rect: lastRect,
       message: error.message,
       onRetry: options.retry,
+      retryLabel: options.retryLabel,
       onOpenSettings: () => {
         void sendRequest({ type: "OPEN_OPTIONS" });
       },
@@ -830,7 +851,7 @@ function presentError(
   }
   activeView = "panel";
   closeOverlay();
-  showError(error, options.retry);
+  showError(error, options.retry, options.retryLabel);
   syncPanelRegionOutline();
 }
 
@@ -982,24 +1003,35 @@ async function runRetranslate(targetLang: LangCode): Promise<void> {
   });
 }
 
-// Re-run OCR on the last captured image for a different source language. The
-// background also saves it as the default for future captures.
-async function runRerecognize(sourceLang: LangCode | "auto"): Promise<void> {
+// Re-run OCR on the last captured image for a different source language or OCR
+// model. The background also saves both as the defaults for future captures.
+async function runRerecognize(
+  sourceLang: LangCode | "auto",
+  ocrProviderId?: string,
+): Promise<void> {
   await requestRunner.run({
     onStart: () => showActiveLoading(),
-    request: (requestId) =>
-      sendRequest<PipelineResult>({
+    request: async (requestId) => {
+      const result = await sendRequest<PipelineResult>({
         type: "RERECOGNIZE_REQUEST",
         requestId,
         sourceLang,
-      }),
+        ocrProviderId,
+      });
+      if (ocrProviderId && requestRunner.activeRequestId === requestId) {
+        // The new model may read a different set of languages, and the
+        // background resets a language it can't read to Auto.
+        await loadOcrSourceLanguages();
+      }
+      return result;
+    },
     onSuccess: (result) => {
       pendingText = result.ocr.text;
       presentResult(result, false);
     },
     onError: (error) => {
       presentError(serializeError(error), {
-        retry: () => void runRerecognize(sourceLang),
+        retry: () => void runRerecognize(sourceLang, ocrProviderId),
         showSourceLanguageToolbar: true,
       });
     },
@@ -1050,6 +1082,11 @@ async function loadOcrSourceLanguages(): Promise<string | undefined> {
       }));
       contentControls.ocrSourceLanguages = languages;
       contentControls.currentOcrSourceLanguageId = response.currentId;
+      contentControls.ocrProviders = (response.providers ?? []).map(({ id }) => ({
+        id,
+        label: ocrProviderLabel(id),
+      }));
+      contentControls.currentOcrProviderId = response.currentProviderId;
       return response.currentId;
     }
   } catch {

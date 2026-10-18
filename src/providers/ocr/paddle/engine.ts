@@ -28,7 +28,9 @@ import {
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
 import type { InitRequest, WorkerModelConfig } from "./protocol";
 import { groupAsSingleRegion, RegionGrouper } from "./region-grouper";
+import { UNSUPPORTED_SCRIPT_ERROR } from "../types";
 import {
+  hasMajorityScript,
   ScriptClassifier,
   type ScriptPrediction,
 } from "./script-classifier";
@@ -111,6 +113,7 @@ export class PaddleEngine {
     private readonly regionGrouper: RegionGrouper,
     private readonly backend: OrtBackend,
     private readonly debug: boolean,
+    private readonly detectsScripts: boolean,
   ) {}
 
   static async create(options: EngineOptions): Promise<PaddleEngine> {
@@ -192,6 +195,7 @@ export class PaddleEngine {
       regionGrouper,
       backend,
       debug,
+      Boolean(options.scriptModelBaseUrl),
     );
   }
 
@@ -229,7 +233,7 @@ export class PaddleEngine {
       const sourceImageData = boxes.length > 0 ? bitmapToImageData(bitmap) : null;
       const modelId = options.modelId ?? this.primaryModelId;
       const auto =
-        sourceLang === "auto" && !options.modelId && this.modelOptions.size > 1;
+        sourceLang === "auto" && !options.modelId && this.detectsScripts;
       const autoRecognition = auto
         ? await this.recognizeAuto(
             sourceImageData,
@@ -391,6 +395,17 @@ export class PaddleEngine {
         )
       : undefined;
     const modelId = model?.id ?? this.primaryModelId;
+    // A recognizer without a dictionary for the script would only produce
+    // look-alike characters.
+    if (
+      !model &&
+      scriptDetection?.script &&
+      hasMajorityScript(scriptDetection)
+    ) {
+      const error = new Error(scriptDetection.script);
+      error.name = UNSUPPORTED_SCRIPT_ERROR;
+      throw error;
+    }
 
     if (this.debug) {
       if (model && scriptDetection) {

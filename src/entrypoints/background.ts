@@ -13,7 +13,7 @@ import {
 } from "@/background/offscreen-host";
 import { startRouter } from "@/background/router";
 import {
-  OCR_MODELS,
+  autoOcrModels,
   resolveOcrModel,
   resolveOcrModelIdForSourceLanguage,
   resolveOcrSourceLanguage,
@@ -80,7 +80,9 @@ function createOcrProvider(settings: Settings["ocr"]): OcrProvider {
   const config = {
     ...settings,
     model,
-    additionalModels: isAutoOcr(settings) ? OCR_MODELS : undefined,
+    additionalModels: isAutoOcr(settings)
+      ? autoOcrModels(settings.providerId)
+      : undefined,
     resolveUrl: getUrl,
     // A Chrome service worker cannot spawn the worker itself, so there the
     // engine is hosted by an offscreen document.
@@ -114,12 +116,15 @@ function ocrProviderCacheKey(settings: Settings["ocr"]): string {
 
 function ocrModel(settings: Settings["ocr"]) {
   return resolveOcrModel(
-    resolveOcrModelIdForSourceLanguage(settings.sourceLang),
+    resolveOcrModelIdForSourceLanguage(settings.sourceLang, settings.providerId),
   );
 }
 
 function isAutoOcr(settings: Settings["ocr"]): boolean {
-  return resolveOcrSourceLanguage(settings.sourceLang).id === "auto";
+  return (
+    resolveOcrSourceLanguage(settings.sourceLang, settings.providerId).id ===
+    "auto"
+  );
 }
 
 // Cache the translation provider so repeated requests reuse its configuration.

@@ -169,7 +169,10 @@ async function recognizeLiveImage(
   minLineThickness: number,
   signal: AbortSignal,
 ): Promise<LiveImageResponse> {
-  const { sourceLang } = resolveOcrSourceLanguage(settings.ocr.sourceLang);
+  const { sourceLang } = resolveOcrSourceLanguage(
+    settings.ocr.sourceLang,
+    settings.ocr.providerId,
+  );
   const auto = sourceLang === "auto";
   const modelId = sessions.get(sessionId)?.modelId;
   const recognized = await dependencies
@@ -224,7 +227,10 @@ export async function handleLiveTranslateRequest(
     translationProvider: dependencies.createTranslationProvider(
       settings.translation,
     ),
-    sourceLang: resolveTranslationSourceLanguage(settings.ocr.sourceLang),
+    sourceLang: resolveTranslationSourceLanguage(
+      settings.ocr.sourceLang,
+      settings.ocr.providerId,
+    ),
     targetLang: settings.translation.targetLang,
     context: message.context,
     detectLanguage: dependencies.detectLanguage,

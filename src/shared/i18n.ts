@@ -84,6 +84,18 @@ export function uiDirection(): "ltr" | "rtl" {
   return browser.i18n.getMessage("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
 }
 
+// Model names are proper nouns, so they are not translated.
+export function ocrProviderLabel(id: string): string {
+  switch (id) {
+    case "paddle":
+      return "PP-OCRv6 / v5";
+    case "paddle-manga":
+      return "PP-OCRv6 Manga";
+    default:
+      return id;
+  }
+}
+
 export function translationProviderLabel(id: string): string {
   switch (id) {
     case "google":

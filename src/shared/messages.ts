@@ -115,14 +115,16 @@ export type RuntimeMessage =
       targetLang: LangCode;
     }
   // Content -> background: re-run OCR on the last captured image for a different
-  // source language, then translate. The background chooses the recognizer and
-  // saves the language as the default for future captures. The pixels stay in
+  // source language or OCR model, then translate. The background chooses the
+  // recognizer and saves both as the defaults for future captures. A language
+  // the new model can't read falls back to Auto. The pixels stay in
   // the background's capture store: Chrome serializes messages as JSON, so a
   // Blob would not survive the trip.
   | {
       type: "RERECOGNIZE_REQUEST";
       requestId: string;
       sourceLang: LangCode | "auto";
+      ocrProviderId?: string;
     }
   // Content -> background: switch the active translation provider (picked in the
   // panel) and re-translate already-recognized text with it. Persists the
@@ -185,8 +187,11 @@ export type RuntimeMessage =
     };
 
 export interface OcrSourceLanguagesResponse {
+  /** The languages the current OCR provider can read. */
   languages: Array<{ id: string }>;
   currentId: string;
+  providers: Array<{ id: string }>;
+  currentProviderId: string;
 }
 
 export interface TranslationProvidersResponse {

@@ -1,5 +1,7 @@
 import {
-  COMMON_OCR_SOURCE_LANGUAGES,
+  findOcrSourceLanguage,
+  OCR_PROVIDERS,
+  ocrSourceLanguagesForProvider,
   TRANSLATION_PROVIDERS,
 } from "@/providers/catalog";
 import {
@@ -15,6 +17,7 @@ import { browser } from "wxt/browser";
 import {
   initializeI18n,
   localizeMarkedElements,
+  ocrProviderLabel,
   t,
   translationProviderLabel,
 } from "@/shared/i18n";
@@ -66,10 +69,14 @@ async function initPopup(): Promise<void> {
 
     fillLanguageSelect(
       elements.sourceLanguage,
-      COMMON_OCR_SOURCE_LANGUAGES.map(({ id }) => id),
+      ocrSourceLanguagesForProvider(settings.ocr.providerId).map(({ id }) => id),
       settings.ocr.sourceLang ?? "auto",
       true,
     );
+    fillOcrProviderSelect(elements.ocrProvider, settings.ocr.providerId);
+    replaceSelectWithOptionPicker(elements.ocrProvider, {
+      title: (current) => t("panelOcrModel", current.label),
+    });
     fillLanguageSelect(
       elements.targetLanguage,
       translationTargetLanguages(settings.translation.providerId),
@@ -83,12 +90,23 @@ async function initPopup(): Promise<void> {
       icon: translationProviderIcon,
       title: (current) => t("panelTranslationProvider", current.label),
     });
-    elements.displayMode.value = displayMode;
-    replaceSelectWithOptionPicker(elements.displayMode, {
-      title: (current) => `${t("popupResultMode")}: ${current.label}`,
-    });
+    for (const input of elements.displayModeInputs) {
+      input.checked = input.value === displayMode;
+    }
 
     elements.controls.addEventListener("change", () => {
+      const ocrProviderId = elements.ocrProvider.value;
+      if (ocrProviderId !== currentSettings.ocr.providerId) {
+        // Keep the language when the new model can read it.
+        fillLanguageSelect(
+          elements.sourceLanguage,
+          ocrSourceLanguagesForProvider(ocrProviderId).map(({ id }) => id),
+          findOcrSourceLanguage(elements.sourceLanguage.value, ocrProviderId)
+            ? elements.sourceLanguage.value
+            : "auto",
+          true,
+        );
+      }
       const supportedLanguages = translationTargetLanguages(
         elements.translationProvider.value,
       );
@@ -101,6 +119,7 @@ async function initPopup(): Promise<void> {
         ...currentSettings,
         ocr: {
           ...currentSettings.ocr,
+          providerId: ocrProviderId,
           sourceLang: elements.sourceLanguage.value,
         },
         translation: {
@@ -188,6 +207,21 @@ function fillLanguageSelect(
   );
 }
 
+function fillOcrProviderSelect(
+  select: HTMLSelectElement,
+  selected: string,
+): void {
+  select.replaceChildren(
+    ...OCR_PROVIDERS.map(({ id }) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = ocrProviderLabel(id);
+      option.selected = id === selected;
+      return option;
+    }),
+  );
+}
+
 function fillProviderSelect(
   select: HTMLSelectElement,
   selected: string,
@@ -209,8 +243,11 @@ function fillProviderSelect(
 
 function queuePopupSave(elements: PopupElements): void {
   const nextSettings = currentSettings;
-  const nextDisplayMode: DisplayMode =
-    elements.displayMode.value === "panel" ? "panel" : "overlay";
+  const nextDisplayMode: DisplayMode = elements.displayModeInputs.some(
+    (input) => input.checked && input.value === "panel",
+  )
+    ? "panel"
+    : "overlay";
   pendingSave = pendingSave.catch(() => {}).then(async () => {
     await settingsRepository.set(nextSettings);
     await setDisplayMode(nextDisplayMode);
@@ -358,8 +395,9 @@ interface PopupElements {
   controls: HTMLFieldSetElement;
   sourceLanguage: HTMLSelectElement;
   targetLanguage: HTMLSelectElement;
+  ocrProvider: HTMLSelectElement;
   translationProvider: HTMLSelectElement;
-  displayMode: HTMLSelectElement;
+  displayModeInputs: HTMLInputElement[];
   openSettings: HTMLButtonElement;
   selectArea: HTMLButtonElement;
   liveTranslate: HTMLButtonElement;
@@ -373,11 +411,16 @@ function getPopupElements(): PopupElements {
     controls: requiredElement("controls", HTMLFieldSetElement),
     sourceLanguage: requiredElement("source-language", HTMLSelectElement),
     targetLanguage: requiredElement("target-language", HTMLSelectElement),
+    ocrProvider: requiredElement("ocr-provider", HTMLSelectElement),
     translationProvider: requiredElement(
       "translation-provider",
       HTMLSelectElement,
     ),
-    displayMode: requiredElement("display-mode", HTMLSelectElement),
+    displayModeInputs: Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        'input[name="display-mode"]',
+      ),
+    ),
     openSettings: requiredElement("open-settings", HTMLButtonElement),
     selectArea: requiredElement("select-area", HTMLButtonElement),
     liveTranslate: requiredElement("live-translate", HTMLButtonElement),
