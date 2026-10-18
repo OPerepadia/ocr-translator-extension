@@ -39,8 +39,10 @@ const MIN_LINE_THICKNESS = 18;
 
 /** What a live session keeps between reads. */
 interface LiveSessionState {
-  /** The recognizer model Auto picked from the session's first text. */
+  /** The recognizer model Auto picked from the session's first text, and the
+   * OCR provider it belongs to. Another provider may not have that model. */
   modelId?: string;
+  ocrProviderId?: string;
   /** The last screen capture that was actually read, and what it said. The
    * next capture is compared with this one. */
   screen?: ScreenReading;
@@ -174,7 +176,11 @@ async function recognizeLiveImage(
     settings.ocr.providerId,
   );
   const auto = sourceLang === "auto";
-  const modelId = sessions.get(sessionId)?.modelId;
+  const pinned = sessions.get(sessionId);
+  const modelId =
+    pinned?.ocrProviderId === settings.ocr.providerId
+      ? pinned.modelId
+      : undefined;
   const recognized = await dependencies
     .createOcrProvider(settings.ocr)
     .recognize(
@@ -198,6 +204,7 @@ async function recognizeLiveImage(
     sessions.set(sessionId, {
       ...sessions.get(sessionId),
       modelId: metadata.modelId,
+      ocrProviderId: settings.ocr.providerId,
     });
   }
   return {

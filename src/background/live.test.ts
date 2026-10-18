@@ -108,6 +108,30 @@ describe("handleLiveFrameRequest", () => {
     ]);
   });
 
+  it("detects the model again after the OCR provider changes", async () => {
+    const { dependencies, recognize, sessions } = setup({
+      frames: [frameOf(10), frameOf(200), frameOf(10)],
+    });
+    let settings: Settings = defaultSettings;
+    dependencies.settingsRepository.get = async () => settings;
+    recognize
+      .mockResolvedValueOnce({ text: "Hello", providerMeta: { modelId: "v6-multi" } })
+      .mockResolvedValueOnce({ text: "Hello", providerMeta: { modelId: "v6-manga" } })
+      .mockResolvedValueOnce({ text: "Hello", providerMeta: { modelId: "v6-manga" } });
+
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+    settings = {
+      ...defaultSettings,
+      ocr: { ...defaultSettings.ocr, providerId: "paddle-manga" },
+    };
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+    await handleLiveFrameRequest(dependencies, sessions, frameMessage(), visibleTab, signal());
+
+    expect(recognize.mock.calls.map(([input]) => input.modelId)).toEqual([
+      undefined, undefined, "v6-manga",
+    ]);
+  });
+
   it("detects the model independently for new and restarted sessions", async () => {
     const { dependencies, recognize, sessions } = setup({
       frames: [frameOf(10), frameOf(10), frameOf(10)],
