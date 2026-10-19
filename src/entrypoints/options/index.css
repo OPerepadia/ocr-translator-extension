@@ -282,16 +282,6 @@ main {
   font-weight: 600;
 }
 
-.ocr-model-status {
-  margin-left: auto;
-  border-radius: 999px;
-  padding: 1px 8px;
-  background: color-mix(in srgb, var(--success) 14%, transparent);
-  color: var(--success);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .ocr-model-purpose {
   color: var(--muted);
   font-size: 13px;

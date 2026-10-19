@@ -386,9 +386,6 @@
   "panelRecognizeWithModel": {
     "message": "使用 $1 识别"
   },
-  "optionsOcrModelBuiltIn": {
-    "message": "内置"
-  },
   "optionsOcrModelStandardPurpose": {
     "message": "通用"
   },

@@ -440,9 +440,6 @@
     "message": "Recognize with $1",
     "description": "$1 is an OCR model name, such as PP-OCRv6 / v5."
   },
-  "optionsOcrModelBuiltIn": {
-    "message": "Built in"
-  },
   "optionsOcrModelStandardPurpose": {
     "message": "General purpose"
   },

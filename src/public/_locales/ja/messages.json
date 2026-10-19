@@ -386,9 +386,6 @@
   "panelRecognizeWithModel": {
     "message": "$1 で認識"
   },
-  "optionsOcrModelBuiltIn": {
-    "message": "内蔵"
-  },
   "optionsOcrModelStandardPurpose": {
     "message": "汎用"
   },

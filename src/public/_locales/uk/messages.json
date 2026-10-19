@@ -386,9 +386,6 @@
   "panelRecognizeWithModel": {
     "message": "Розпізнати за допомогою $1"
   },
-  "optionsOcrModelBuiltIn": {
-    "message": "Вбудована"
-  },
   "optionsOcrModelStandardPurpose": {
     "message": "Універсальна"
   },

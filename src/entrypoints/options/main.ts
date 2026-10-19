@@ -558,12 +558,9 @@ function fillOcrModelTiles(container: HTMLElement, selectedId: string): void {
       const name = document.createElement("span");
       name.className = "ocr-model-name";
       name.textContent = ocrProviderLabel(id);
-      const status = document.createElement("span");
-      status.className = "ocr-model-status";
-      status.textContent = t("optionsOcrModelBuiltIn");
       const head = document.createElement("span");
       head.className = "ocr-model-head";
-      head.append(input, name, status);
+      head.append(input, name);
 
       const text = OCR_MODEL_TILE_TEXT[id];
       const purpose = document.createElement("span");
