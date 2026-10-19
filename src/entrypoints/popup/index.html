@@ -32,16 +32,26 @@
           <select id="target-language"></select>
         </label>
         <label class="field">
+          <span data-i18n="optionsOcrModel"></span>
+          <select id="ocr-provider"></select>
+        </label>
+        <label class="field">
           <span data-i18n="popupProvider"></span>
           <select id="translation-provider"></select>
         </label>
-        <label class="field">
-          <span data-i18n="popupResultMode" data-i18n-title="optionsDisplayHint"></span>
-          <select id="display-mode">
-            <option value="overlay" data-i18n="popupDisplayModeOverlay"></option>
-            <option value="panel" data-i18n="popupDisplayModePanel"></option>
-          </select>
-        </label>
+        <fieldset class="field display-mode-field">
+          <legend data-i18n="popupResultMode" data-i18n-title="optionsDisplayHint"></legend>
+          <div class="segmented">
+            <label>
+              <input type="radio" name="display-mode" value="overlay" />
+              <span data-i18n="popupDisplayModeOverlay"></span>
+            </label>
+            <label>
+              <input type="radio" name="display-mode" value="panel" />
+              <span data-i18n="popupDisplayModePanel"></span>
+            </label>
+          </div>
+        </fieldset>
       </fieldset>
 
       <p id="message" class="popup-message" role="status" hidden></p>

@@ -374,6 +374,30 @@
   "panelTranslationProvider": {
     "message": "Сервис перевода: $1"
   },
+  "optionsOcrModel": {
+    "message": "Модель распознавания"
+  },
+  "panelOcrModel": {
+    "message": "Модель распознавания: $1"
+  },
+  "errorOcrScriptUnsupported": {
+    "message": "Выбранная модель распознавания не поддерживает эту письменность: $1."
+  },
+  "panelRecognizeWithModel": {
+    "message": "Распознать с помощью $1"
+  },
+  "optionsOcrModelStandardPurpose": {
+    "message": "Универсальная"
+  },
+  "optionsOcrModelStandardScripts": {
+    "message": "Широкая поддержка языков"
+  },
+  "optionsOcrModelMangaPurpose": {
+    "message": "Дообучена на манге"
+  },
+  "optionsOcrModelMangaScripts": {
+    "message": "Японский, китайский, латиница"
+  },
   "panelTranslationHeading": {
     "message": "Перевод"
   },

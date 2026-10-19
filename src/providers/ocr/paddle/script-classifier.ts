@@ -34,6 +34,19 @@ export interface ScriptPrediction {
   rawCounts: Record<string, number>;
 }
 
+/** A clear majority of votes for one script. Unlike `decisive`, it ignores the
+ * mean confidence, which drops on lines cut by the manga detector. */
+export function hasMajorityScript(prediction: ScriptPrediction): boolean {
+  const [, runnerUp = 0] = Object.values(prediction.counts).sort(
+    (a, b) => b - a,
+  );
+  return (
+    prediction.evidence >= MIN_EVIDENCE &&
+    prediction.evidence > runnerUp &&
+    prediction.voteRatio >= MIN_VOTE_RATIO
+  );
+}
+
 export class ScriptClassifier {
   private constructor(
     private readonly session: ort.InferenceSession,

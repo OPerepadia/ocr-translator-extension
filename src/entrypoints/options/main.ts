@@ -1,5 +1,7 @@
 import {
-  COMMON_OCR_SOURCE_LANGUAGES,
+  findOcrSourceLanguage,
+  OCR_PROVIDERS,
+  ocrSourceLanguagesForProvider,
   TRANSLATION_PROVIDERS,
 } from "@/providers/catalog";
 import {
@@ -29,6 +31,7 @@ import {
 import {
   initializeI18n,
   localizeMarkedElements,
+  ocrProviderLabel,
   t,
   translationProviderLabel,
   uiLanguage,
@@ -93,9 +96,11 @@ async function initOptions(): Promise<void> {
   elements.storeLink.textContent = isFirefox
     ? "Mozilla Add-ons"
     : "Chrome Web Store";
+  fillOcrModelTiles(elements.ocrModelGrid, settings.ocr.providerId);
   fillSourceLanguageSelect(
     elements.sourceLangSelect,
     settings.ocr.sourceLang ?? "auto",
+    settings.ocr.providerId,
   );
   fillProviderSelect(
     elements.translationProviderSelect,
@@ -257,10 +262,9 @@ async function initOptions(): Promise<void> {
     const formData = new FormData(elements.form);
     try {
       await queueSave(async () => {
-        const latestSettings = await settingsRepository.get();
         const nextSettings: Settings = {
           ocr: {
-            providerId: latestSettings.ocr.providerId,
+            providerId: String(formData.get("ocrProvider") ?? "paddle"),
             sourceLang: String(formData.get("sourceLang") ?? "auto"),
             backend: formData.get("ocrWebGpu") !== null ? "webgpu" : undefined,
           },
@@ -303,11 +307,24 @@ async function initOptions(): Promise<void> {
   // Searchable language pickers replace the native selects, which stay hidden
   // as form value holders. Recreate each picker on change so its button and
   // selected item stay in sync.
-  mountSearchableLanguageSelect({
+  const refreshSourcePicker = mountSearchableLanguageSelect({
     select: elements.sourceLangSelect,
     specialEntries: [{ code: "auto", name: t("commonAuto") }],
     title: (name) => t("languageSourceTitle", name),
     onChange: () => void saveSettings(),
+  });
+  elements.ocrModelGrid.addEventListener("change", () => {
+    const providerId = selectedOcrProvider(elements);
+    // Keep the language when the new model can read it.
+    const sourceLang = findOcrSourceLanguage(
+      elements.sourceLangSelect.value,
+      providerId,
+    )
+      ? elements.sourceLangSelect.value
+      : "auto";
+    fillSourceLanguageSelect(elements.sourceLangSelect, sourceLang, providerId);
+    refreshSourcePicker();
+    void saveSettings();
   });
   const refreshTargetPicker = mountSearchableLanguageSelect({
     select: elements.targetLangSelect,
@@ -514,6 +531,60 @@ function readLlmSettings(formData: FormData): Settings["translation"]["llm"] {
   };
 }
 
+// What each OCR model is for and which scripts it reads, shown on its tile.
+const OCR_MODEL_TILE_TEXT: Record<string, { purpose: string; scripts: string }> = {
+  paddle: {
+    purpose: "optionsOcrModelStandardPurpose",
+    scripts: "optionsOcrModelStandardScripts",
+  },
+  "paddle-manga": {
+    purpose: "optionsOcrModelMangaPurpose",
+    scripts: "optionsOcrModelMangaScripts",
+  },
+};
+
+function fillOcrModelTiles(container: HTMLElement, selectedId: string): void {
+  const checkedId = OCR_PROVIDERS.some(({ id }) => id === selectedId)
+    ? selectedId
+    : OCR_PROVIDERS[0].id;
+  container.replaceChildren(
+    ...OCR_PROVIDERS.map(({ id }) => {
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "ocrProvider";
+      input.value = id;
+      input.checked = id === checkedId;
+
+      const name = document.createElement("span");
+      name.className = "ocr-model-name";
+      name.textContent = ocrProviderLabel(id);
+      const head = document.createElement("span");
+      head.className = "ocr-model-head";
+      head.append(input, name);
+
+      const text = OCR_MODEL_TILE_TEXT[id];
+      const purpose = document.createElement("span");
+      purpose.className = "ocr-model-purpose";
+      purpose.textContent = text ? t(text.purpose) : "";
+      const scripts = document.createElement("span");
+      scripts.className = "ocr-model-chip";
+      scripts.textContent = text ? t(text.scripts) : "";
+
+      const tile = document.createElement("label");
+      tile.className = "ocr-model-tile";
+      tile.append(head, purpose, scripts);
+      return tile;
+    }),
+  );
+}
+
+function selectedOcrProvider(elements: OptionsElements): string {
+  return (
+    elements.ocrModelGrid.querySelector<HTMLInputElement>("input:checked")
+      ?.value ?? OCR_PROVIDERS[0].id
+  );
+}
+
 function fillProviderSelect(
   select: HTMLSelectElement,
   providers: ReadonlyArray<{
@@ -535,8 +606,9 @@ function fillProviderSelect(
 function fillSourceLanguageSelect(
   select: HTMLSelectElement,
   selectedLang: string,
+  ocrProviderId: string,
 ): void {
-  const languages = COMMON_OCR_SOURCE_LANGUAGES.filter(
+  const languages = ocrSourceLanguagesForProvider(ocrProviderId).filter(
     ({ id }) => id !== "auto",
   )
     .map(({ id }) => ({ code: id, name: languageName(id) }))
@@ -651,6 +723,7 @@ function getOptionsElements(): {
   storeLink: HTMLAnchorElement;
   translationProviderSelect: HTMLSelectElement;
   googleProviderNote: HTMLElement;
+  ocrModelGrid: HTMLElement;
   sourceLangSelect: HTMLSelectElement;
   targetLangSelect: HTMLSelectElement;
   displayModeSelect: HTMLSelectElement;
@@ -688,6 +761,7 @@ function getOptionsElements(): {
   const googleProviderNote = app.querySelector<HTMLElement>(
     ".google-provider-note",
   );
+  const ocrModelGrid = app.querySelector<HTMLElement>(".ocr-model-grid");
   const sourceLangSelect = app.querySelector<HTMLSelectElement>(
     "select[name='sourceLang']",
   );
@@ -760,6 +834,7 @@ function getOptionsElements(): {
     !storeLink ||
     !translationProviderSelect ||
     !googleProviderNote ||
+    !ocrModelGrid ||
     !sourceLangSelect ||
     !targetLangSelect ||
     !displayModeSelect ||
@@ -797,6 +872,7 @@ function getOptionsElements(): {
     storeLink,
     translationProviderSelect,
     googleProviderNote,
+    ocrModelGrid,
     sourceLangSelect,
     targetLangSelect,
     displayModeSelect,

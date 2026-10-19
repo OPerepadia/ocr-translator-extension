@@ -19,6 +19,7 @@ with extension builds.
 | [protobuf.js](https://github.com/protobufjs/protobuf.js) and its `@protobufjs/*` runtime modules | 7.6.4 | BSD-3-Clause |
 | [tinyld](https://github.com/komodojp/tinyld) | 1.3.4 | MIT |
 | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) OCR models and dictionaries | PP-OCRv5 and PP-OCRv6 | Apache-2.0 |
+| [PP-OCRv6 Manga](https://huggingface.co/Kellenok/PP-OCRv6_manga) detector and recognizer | revision `ba1d479e` | Apache-2.0 |
 | [Tesseract OSD LSTM script classifier](https://huggingface.co/ogkalu/image-script-identification) ONNX port | revision `82c21077` | Apache-2.0 |
 | [Comic Text and Bubble Detector](https://huggingface.co/ogkalu/comic-text-and-bubble-detector) model | RT-DETR-v2 v4-s INT8 | Apache-2.0 |
 | [Simple Icons](https://github.com/simple-icons/simple-icons) Google Translate and DeepL glyphs | 16.35.0 | CC0-1.0 |

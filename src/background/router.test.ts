@@ -243,6 +243,43 @@ describe("background router", () => {
     );
   });
 
+  it("reports only the languages the selected OCR model can read", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+      },
+    });
+
+    startRouter({
+      settingsRepository: {
+        get: async () => ({
+          ocr: { providerId: "paddle-manga", sourceLang: "ru" },
+          translation: { providerId: "google", targetLang: "en" },
+        }),
+      },
+    } as unknown as RouterDependencies);
+
+    const response = (await invoke(
+      listener,
+      { type: "GET_OCR_SOURCE_LANGUAGES" },
+      {},
+    )) as { languages: Array<{ id: string }> };
+    expect(response).toEqual(
+      expect.objectContaining({
+        currentId: "auto",
+        currentProviderId: "paddle-manga",
+        providers: [{ id: "paddle" }, { id: "paddle-manga" }],
+      }),
+    );
+    expect(response.languages).toContainEqual({ id: "ja" });
+    expect(response.languages).not.toContainEqual({ id: "ru" });
+  });
+
   it("relays iframe selection requests to the top frame", async () => {
     let listener: MessageListener | undefined;
     const sendMessage = vi.fn(async () => undefined);
@@ -610,6 +647,85 @@ describe("background router", () => {
       { text: "Sample", sourceLang: "auto", targetLang: expected },
       expect.any(AbortSignal),
     );
+  });
+
+  it("switches the OCR model and drops a language it can't read", async () => {
+    let listener: MessageListener | undefined;
+    vi.stubGlobal("browser", {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((next: MessageListener) => {
+            listener = next;
+          }),
+        },
+        getPlatformInfo: vi.fn(async () => ({})),
+      },
+      tabs: { sendMessage: vi.fn(async () => undefined) },
+    });
+    const image = new Blob(["capture"]);
+    const recognize = vi.fn(async () => ({ text: "Sample" }));
+    const createOcrProvider = vi.fn(() => ({ id: "test", recognize }));
+    let settings = {
+      ocr: { providerId: "paddle", sourceLang: "ru" },
+      translation: { providerId: "test", targetLang: "uk" },
+    };
+
+    startRouter({
+      captureStore,
+      settingsRepository: {
+        get: async () => settings,
+        set: async (next: typeof settings) => {
+          settings = next;
+        },
+      },
+      createOcrProvider,
+      createTranslationProvider: () => ({
+        id: "test",
+        translate: vi.fn(async () => ({ text: "Translated", targetLang: "uk" })),
+      }),
+      detectLanguage: async () => undefined,
+    } as unknown as RouterDependencies);
+
+    await captureStore.update("31:0", () => ({
+      requestId: "model-capture",
+      image,
+      sourceLanguage: "ru",
+    }));
+    await invoke(
+      listener,
+      {
+        type: "RERECOGNIZE_REQUEST",
+        requestId: "model-rerecognize",
+        sourceLang: "ru",
+        ocrProviderId: "paddle-manga",
+      },
+      { tab: { id: 31 }, frameId: 0 },
+    );
+
+    expect(createOcrProvider).toHaveBeenLastCalledWith(
+      expect.objectContaining({ providerId: "paddle-manga", sourceLang: "auto" }),
+    );
+    expect(recognize).toHaveBeenCalledWith(
+      { image, sourceLang: "auto" },
+      expect.any(AbortSignal),
+      expect.any(Function),
+    );
+    expect(settings.ocr).toEqual({
+      providerId: "paddle-manga",
+      sourceLang: "auto",
+    });
+
+    await expect(
+      invoke(
+        listener,
+        {
+          type: "RERECOGNIZE_REQUEST",
+          requestId: "unreadable-language",
+          sourceLang: "ru",
+        },
+        { tab: { id: 31 }, frameId: 0 },
+      ),
+    ).rejects.toThrow("Unsupported OCR source language: ru");
   });
 
   it("does not apply a language change to a newer capture", async () => {

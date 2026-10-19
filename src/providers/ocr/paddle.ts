@@ -9,7 +9,11 @@ import {
 } from "./paddle/protocol";
 import { createInferenceWorker } from "./paddle/worker-factory";
 import type { OrtBackend } from "./paddle/ort-env";
-import type { OcrProvider, OcrStatus } from "./types";
+import {
+  UNSUPPORTED_SCRIPT_ERROR,
+  type OcrProvider,
+  type OcrStatus,
+} from "./types";
 
 const WASM_DIR = "ort/";
 const LAYOUT_MODEL_DIR = "assets/layout-grouping/";
@@ -98,7 +102,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
     }
     pending.delete(response.id);
     if (response.type === "error") {
-      entry.reject(deserializeError(response.error));
+      entry.reject(localizeUnsupportedScript(deserializeError(response.error)));
     } else if (response.type === "result") {
       entry.resolve(response.result);
     } else {
@@ -158,7 +162,7 @@ export function createPaddleOcrProvider(rawConfig?: unknown): OcrProvider {
           id,
           model: resolveModel(model),
           additionalModels: config.additionalModels?.map(resolveModel),
-          ...(config.additionalModels?.length
+          ...(config.additionalModels
             ? { scriptModelBaseUrl: resolve(SCRIPT_MODEL_DIR) }
             : {}),
           layoutModelBaseUrl: resolve(LAYOUT_MODEL_DIR),
@@ -293,6 +297,29 @@ function userFacingRecognitionError(
     return new Error(t("errorOcrHostStoppedResponding"));
   }
   return error;
+}
+
+// Script names are proper nouns, so they are not translated.
+const SCRIPT_NAMES: Record<string, string> = {
+  cyrillic: "Cyrillic",
+  hangul: "Hangul",
+  arabic: "Arabic",
+  devanagari: "Devanagari",
+};
+
+// Keeps the error name so the UI can offer a model that reads the script.
+function localizeUnsupportedScript(error: Error): Error {
+  if (error.name !== UNSUPPORTED_SCRIPT_ERROR) {
+    return error;
+  }
+  const localized = new Error(
+    t(
+      "errorOcrScriptUnsupported",
+      SCRIPT_NAMES[error.message] ?? error.message,
+    ),
+  );
+  localized.name = UNSUPPORTED_SCRIPT_ERROR;
+  return localized;
 }
 
 function toAbortError(signal?: AbortSignal): Error {

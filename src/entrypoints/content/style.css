@@ -697,6 +697,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .ocr-translate-option-icon {
@@ -989,9 +990,11 @@
   line-height: var(--ocr-leading-ui);
 }
 
+/* Wraps so the badge moves below the pickers instead of under the actions. */
 .ocr-translate-popup-recognized-extras {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -1561,6 +1564,8 @@
 }
 
 .ocr-translate-overlay-status.is-error .ocr-translate-overlay-status-label {
+  flex: 1 1 12em;
+  min-width: 0;
   white-space: normal;
   line-height: var(--ocr-leading-ui);
   text-wrap: pretty;
@@ -1674,10 +1679,13 @@
   box-shadow: var(--ocr-edge), var(--ocr-shadow-float);
 }
 
+/* A long label wraps instead of squeezing the message beside it. */
 .ocr-translate-overlay-retry {
-  flex: none;
-  height: var(--ocr-control-h);
-  padding: 0 12px;
+  flex: 0 1 auto;
+  max-width: 11em;
+  min-height: var(--ocr-control-h);
+  padding: 4px 12px;
+  text-wrap: balance;
   border: 1px solid var(--ocr-accent-border);
   border-radius: var(--ocr-radius-control);
   background: var(--ocr-accent-fill);

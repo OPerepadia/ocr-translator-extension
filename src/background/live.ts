@@ -39,6 +39,7 @@ const MIN_LINE_THICKNESS = 18;
 
 /** What a live session keeps between reads. */
 interface LiveSessionState {
+  ocrProviderId: string;
   /** The recognizer model Auto picked from the session's first text. */
   modelId?: string;
   /** The last screen capture that was actually read, and what it said. The
@@ -56,6 +57,20 @@ interface ScreenReading {
 
 /** What each running live session keeps, by session id. */
 export type LiveSessions = Map<string, LiveSessionState>;
+
+function getLiveSession(
+  sessions: LiveSessions,
+  sessionId: string,
+  ocrProviderId: string,
+): LiveSessionState {
+  const current = sessions.get(sessionId);
+  if (current?.ocrProviderId === ocrProviderId) {
+    return current;
+  }
+  const session = { ocrProviderId };
+  sessions.set(sessionId, session);
+  return session;
+}
 
 /**
  * Capture a region and read its text. Skips recognition when the region looks
@@ -79,6 +94,7 @@ export async function handleLiveFrameRequest(
   }
 
   const settings = await dependencies.settingsRepository.get();
+  const session = getLiveSession(sessions, message.sessionId, settings.ocr.providerId);
   const frame = await dependencies.captureLiveFrame({
     rect: message.rect,
     viewport: message.viewport,
@@ -98,7 +114,7 @@ export async function handleLiveFrameRequest(
     MIN_LINE_THICKNESS * frame.pixelRatio,
     (message.minLineThickness ?? 0) * regionHeight,
   );
-  const previous = sessions.get(message.sessionId)?.screen;
+  const previous = session.screen;
   if (
     previous &&
     previous.minLineThickness === minLineThickness &&
@@ -110,20 +126,16 @@ export async function handleLiveFrameRequest(
   const recognized = await recognizeLiveImage(
     dependencies,
     settings,
-    sessions,
-    message.sessionId,
+    session,
     await frame.toBlob(),
     minLineThickness,
     signal,
   );
-  sessions.set(message.sessionId, {
-    ...sessions.get(message.sessionId),
-    screen: {
-      signature: frame.signature,
-      text: recognized.text,
-      minLineThickness,
-    },
-  });
+  session.screen = {
+    signature: frame.signature,
+    text: recognized.text,
+    minLineThickness,
+  };
   return {
     status: "ok",
     text: recognized.text,
@@ -141,11 +153,11 @@ export async function handleLiveImageRequest(
   signal: AbortSignal,
 ): Promise<LiveImageResponse> {
   const settings = await dependencies.settingsRepository.get();
+  const session = getLiveSession(sessions, message.sessionId, settings.ocr.providerId);
   return recognizeLiveImage(
     dependencies,
     settings,
-    sessions,
-    message.sessionId,
+    session,
     base64ToBlob(message.image.data, message.image.mediaType),
     Math.max(MIN_LINE_THICKNESS, message.minLineThickness ?? 0),
     signal,
@@ -163,15 +175,17 @@ export async function handleLiveImageRequest(
 async function recognizeLiveImage(
   dependencies: LiveDependencies,
   settings: Settings,
-  sessions: LiveSessions,
-  sessionId: string,
+  session: LiveSessionState,
   image: Blob,
   minLineThickness: number,
   signal: AbortSignal,
 ): Promise<LiveImageResponse> {
-  const { sourceLang } = resolveOcrSourceLanguage(settings.ocr.sourceLang);
+  const { sourceLang } = resolveOcrSourceLanguage(
+    settings.ocr.sourceLang,
+    settings.ocr.providerId,
+  );
   const auto = sourceLang === "auto";
-  const modelId = sessions.get(sessionId)?.modelId;
+  const { modelId } = session;
   const recognized = await dependencies
     .createOcrProvider(settings.ocr)
     .recognize(
@@ -192,10 +206,7 @@ async function recognizeLiveImage(
     recognized.text.trim() &&
     typeof metadata?.modelId === "string"
   ) {
-    sessions.set(sessionId, {
-      ...sessions.get(sessionId),
-      modelId: metadata.modelId,
-    });
+    session.modelId = metadata.modelId;
   }
   return {
     text: recognized.text,
@@ -224,7 +235,10 @@ export async function handleLiveTranslateRequest(
     translationProvider: dependencies.createTranslationProvider(
       settings.translation,
     ),
-    sourceLang: resolveTranslationSourceLanguage(settings.ocr.sourceLang),
+    sourceLang: resolveTranslationSourceLanguage(
+      settings.ocr.sourceLang,
+      settings.ocr.providerId,
+    ),
     targetLang: settings.translation.targetLang,
     context: message.context,
     detectLanguage: dependencies.detectLanguage,

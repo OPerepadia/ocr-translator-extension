@@ -77,6 +77,7 @@ The extension bundles several recognizer models. The general recognizer is [PP-O
 | Korean-PP-OCRv5 | Korean |
 | Arabic-PP-OCRv5 | Arabic, Pashto, Persian, Urdu |
 | Devanagari-PP-OCRv5 | Hindi, Marathi, Nepali |
+| PP-OCRv6 Manga | Same as PP-OCRv6; fine-tuned on Japanese and Chinese manga by [Kellenok](https://huggingface.co/Kellenok/PP-OCRv6_manga) |
 
 When the source language is set to Auto, a local classifier detects the script and selects the matching recognizer.
 

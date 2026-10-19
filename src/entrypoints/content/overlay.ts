@@ -264,6 +264,7 @@ export function showOverlayError(args: {
   rect: Rect;
   message: string;
   onRetry?: () => void;
+  retryLabel?: string;
   onOpenSettings?: () => void;
   showSourceLanguageToolbar?: boolean;
 }): void {
@@ -1594,6 +1595,7 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
 function createErrorChip(args: {
   message: string;
   onRetry?: () => void;
+  retryLabel?: string;
   onOpenSettings?: () => void;
   onDismiss?: () => void;
   showClose?: boolean;
@@ -1614,7 +1616,7 @@ function createErrorChip(args: {
     const retry = document.createElement("button");
     retry.type = "button";
     retry.className = "ocr-translate-overlay-retry";
-    retry.textContent = t("commonRetry");
+    retry.textContent = args.retryLabel ?? t("commonRetry");
     retry.addEventListener("click", args.onRetry, { once: true });
     chip.append(retry);
   }

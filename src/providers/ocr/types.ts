@@ -11,6 +11,11 @@ export type OcrStatus = Extract<
   { stage: "initializing" | "recognizing" }
 >;
 
+/** Error name for Auto finding a script the selected model can't read. The
+ * engine's message is the script id; the provider replaces it with text for
+ * the user. */
+export const UNSUPPORTED_SCRIPT_ERROR = "UnsupportedScriptError";
+
 export interface OcrProvider {
   readonly id: string;
 

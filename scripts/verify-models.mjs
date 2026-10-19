@@ -25,6 +25,7 @@ const DEFAULT_DIRS = [
   "src/public/assets/ocr/korean-v5",
   "src/public/assets/ocr/arabic-v5",
   "src/public/assets/ocr/devanagari-v5",
+  "src/public/assets/ocr/ppocrv6-manga",
 ];
 const SCRIPT_MODEL_DIR = path.resolve(
   "src/public/assets/script-identification",

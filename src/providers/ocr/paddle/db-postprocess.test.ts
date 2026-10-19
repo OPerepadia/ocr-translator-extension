@@ -70,6 +70,65 @@ describe("extractBoxes", () => {
   });
 });
 
+describe("extractBoxes with splitThreshold", () => {
+  const split: DbConfig = { ...cfg, threshold: 0.15, boxThreshold: 0.25, splitThreshold: 0.5 };
+
+  /** Two filled columns joined by a weak bridge, so they merge at 0.15. */
+  function twoColumns(): Float32Array {
+    const map = mapWithRect(64, 64, { x: 20, y: 10, width: 8, height: 40 }, 1);
+    const right = mapWithRect(64, 64, { x: 30, y: 10, width: 8, height: 20 }, 1);
+    right.forEach((v, i) => {
+      if (v > map[i]) map[i] = v;
+    });
+    for (let y = 10; y < 50; y++) {
+      map[y * 64 + 28] = 0.3;
+      map[y * 64 + 29] = 0.3;
+    }
+    return map;
+  }
+
+  it("keeps a bridged pair of columns as one box without the option", () => {
+    const boxes = extractBoxes(twoColumns(), 64, 64, { ...split, splitThreshold: undefined }, 1, 1, 64, 64);
+    expect(boxes).toHaveLength(1);
+  });
+
+  it("splits the pair into one box per column", () => {
+    const boxes = extractBoxes(twoColumns(), 64, 64, split, 1, 1, 64, 64);
+    expect(boxes).toHaveLength(2);
+    for (const { bbox } of boxes) {
+      expect(bbox.width).toBeLessThan(18);
+    }
+  });
+
+  it("splits stacked rows of horizontal text", () => {
+    const map = new Float32Array(64 * 64);
+    for (let x = 10; x < 50; x++) {
+      for (let y = 20; y < 28; y++) map[y * 64 + x] = 1;
+      for (let y = 32; y < 40; y++) map[y * 64 + x] = 1;
+      for (let y = 28; y < 32; y++) map[y * 64 + x] = 0.3;
+    }
+    expect(extractBoxes(map, 64, 64, split, 1, 1, 64, 64)).toHaveLength(2);
+  });
+
+  it("does not split a line that breaks between glyphs", () => {
+    const map = new Float32Array(64 * 64);
+    for (let x = 10; x < 54; x++) {
+      const strong = x < 28 || x >= 32;
+      for (let y = 28; y < 36; y++) map[y * 64 + x] = strong ? 1 : 0.3;
+    }
+    expect(extractBoxes(map, 64, 64, split, 1, 1, 64, 64)).toHaveLength(1);
+  });
+
+  it("keeps the blob whole when the split parts would be filtered out", () => {
+    const map = mapWithRect(64, 64, { x: 20, y: 10, width: 18, height: 40 }, 0.3);
+    for (let y = 10; y < 50; y++) {
+      for (const x of [22, 23, 34, 35]) map[y * 64 + x] = 0.9;
+    }
+    const boxes = extractBoxes(map, 64, 64, split, 1, 1, 64, 64);
+    expect(boxes).toHaveLength(1);
+  });
+});
+
 describe("unclip", () => {
   it("expands a quad outward", () => {
     const quad: Quad = [

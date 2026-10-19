@@ -5,12 +5,23 @@ export const OCR_PROVIDERS = [
     id: "paddle",
     kind: "local",
   },
+  {
+    id: "paddle-manga",
+    kind: "local",
+  },
 ] as const;
+
+export const DEFAULT_OCR_PROVIDER_ID = "paddle";
+
+// Same engine as "paddle", with the manga-tuned recognizer in place of the
+// general one. Its dictionary matches PP-OCRv6, so it reads the same languages.
+const MANGA_OCR_PROVIDER_ID = "paddle-manga";
 
 // Recognizer model variants the user can switch between in the panel. Each is a
 // folder of model files under src/public/. The detector is script-agnostic, so
 // the Cyrillic variant reuses ppocrv6-small's detector via a relative path in
-// its manifest; only the recognizer + dict differ.
+// its manifest; only the recognizer + dict differ. The manga variant ships its
+// own detector.
 export const OCR_MODELS = [
   {
     id: "v6-multi",
@@ -36,6 +47,11 @@ export const OCR_MODELS = [
     id: "devanagari-v5",
     modelDir: "assets/ocr/devanagari-v5/",
     script: "devanagari",
+  },
+  {
+    id: "v6-manga",
+    modelDir: "assets/ocr/ppocrv6-manga/",
+    script: "general",
   },
 ] as const;
 
@@ -93,31 +109,60 @@ export const COMMON_OCR_SOURCE_LANGUAGES = OCR_SOURCE_LANGUAGES.filter(
     COMMON_TARGET_LANGUAGES.includes(id.split("-")[0]),
 );
 
-export function findOcrSourceLanguage(
-  id: string | undefined,
-): OcrSourceLanguage | undefined {
-  return COMMON_OCR_SOURCE_LANGUAGES.find((language) => language.id === id);
+/** Source languages the OCR provider offers in the pickers. */
+export function ocrSourceLanguagesForProvider(
+  providerId: string | undefined,
+): readonly OcrSourceLanguage[] {
+  return providerId === MANGA_OCR_PROVIDER_ID
+    ? COMMON_OCR_SOURCE_LANGUAGES.filter(
+        ({ modelId }) => modelId === DEFAULT_OCR_MODEL_ID,
+      )
+    : COMMON_OCR_SOURCE_LANGUAGES;
 }
 
+export function findOcrSourceLanguage(
+  id: string | undefined,
+  providerId?: string,
+): OcrSourceLanguage | undefined {
+  return ocrSourceLanguagesForProvider(providerId).find(
+    (language) => language.id === id,
+  );
+}
+
+/** Falls back to Auto for an unknown language or one the provider can't read. */
 export function resolveOcrSourceLanguage(
   id: string | undefined,
+  providerId?: string,
 ): OcrSourceLanguage {
   return (
-    findOcrSourceLanguage(id) ??
+    findOcrSourceLanguage(id, providerId) ??
     COMMON_OCR_SOURCE_LANGUAGES.find((language) => language.id === "auto")!
   );
 }
 
 export function resolveOcrModelIdForSourceLanguage(
   id: string | undefined,
+  providerId?: string,
 ): OcrModelId {
-  return resolveOcrSourceLanguage(id).modelId;
+  const { modelId } = resolveOcrSourceLanguage(id, providerId);
+  return providerId === MANGA_OCR_PROVIDER_ID && modelId === DEFAULT_OCR_MODEL_ID
+    ? "v6-manga"
+    : modelId;
+}
+
+/** Recognizers Auto chooses from by detected script. The manga provider has
+ * only its own, so Auto reports text in other scripts as unsupported. */
+export function autoOcrModels(providerId: string | undefined) {
+  return providerId === MANGA_OCR_PROVIDER_ID
+    ? OCR_MODELS.filter(({ id }) => id === "v6-manga")
+    : OCR_MODELS.filter(({ id }) => id !== "v6-manga");
 }
 
 export function resolveTranslationSourceLanguage(
   id: string | undefined,
+  providerId?: string,
 ): string | "auto" {
-  return resolveOcrSourceLanguage(id).sourceLang;
+  return resolveOcrSourceLanguage(id, providerId).sourceLang;
 }
 
 /** Resolve a model id to its asset folder, falling back to the default. */

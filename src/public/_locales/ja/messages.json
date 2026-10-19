@@ -374,6 +374,30 @@
   "panelTranslationProvider": {
     "message": "翻訳サービス：$1"
   },
+  "optionsOcrModel": {
+    "message": "認識モデル"
+  },
+  "panelOcrModel": {
+    "message": "認識モデル：$1"
+  },
+  "errorOcrScriptUnsupported": {
+    "message": "選択した認識モデルはこの文字体系に対応していません：$1"
+  },
+  "panelRecognizeWithModel": {
+    "message": "$1 で認識"
+  },
+  "optionsOcrModelStandardPurpose": {
+    "message": "汎用"
+  },
+  "optionsOcrModelStandardScripts": {
+    "message": "幅広い言語に対応"
+  },
+  "optionsOcrModelMangaPurpose": {
+    "message": "漫画向けにファインチューニング"
+  },
+  "optionsOcrModelMangaScripts": {
+    "message": "日本語、中国語、ラテン文字"
+  },
   "panelTranslationHeading": {
     "message": "翻訳"
   },

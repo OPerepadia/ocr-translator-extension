@@ -268,6 +268,47 @@ describe("createPaddleOcrProvider", () => {
     await expect(promise).rejects.toThrow(/boom/);
   });
 
+  it("explains an unsupported script and keeps its error name", async () => {
+    const fake = new FakeWorker();
+    const provider = makeProvider(fake);
+
+    const promise = provider.recognize({ image: new Blob(["img"]) });
+    await tick();
+    const [recognize] = fake.ofType("recognize");
+
+    fake.reply({
+      type: "error",
+      id: recognize.id,
+      error: { message: "cyrillic", name: "UnsupportedScriptError" },
+    });
+
+    await expect(promise).rejects.toMatchObject({
+      name: "UnsupportedScriptError",
+      message:
+        "The selected recognition model doesn't support this script: Cyrillic.",
+    });
+  });
+
+  it("loads the script classifier for Auto even with a single recognizer", async () => {
+    const fake = new FakeWorker();
+    const provider = createPaddleOcrProvider({
+      model: {
+        id: "v6-manga",
+        modelDir: "models/manga/",
+        script: "general",
+      },
+      additionalModels: [],
+      createWorker: () => fake,
+      resolveUrl: (path: string) => `extension://${path}`,
+    });
+
+    await provider.preload?.();
+
+    expect(fake.ofType("init")[0]).toMatchObject({
+      scriptModelBaseUrl: "extension://assets/script-identification/",
+    });
+  });
+
   it("restarts the worker after a fatal recognition error", async () => {
     const workers: FakeWorker[] = [];
     const provider = createPaddleOcrProvider({

@@ -15,7 +15,8 @@ import { t } from "../shared/i18n";
 import { onRequest } from "../shared/runtime-messaging";
 import {
   findOcrSourceLanguage,
-  COMMON_OCR_SOURCE_LANGUAGES,
+  OCR_PROVIDERS,
+  ocrSourceLanguagesForProvider,
   resolveOcrSourceLanguage,
   resolveTranslationSourceLanguage,
   TRANSLATION_PROVIDERS,
@@ -360,7 +361,10 @@ async function handleOcrTranslateRequest(
   }));
 
   const settings = await dependencies.settingsRepository.get();
-  const sourceLanguage = resolveOcrSourceLanguage(settings.ocr.sourceLang);
+  const sourceLanguage = resolveOcrSourceLanguage(
+    settings.ocr.sourceLang,
+    settings.ocr.providerId,
+  );
   await writeCapture(dependencies, frameKey, (current) =>
     current?.requestId === message.requestId
       ? { ...current, sourceLanguage: sourceLanguage.id }
@@ -438,7 +442,8 @@ async function handlePreloadOcrRequest(
 }
 
 // Re-runs OCR (and translation) on the last captured image for a different
-// source language and uses the selection as the default for future captures.
+// source language or OCR model and uses the selection as the default for future
+// captures.
 async function handleRerecognizeRequest(
   dependencies: RouterDependencies,
   message: Extract<RuntimeMessage, { type: "RERECOGNIZE_REQUEST" }>,
@@ -446,7 +451,14 @@ async function handleRerecognizeRequest(
   frameKey: string | undefined,
   signal: AbortSignal,
 ): Promise<PipelineResult> {
-  const selection = findOcrSourceLanguage(message.sourceLang);
+  const settings = await dependencies.settingsRepository.get();
+  const providerId =
+    OCR_PROVIDERS.find(({ id }) => id === message.ocrProviderId)?.id ??
+    settings.ocr.providerId;
+  // A model switch keeps the language when the new model can read it.
+  const selection = message.ocrProviderId
+    ? resolveOcrSourceLanguage(message.sourceLang, providerId)
+    : findOcrSourceLanguage(message.sourceLang, providerId);
   if (!selection) {
     throw new Error(`Unsupported OCR source language: ${message.sourceLang}`);
   }
@@ -463,12 +475,15 @@ async function handleRerecognizeRequest(
       : undefined,
   );
 
-  const settings = await dependencies.settingsRepository.get();
   const ocr = {
     ...settings.ocr,
+    providerId,
     sourceLang: selection.id,
   };
-  if (selection.id !== settings.ocr.sourceLang) {
+  if (
+    selection.id !== settings.ocr.sourceLang ||
+    providerId !== settings.ocr.providerId
+  ) {
     await dependencies.settingsRepository.set({ ...settings, ocr });
   }
   const ocrProvider = dependencies.createOcrProvider(ocr);
@@ -538,17 +553,19 @@ async function handleGetTargetLanguages(
   return translationProvider.listTargetLanguages?.() ?? [];
 }
 
-// Reports the source languages supported by the packaged recognizers.
+// Reports the OCR providers and the source languages the current one can read.
 async function handleGetOcrSourceLanguages(
   dependencies: RouterDependencies,
 ): Promise<OcrSourceLanguagesResponse> {
   const settings = await dependencies.settingsRepository.get();
-  const [auto, ...supported] = COMMON_OCR_SOURCE_LANGUAGES.map(({ id }) => ({
-    id,
-  }));
+  const { providerId } = settings.ocr;
   return {
-    languages: [auto, ...supported],
-    currentId: resolveOcrSourceLanguage(settings.ocr.sourceLang).id,
+    languages: ocrSourceLanguagesForProvider(providerId).map(({ id }) => ({
+      id,
+    })),
+    currentId: resolveOcrSourceLanguage(settings.ocr.sourceLang, providerId).id,
+    providers: OCR_PROVIDERS.map(({ id }) => ({ id })),
+    currentProviderId: providerId,
   };
 }
 

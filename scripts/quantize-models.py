@@ -43,6 +43,7 @@ DEFAULT_DIRS = [
     ASSET_ROOT / "korean-v5",
     ASSET_ROOT / "arabic-v5",
     ASSET_ROOT / "devanagari-v5",
+    ASSET_ROOT / "ppocrv6-manga",
 ]
 
 # Per-axis DequantizeLinear needs opset 13; the v5 recognizers export at 7.

@@ -2,6 +2,7 @@ import type {
   LiveFrameResponse,
   LiveTranslationResponse,
 } from "@/shared/messages";
+import { UNSUPPORTED_SCRIPT_ERROR } from "@/providers/ocr/types";
 import type { TranslationContextLine } from "@/shared/types";
 import { comparisonKey, isReadable, isSameLine } from "./live-text";
 
@@ -250,7 +251,10 @@ export class LiveSession {
         return "read";
       }
       this.failedReads += 1;
-      if (this.failedReads >= MAX_FAILED_READS) {
+      // Rereading the same subtitles would only fail the same way.
+      const unsupported =
+        error instanceof Error && error.name === UNSUPPORTED_SCRIPT_ERROR;
+      if (unsupported || this.failedReads >= MAX_FAILED_READS) {
         this.giveUp(error);
         return "read";
       }

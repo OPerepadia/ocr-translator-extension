@@ -216,6 +216,88 @@ main {
   gap: 14px;
 }
 
+.ocr-model-field {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.ocr-model-field > legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.ocr-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.ocr-model-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.ocr-model-tile:hover {
+  border-color: var(--border-strong);
+}
+
+.ocr-model-tile:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.ocr-model-tile:has(input:focus-visible) {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--focus-ring);
+}
+
+.ocr-model-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ocr-model-head input {
+  flex: none;
+  width: 16px;
+  min-height: 0;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.ocr-model-name {
+  font-weight: 600;
+}
+
+.ocr-model-purpose {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Pinned to the bottom so chips line up across a row of tiles. */
+.ocr-model-chip {
+  align-self: flex-start;
+  margin-top: auto;
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: var(--hover-bg);
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .field-hint {
   color: var(--muted);
   font-size: 13px;
