@@ -4,7 +4,7 @@ import type { Settings } from "../../../src/shared/types";
 
 declare const chrome: typeof import("wxt/browser").browser;
 
-test("offers the standard model when the manga model can't read the script", async () => {
+test("refreshes languages after a failed model switch and offers the standard model", async () => {
   const extensionPath = resolve(".output/chrome-mv3");
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
   const context = await chromium.launchPersistentContext("", {
@@ -23,7 +23,7 @@ test("offers the standard model when the manga model can't read the script", asy
     await worker.evaluate(async () => {
       await chrome.storage.local.set({
         settings: {
-          ocr: { providerId: "paddle-manga", sourceLang: "auto" },
+          ocr: { providerId: "paddle", sourceLang: "uk" },
           translation: {
             providerId: "openai",
             targetLang: "en",
@@ -50,7 +50,7 @@ test("offers the standard model when the manga model can't read the script", asy
       drawing.fillRect(0, 0, canvas.width, canvas.height);
       drawing.fillStyle = "black";
       drawing.font = "bold 56px sans-serif";
-      drawing.fillText("Пример текста", 16, 80);
+      drawing.fillText("Приклад тексту", 16, 80);
       return canvas.toDataURL("image/png");
     });
     await expect
@@ -70,15 +70,34 @@ test("offers the standard model when the manga model can't read the script", asy
       )
       .toBe(true);
 
+    await expect(page.getByRole("textbox", { name: "Source text" })).toHaveValue(
+      "Приклад тексту",
+      { timeout: 60_000 },
+    );
+    await expect(
+      page.getByRole("button", { name: "Source language: Ukrainian" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Recognition model: PP-OCRv6 / v5" }).click();
+    await page.getByRole("option", { name: "PP-OCRv6 Manga" }).click();
+
     await expect(
       page.getByText(
         "The selected recognition model doesn't support this script: Cyrillic.",
       ),
     ).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Source language: Auto" }).click();
+    const languages = page.getByRole("listbox", { name: "Source language: Auto" });
+    await expect(languages.getByRole("option", { name: "Auto", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect(languages.getByRole("option", { name: "Japanese", exact: true }))
+      .toBeVisible();
+    await expect(languages.getByRole("option", { name: "Ukrainian", exact: true }))
+      .toHaveCount(0);
+    await page.getByRole("button", { name: "Source language: Auto" }).click();
     await page.getByRole("button", { name: "Recognize with PP-OCRv6 / v5" }).click();
 
     await expect(page.getByRole("textbox", { name: "Source text" })).toHaveValue(
-      "Пример текста",
+      "Приклад тексту",
       { timeout: 60_000 },
     );
     await expect(

@@ -1012,18 +1012,19 @@ async function runRerecognize(
   await requestRunner.run({
     onStart: () => showActiveLoading(),
     request: async (requestId) => {
-      const result = await sendRequest<PipelineResult>({
-        type: "RERECOGNIZE_REQUEST",
-        requestId,
-        sourceLang,
-        ocrProviderId,
-      });
-      if (ocrProviderId && requestRunner.activeRequestId === requestId) {
-        // The new model may read a different set of languages, and the
-        // background resets a language it can't read to Auto.
-        await loadOcrSourceLanguages();
+      try {
+        return await sendRequest<PipelineResult>({
+          type: "RERECOGNIZE_REQUEST",
+          requestId,
+          sourceLang,
+          ocrProviderId,
+        });
+      } finally {
+        if (ocrProviderId && requestRunner.activeRequestId === requestId) {
+          // The background saves the selection even if recognition fails.
+          await loadOcrSourceLanguages(requestId);
+        }
       }
-      return result;
     },
     onSuccess: (result) => {
       pendingText = result.ocr.text;
@@ -1069,12 +1070,17 @@ async function runSwitchProvider(providerId: string): Promise<void> {
 }
 
 // Fetch the supported OCR source languages and the saved default.
-async function loadOcrSourceLanguages(): Promise<string | undefined> {
+async function loadOcrSourceLanguages(
+  requestId?: string,
+): Promise<string | undefined> {
   try {
     const response =
       await sendRequest<OcrSourceLanguagesResponse>({
         type: "GET_OCR_SOURCE_LANGUAGES",
       });
+    if (requestId && requestRunner.activeRequestId !== requestId) {
+      return undefined;
+    }
     if (response && Array.isArray(response.languages)) {
       const languages = response.languages.map(({ id }) => ({
         id,
