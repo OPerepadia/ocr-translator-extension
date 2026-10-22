@@ -610,19 +610,7 @@ async function runImageFlow(imageUrl: string): Promise<void> {
   startNavigationWatch(closePageUi);
   void sendRequest({ type: "PRELOAD_OCR" }).catch(() => {});
 
-  const imageRect = findImageRect(imageUrl);
-  if (imageUrl.startsWith("file:") && imageRect) {
-    await runCapture({
-      rect: imageRect,
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-    });
-    return;
-  }
-
-  await runCapture({ imageUrl }, imageRect);
+  await runCapture({ imageUrl }, findImageRect(imageUrl));
 }
 
 async function runImageElementFlow(image: HTMLImageElement): Promise<void> {
@@ -712,16 +700,15 @@ async function runCapture(
   await requestRunner.run({
     request: async (requestId) => {
       let requestSource = source;
-      if ("imageUrl" in source && source.imageUrl.startsWith("blob:")) {
-        // The background cannot fetch a blob URL owned by this frame.
-        const response = await fetch(source.imageUrl);
-        const blob = await response.blob();
-        const imageUrl = await new Promise<string>((resolve, reject) => {
-          // FileReader also handles Firefox's page-owned Blob wrappers.
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(blob);
+      if ("imageUrl" in source && /^(blob|file):/.test(source.imageUrl)) {
+        // The background cannot fetch a blob URL owned by this frame, nor a
+        // file URL in Firefox. Chrome's content scripts can't fetch file URLs,
+        // but its background can, so those go through as they are.
+        const imageUrl = await readAsDataUrl(source.imageUrl).catch((error) => {
+          if (source.imageUrl.startsWith("file:")) {
+            return source.imageUrl;
+          }
+          throw error;
         });
         if (requestRunner.activeRequestId !== requestId) {
           throw new DOMException("Request cancelled", "AbortError");
@@ -754,6 +741,17 @@ async function runCapture(
       releaseSelectionDim();
       syncPanelRegionOutline();
     },
+  });
+}
+
+async function readAsDataUrl(url: string): Promise<string> {
+  const blob = await (await fetch(url)).blob();
+  return new Promise<string>((resolve, reject) => {
+    // FileReader also handles Firefox's page-owned Blob wrappers.
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
   });
 }
 
