@@ -17,7 +17,7 @@ interface RegionManifest {
   nmsIouThreshold: number;
 }
 
-interface TextRegion {
+export interface TextRegion {
   bbox: Rect;
   confidence: number;
 }
@@ -72,18 +72,8 @@ export class RegionGrouper {
     };
   }
 
-  async group(
-    source: RgbaImage | null,
-    lines: RecognizedLine[],
-  ): Promise<RegionGroupingResult> {
-    const eligible = filterRecognizedLines(lines);
-    if (eligible.length <= 1) {
-      return groupAsSingleRegion(eligible);
-    }
-    if (!source) {
-      throw new Error("Text-region grouping requires source image pixels.");
-    }
-
+  /** The page's text regions: the text in speech bubbles and free text. */
+  async detectRegions(source: RgbaImage): Promise<TextRegion[]> {
     const [, height, width] = this.manifest.inputShape;
     const input = imageToNchw(
       source,
@@ -99,7 +89,7 @@ export class RegionGrouper {
         [1, 2],
       ),
     });
-    const regions = decodeTextRegions(
+    return decodeTextRegions(
       output.labels.data as BigInt64Array,
       output.boxes.data as Float32Array,
       output.scores.data as Float32Array,
@@ -109,10 +99,28 @@ export class RegionGrouper {
       this.manifest.confidenceThreshold,
       this.manifest.nmsIouThreshold,
     );
-    const grouping = groupLinesByRegions(eligible, regions);
+  }
+
+  /** Group the lines by text region. Pass `regions` when they are already
+   * known, to skip running the layout model again. */
+  async group(
+    source: RgbaImage | null,
+    lines: RecognizedLine[],
+    regions?: TextRegion[],
+  ): Promise<RegionGroupingResult> {
+    const eligible = filterRecognizedLines(lines);
+    if (eligible.length <= 1) {
+      return groupAsSingleRegion(eligible);
+    }
+    if (!source) {
+      throw new Error("Text-region grouping requires source image pixels.");
+    }
+
+    const found = regions ?? (await this.detectRegions(source));
+    const grouping = groupLinesByRegions(eligible, found);
     return {
       ...grouping,
-      regionCount: regions.length,
+      regionCount: found.length,
     };
   }
 
@@ -229,7 +237,9 @@ export function groupLinesByRegions(
   };
 }
 
-function findEnclosingRegions(regions: TextRegion[]): Set<number> {
+/** Regions that hold several smaller ones, such as a panel-wide free-text box
+ * around its speech bubbles. */
+export function findEnclosingRegions(regions: TextRegion[]): Set<number> {
   const enclosing = new Set<number>();
   regions.forEach((candidate, candidateIndex) => {
     let nestedCount = 0;

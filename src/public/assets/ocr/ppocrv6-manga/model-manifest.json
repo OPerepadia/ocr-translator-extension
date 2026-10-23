@@ -10,7 +10,8 @@
     "unclipRatio": 1.4,
     "minBoxSize": 3,
     "padding": 3,
-    "splitThreshold": 0.5
+    "splitThreshold": 0.5,
+    "rotatedRegions": true
   },
   "recognizer": {
     "modelPath": "rec.onnx",

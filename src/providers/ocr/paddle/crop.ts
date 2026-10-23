@@ -27,13 +27,20 @@ function context(width: number, height: number): OffscreenCanvasRenderingContext
   return ctx;
 }
 
-/** Resize an entire bitmap into a fresh ImageData of the target size. */
+/** Resize an entire bitmap into a fresh ImageData of the target size. A larger
+ * canvas puts it at the top left, on white. */
 export function resizeToImageData(
   bitmap: ImageBitmap,
   targetWidth: number,
   targetHeight: number,
+  canvasWidth = targetWidth,
+  canvasHeight = targetHeight,
 ): ImageData {
-  const ctx = context(targetWidth, targetHeight);
+  const ctx = context(canvasWidth, canvasHeight);
+  if (canvasWidth > targetWidth || canvasHeight > targetHeight) {
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }
   ctx.drawImage(
     bitmap,
     0,
@@ -45,7 +52,7 @@ export function resizeToImageData(
     targetWidth,
     targetHeight,
   );
-  return ctx.getImageData(0, 0, targetWidth, targetHeight);
+  return ctx.getImageData(0, 0, canvasWidth, canvasHeight);
 }
 
 /** Copy a bitmap into ImageData once so multiple line crops can sample it. */
@@ -64,8 +71,12 @@ export function cropQuadToImageData(
   minWidth: number,
   maxWidth: number,
   padding = 0,
+  readsDown?: boolean,
 ): ImageData {
-  const crop = orientCropForRecognition(cropQuad(source, padQuad(quad, padding)));
+  const crop = orientCropForRecognition(
+    cropQuad(source, padQuad(quad, padding)),
+    readsDown,
+  );
   const recWidth = computeRecWidth(
     crop.width,
     crop.height,
@@ -198,8 +209,25 @@ export function isRotatedForRecognition(quad: Quad): boolean {
   return Math.max(1, Math.round(height)) / Math.max(1, Math.round(width)) >= 1.5;
 }
 
-export function orientCropForRecognition(crop: RgbaImage): RgbaImage {
-  return crop.height / crop.width >= 1.5 ? rotate90CounterClockwise(crop) : crop;
+/** `readsDown` overrides the shape test, for a line whose direction is known. */
+export function orientCropForRecognition(
+  crop: RgbaImage,
+  readsDown = crop.height / crop.width >= 1.5,
+): RgbaImage {
+  return readsDown ? rotate90CounterClockwise(crop) : crop;
+}
+
+/** Copy a whole-pixel rectangle out of an image. */
+export function cropRect(
+  source: RgbaImage,
+  rect: { x: number; y: number; width: number; height: number },
+): RgbaImage {
+  const data = new Uint8ClampedArray(rect.width * rect.height * 4);
+  for (let y = 0; y < rect.height; y++) {
+    const from = ((rect.y + y) * source.width + rect.x) * 4;
+    data.set(source.data.subarray(from, from + rect.width * 4), y * rect.width * 4);
+  }
+  return { data, width: rect.width, height: rect.height };
 }
 
 function resizeRgbaToImageData(
@@ -229,7 +257,9 @@ function resizeRgbaToImageData(
   return new ImageData(data, targetWidth, targetHeight);
 }
 
-function rotate90CounterClockwise(source: RgbaImage): RgbaImage {
+/** Turn an image a quarter turn counter-clockwise: the point (x, y) moves to
+ * (y, width - x). */
+export function rotate90CounterClockwise(source: RgbaImage): RgbaImage {
   const data = new Uint8ClampedArray(source.data.length);
   for (let y = 0; y < source.height; y++) {
     for (let x = 0; x < source.width; x++) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cropQuad,
+  cropRect,
   orientCropForRecognition,
   padQuad,
   type RgbaImage,
@@ -96,5 +97,23 @@ describe("orientCropForRecognition", () => {
     const crop = orientCropForRecognition(source);
 
     expect(crop).toBe(source);
+  });
+  it("follows a known reading direction over the crop's shape", () => {
+    expect(orientCropForRecognition(image(3, 2), true)).toMatchObject({
+      width: 2,
+      height: 3,
+    });
+    const tall = image(2, 5);
+    expect(orientCropForRecognition(tall, false)).toBe(tall);
+  });
+});
+
+describe("cropRect", () => {
+  it("copies the pixels inside the rectangle", () => {
+    const crop = cropRect(image(4, 3), { x: 1, y: 1, width: 2, height: 2 });
+
+    expect(crop.width).toBe(2);
+    expect(crop.height).toBe(2);
+    expect([0, 1, 2, 3].map((i) => crop.data[i * 4])).toEqual([5, 6, 9, 10]);
   });
 });

@@ -7,9 +7,11 @@ import { charBoxes } from "./char-boxes";
 import {
   bitmapToImageData,
   cropQuadToImageData,
+  cropRect,
   isRotatedForRecognition,
   padQuad,
   resizeToImageData,
+  rotate90CounterClockwise,
   type RgbaImage,
 } from "./crop";
 import { ctcGreedyDecode, reverseArabicCtcText } from "./ctc";
@@ -27,7 +29,18 @@ import {
 } from "./ort-env";
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
 import type { InitRequest, WorkerModelConfig } from "./protocol";
-import { groupAsSingleRegion, RegionGrouper } from "./region-grouper";
+import {
+  findEnclosingRegions,
+  groupAsSingleRegion,
+  RegionGrouper,
+  type TextRegion,
+} from "./region-grouper";
+import {
+  readingScore,
+  regionCrop,
+  regionOf,
+  toPageBox,
+} from "./rotated-regions";
 import { UNSUPPORTED_SCRIPT_ERROR } from "../types";
 import {
   hasMajorityScript,
@@ -38,6 +51,7 @@ import type {
   OcrChar,
   OrientedRect,
   PipelineOcrResult,
+  Rect,
 } from "../../../shared/types";
 
 interface Manifest {
@@ -52,6 +66,8 @@ interface Manifest {
     minBoxSize: number;
     padding: number;
     splitThreshold?: number;
+    /** Read each comic text region again, turned a quarter turn. */
+    rotatedRegions?: boolean;
   };
   recognizer: {
     modelPath: string;
@@ -102,6 +118,10 @@ interface AutoRecognition {
 const LOG_PREFIX = "[PP-OCR]";
 
 const RECOGNIZER_WARM_UP_WIDTHS = [48, 128];
+
+/** How far a region is enlarged before detection. In a small speech bubble,
+ * the detector merges lines whose gap is only a few pixels wide. */
+const REGION_ENLARGEMENT = 2;
 
 export class PaddleEngine {
   private constructor(
@@ -231,7 +251,28 @@ export class PaddleEngine {
         );
       }
 
-      const sourceImageData = boxes.length > 0 ? bitmapToImageData(bitmap) : null;
+      const single = options.grouping === "single";
+      // Live captures read a strip of subtitles, not comic text regions.
+      const readsRegions =
+        Boolean(this.detector.rotatedRegions) &&
+        !single &&
+        options.minLineThickness === undefined;
+      const sourceImageData =
+        boxes.length > 0 || readsRegions ? bitmapToImageData(bitmap) : null;
+      // Found before recognition, so that progress can count the regions too.
+      const regions =
+        readsRegions && sourceImageData
+          ? await this.regionGrouper.detectRegions(sourceImageData)
+          : undefined;
+      // A region around several others would read their text a second time.
+      const enclosing = regions ? findEnclosingRegions(regions) : undefined;
+      const readable = regions?.filter((_, index) => !enclosing?.has(index));
+      // One bar for both passes: the page's lines, then the regions.
+      const steps = boxes.length + (readable?.length ?? 0);
+      const pageProgress =
+        onProgress && readable
+          ? (line: number) => onProgress(line, steps)
+          : onProgress;
       const modelId = options.modelId ?? this.primaryModelId;
       const auto =
         sourceLang === "auto" && !options.modelId && this.detectsScripts;
@@ -240,7 +281,7 @@ export class PaddleEngine {
             sourceImageData,
             boxes,
             isCancelled,
-            onProgress,
+            pageProgress,
           )
         : undefined;
       const recognized =
@@ -251,22 +292,33 @@ export class PaddleEngine {
             boxes,
             await this.getRecognizer(modelId),
             isCancelled,
-            onProgress,
+            pageProgress,
           ),
           modelId,
       };
 
       const script = this.modelOptions.get(recognized.modelId)?.script;
       throwIfCancelled(isCancelled);
-      const single = options.grouping === "single";
+      const lines =
+        readable && sourceImageData
+          ? await this.readRotatedRegions(
+              sourceImageData,
+              readable,
+              recognized.lines,
+              await this.getRecognizer(recognized.modelId),
+              isCancelled,
+              (done) => onProgress?.(boxes.length + done, steps),
+            )
+          : recognized.lines;
+      throwIfCancelled(isCancelled);
       const groupingStartedAt = now();
       const grouping = single
-        ? groupAsSingleRegion(recognized.lines)
-        : await this.regionGrouper.group(sourceImageData, recognized.lines);
+        ? groupAsSingleRegion(lines)
+        : await this.regionGrouper.group(sourceImageData, lines, regions);
       throwIfCancelled(isCancelled);
       if (this.debug) {
         console.log(
-          `${LOG_PREFIX} region grouping produced ${grouping.groups.length} group(s) from ${grouping.regionCount} region(s) in ${elapsed(groupingStartedAt)} (${single ? "single region" : `model=${this.regionGrouper.metadata.id}, threshold=${this.regionGrouper.metadata.confidenceThreshold}`}, matched=${grouping.matchedLineCount}/${recognized.lines.length})`,
+          `${LOG_PREFIX} region grouping produced ${grouping.groups.length} group(s) from ${grouping.regionCount} region(s) in ${elapsed(groupingStartedAt)} (${single ? "single region" : `model=${this.regionGrouper.metadata.id}, threshold=${this.regionGrouper.metadata.confidenceThreshold}`}, matched=${grouping.matchedLineCount}/${lines.length})`,
         );
       }
       const result = assembleGroupedResult(grouping.groups, {
@@ -298,7 +350,7 @@ export class PaddleEngine {
       result.imageHeight = bitmap.height;
       if (this.debug) {
         const keptLineCount = result.blocks?.length ?? 0;
-        const filteredLineCount = recognized.lines.length - keptLineCount;
+        const filteredLineCount = lines.length - keptLineCount;
         if (filteredLineCount > 0) {
           console.log(
             `${LOG_PREFIX} filtered ${filteredLineCount} low-confidence line(s)`,
@@ -327,19 +379,40 @@ export class PaddleEngine {
       .catch(() => {});
   }
 
-  private async detect(bitmap: ImageBitmap) {
+  /** Detector boxes in the bitmap's coordinates. With `enlargeUpTo`, the
+   * bitmap is enlarged by up to that factor, within maxSideLength, and padded
+   * rather than stretched to the detector's multiple of 32: on a small crop,
+   * squeezing by a few pixels merges neighbouring lines. */
+  private async detect(bitmap: ImageBitmap, enlargeUpTo?: number) {
     const det = this.detector;
-    const { targetW, targetH } = computeDetSize(
-      bitmap.width,
-      bitmap.height,
-      det.maxSideLength,
-    );
+    let width: number;
+    let height: number;
+    let inputW: number;
+    let inputH: number;
+    if (enlargeUpTo === undefined) {
+      const { targetW, targetH } = computeDetSize(
+        bitmap.width,
+        bitmap.height,
+        det.maxSideLength,
+      );
+      width = inputW = targetW;
+      height = inputH = targetH;
+    } else {
+      const scale = Math.min(
+        enlargeUpTo,
+        det.maxSideLength / Math.max(bitmap.width, bitmap.height),
+      );
+      width = Math.max(1, Math.round(bitmap.width * scale));
+      height = Math.max(1, Math.round(bitmap.height * scale));
+      inputW = Math.ceil(width / 32) * 32;
+      inputH = Math.ceil(height / 32) * 32;
+    }
 
-    const imageData = resizeToImageData(bitmap, targetW, targetH);
+    const imageData = resizeToImageData(bitmap, width, height, inputW, inputH);
     const tensor = new ort.Tensor(
       "float32",
-      imageDataToNchw(imageData.data, targetW, targetH, det.mean, det.std),
-      [1, 3, targetH, targetW],
+      imageDataToNchw(imageData.data, inputW, inputH, det.mean, det.std),
+      [1, 3, inputH, inputW],
     );
 
     const output = await runSingleInput(this.detSession, tensor);
@@ -355,14 +428,15 @@ export class PaddleEngine {
       padding: det.padding,
       splitThreshold: det.splitThreshold,
     };
-    // Map back to the original bitmap via the actual map size (robust to rounding).
+    // Map back to the original bitmap via the actual map size (robust to
+    // rounding). Padding only extends the map past the bitmap.
     return extractBoxes(
       probMap,
       mapW,
       mapH,
       cfg,
-      bitmap.width / mapW,
-      bitmap.height / mapH,
+      bitmap.width / (enlargeUpTo === undefined ? mapW : width),
+      bitmap.height / (enlargeUpTo === undefined ? mapH : height),
       bitmap.width,
       bitmap.height,
     );
@@ -534,8 +608,76 @@ export class PaddleEngine {
     readsDown: boolean;
   } {
     const padded = padQuad(box.quad, this.detector.padding);
-    const readsDown = isRotatedForRecognition(padded);
+    const readsDown = box.readsDown ?? isRotatedForRecognition(padded);
     return { oriented: orientedRectOfQuad(padded, readsDown), readsDown };
+  }
+
+  /** Read each text region again, turned a quarter turn counter-clockwise so
+   * its columns become rows. On a whole page, the detector often reads
+   * closely set columns across, row by row; turned, it finds the columns. A
+   * region keeps whichever reading has more confident text, so a horizontal
+   * line stays as the page read it. Lines outside the regions are kept.
+   * `onProgress` gets the number of regions read so far, with fractions for
+   * the lines of the region being read. */
+  private async readRotatedRegions(
+    source: RgbaImage,
+    readable: TextRegion[],
+    pageLines: RecognizedLine[],
+    recognizer: LoadedRecognizer,
+    isCancelled: () => boolean,
+    onProgress?: (regions: number) => void,
+  ): Promise<RecognizedLine[]> {
+    const regionOfLine = pageLines.map((line) => regionOf(line.bbox, readable));
+    const lines = pageLines.filter((_, index) => regionOfLine[index] === -1);
+    for (const [index, region] of readable.entries()) {
+      throwIfCancelled(isCancelled);
+      const page = pageLines.filter((_, line) => regionOfLine[line] === index);
+      // The crop's margin can take in a neighbouring region, and regions can
+      // overlap. A line belongs to the region its page reading would.
+      const boxes = (await this.detectRotated(source, region.bbox)).filter(
+        (box) => regionOf(box.bbox, readable) === index,
+      );
+      const rotated = await this.recognizeAllLines(
+        source,
+        boxes,
+        recognizer,
+        isCancelled,
+        (line, lineCount) => onProgress?.(index + line / (lineCount + 1)),
+      );
+      const keepsRotated = readingScore(rotated) > readingScore(page);
+      if (this.debug) {
+        console.log(
+          `${LOG_PREFIX} region #${index} kept the ${keepsRotated ? "rotated" : "page"} reading: ${JSON.stringify((keepsRotated ? rotated : page).map((line) => line.text))}`,
+        );
+      }
+      lines.push(...(keepsRotated ? rotated : page));
+      onProgress?.(index + 1);
+    }
+    return lines;
+  }
+
+  /** Detector boxes for one region read turned counter-clockwise, mapped back
+   * onto the page. */
+  private async detectRotated(
+    source: RgbaImage,
+    region: Rect,
+  ): Promise<DetectedBox[]> {
+    const crop = regionCrop(region, source);
+    const turned = rotate90CounterClockwise(cropRect(source, crop));
+    const bitmap = await createImageBitmap(
+      new ImageData(
+        turned.data as Uint8ClampedArray<ArrayBuffer>,
+        turned.width,
+        turned.height,
+      ),
+    );
+    try {
+      return (await this.detect(bitmap, REGION_ENLARGEMENT)).map((box) =>
+        toPageBox(box, crop),
+      );
+    } finally {
+      bitmap.close();
+    }
   }
 
   private async getRecognizer(modelId: string): Promise<LoadedRecognizer> {
@@ -575,6 +717,7 @@ export class PaddleEngine {
       rec.minImageWidth,
       rec.maxImageWidth,
       this.detector.padding,
+      box.readsDown,
     );
     if (this.debug && imageData.width >= rec.maxImageWidth) {
       console.warn(

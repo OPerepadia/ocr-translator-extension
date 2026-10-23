@@ -37,6 +37,9 @@ export interface DetectedBox {
   bbox: Rect;
   /** Mean detector probability inside the box. */
   score: number;
+  /** Whether the line reads top to bottom, when known from where it was
+   * found rather than from the box's shape. */
+  readsDown?: boolean;
 }
 
 /**
