@@ -11,6 +11,10 @@ Content UI runs in a WXT shadow root; keep styles in `src/entrypoints/content/st
 
 Run browser tests outside the container sandbox. Otherwise they may fail to launch or hang.
 
+Run `npm run test:browser:common` after changing content UI. Unit tests do not cover it.
+
+The Chrome and Firefox browser tests load the built extension from `.output/`. Run them after changing the background, messaging, OCR, or live translation. Rebuild first (`npm run build`, `npm run build:chrome`), or they test old code.
+
 Use generic, fictional text in test fixtures. Do not add real names, places, quoted dialogue, news excerpts, or text copied from screenshots or other source material; common greetings and neutral examples are fine.
 
 ## Localization

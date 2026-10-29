@@ -241,7 +241,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       assert.equal(await page.getByRole("button", { name: "livePause", exact: true }).isDisabled(), true);
       await page.locator(".ocr-translate-live-retry").click();
 
-      await page.getByRole("button", { name: "panelSelectNewRegion", exact: true }).click();
+      await page.getByRole("button", { name: "liveAdjustRegion", exact: true }).click();
       await page.getByRole("button", { name: "commonClose", exact: true }).click();
       assert.deepEqual(await page.evaluate(() => window.calls), [
         "pause",
