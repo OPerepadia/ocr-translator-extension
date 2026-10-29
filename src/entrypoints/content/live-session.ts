@@ -167,6 +167,23 @@ export class LiveSession {
     this.wake();
   }
 
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** The region moved or resized. `heightRatio` is its old height over the
+   * new one. */
+  regionChanged(heightRatio: number): void {
+    if (this.minLineThickness !== undefined && heightRatio > 0) {
+      this.minLineThickness = Math.min(
+        this.minLineThickness * heightRatio,
+        MIN_LINE_RATIO,
+      );
+    }
+    this.unchangedReads = 0;
+    this.wake();
+  }
+
   /** Read again now rather than at the next interval, for instance when the
    * tab becomes visible. */
   wake(): void {

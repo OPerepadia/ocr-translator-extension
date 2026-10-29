@@ -274,6 +274,10 @@
   letter-spacing: normal;
 }
 
+.ocr-translate-selection-hint-sub:first-child {
+  margin-top: 0;
+}
+
 .ocr-translate-selection-hint-kbd {
   display: inline-block;
   padding: 1px 6px;

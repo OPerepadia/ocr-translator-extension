@@ -29,6 +29,8 @@ export interface SelectionOptions {
   hint?: string;
   /** Replaces the label of the button that confirms an adjusted selection. */
   confirmLabel?: string;
+  /** Starts with this area selected and ready to adjust. */
+  initialRect?: Rect;
 }
 
 const MIN_SIZE = 30;
@@ -92,10 +94,13 @@ export function startSelectionOverlay(
 
     const hint = document.createElement("div");
     hint.className = "ocr-translate-selection-hint";
-    hint.append(
-      options.hint ?? t("selectionDragArea"),
-      document.createElement("br"),
-    );
+    // The handles already show what to do.
+    if (!options.initialRect) {
+      hint.append(
+        options.hint ?? t("selectionDragArea"),
+        document.createElement("br"),
+      );
+    }
     const hintSub = document.createElement("span");
     hintSub.className = "ocr-translate-selection-hint-sub";
     const keyMarker = "__KEY__";
@@ -603,6 +608,10 @@ export function startSelectionOverlay(
     // The page can scroll under the overlay, moving images past the pointer.
     window.addEventListener("scroll", updateImageHover, true);
     window.addEventListener("resize", updateImageHover);
+
+    if (options.initialRect) {
+      enterAdjustMode(options.initialRect);
+    }
   });
 }
 

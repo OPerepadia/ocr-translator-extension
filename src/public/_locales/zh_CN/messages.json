@@ -341,6 +341,12 @@
   "liveSelectionStart": {
     "message": "开始"
   },
+  "liveAdjustApply": {
+    "message": "应用"
+  },
+  "liveAdjustRegion": {
+    "message": "调整区域"
+  },
   "languageTargetTitle": {
     "message": "目标语言：$1"
   },

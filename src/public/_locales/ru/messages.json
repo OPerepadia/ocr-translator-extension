@@ -341,6 +341,12 @@
   "liveSelectionStart": {
     "message": "Начать"
   },
+  "liveAdjustApply": {
+    "message": "Применить"
+  },
+  "liveAdjustRegion": {
+    "message": "Изменить область"
+  },
   "languageTargetTitle": {
     "message": "Язык перевода: $1"
   },

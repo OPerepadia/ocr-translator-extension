@@ -162,7 +162,7 @@ export function showLivePanel(
   const selectButton = iconButton(
     SELECT_REGION_ICON,
     () => callbacks.onSelectNewRegion(),
-    t("panelSelectNewRegion"),
+    t("liveAdjustRegion"),
   );
   const closeButton = iconButton(
     CLOSE_ICON,

@@ -76,9 +76,9 @@ import {
 import { closeRegionOutline, showRegionOutline } from "./region-outline";
 import { LiveSession } from "./live-session";
 import { showLivePanel, type LivePanel } from "./live-panel";
-import { followRegion } from "./live-region";
+import { followRegion, type LiveRegion } from "./live-region";
 import { rectsOverlap } from "./live-layout";
-import { readFromVideo } from "./live-video";
+import { readFromVideo, type LiveVideoSource } from "./live-video";
 import {
   setNavigationContext,
   startNavigationWatch,
@@ -122,6 +122,8 @@ let live:
       session: LiveSession;
       panel: LivePanel;
       sessionId: string;
+      measureRegion: () => Rect;
+      retarget: (rect: Rect) => void;
       stopWatching: () => void;
     }
   | undefined;
@@ -482,7 +484,7 @@ function startLive(rect: Rect, textScale: LiveTextScale): void {
       onPause: () => session.pause(),
       onResume: () => session.resume(),
       onRetry: () => session.retry(),
-      onSelectNewRegion: () => void runLiveSelectionFlow(),
+      onSelectNewRegion: () => void adjustLiveRegion(),
       onClose: stopLive,
       onTextScaleChange: (scale) =>
         void setLiveTextScale(scale).catch(() => {}),
@@ -491,34 +493,40 @@ function startLive(rect: Rect, textScale: LiveTextScale): void {
   );
   // Hit testing reports the panel as its shadow host.
   const shadow = uiRoot.getRootNode();
-  const region = followRegion(
-    rect,
-    shadow instanceof ShadowRoot ? shadow.host : undefined,
-    (moved) => panel.moveRegion(moved),
-  );
+  const uiHost = shadow instanceof ShadowRoot ? shadow.host : undefined;
   const viewport = () => ({
     width: window.innerWidth,
     height: window.innerHeight,
   });
-  // A video is read from its own frames, which the panel is never in. Anything
-  // else, or a video the page keeps from the extension, is read off the screen.
-  const video =
-    region.picture?.element instanceof HTMLVideoElement
-      ? readFromVideo(region.picture.element, region.picture.share, {
-          isInView: () =>
-            rectsOverlap(region.measure(), { x: 0, y: 0, ...viewport() }),
-          recognize: (requestId, image, minLineThickness) =>
-            sendRequest<LiveImageResponse>({
-              type: "LIVE_IMAGE_REQUEST",
-              requestId,
-              sessionId,
-              image,
-              minLineThickness,
-            }),
-          onWake: () => session.wake(),
-        })
-      : undefined;
-  panel.setReadsScreen(!video);
+  let region: LiveRegion;
+  let video: LiveVideoSource | undefined;
+  const follow = (target: Rect): void => {
+    const followed = followRegion(target, uiHost, (moved) =>
+      panel.moveRegion(moved),
+    );
+    region = followed;
+    // A video is read from its own frames, which the panel is never in.
+    // Anything else, or a video the page keeps from the extension, is read off
+    // the screen.
+    video =
+      followed.picture?.element instanceof HTMLVideoElement
+        ? readFromVideo(followed.picture.element, followed.picture.share, {
+            isInView: () =>
+              rectsOverlap(followed.measure(), { x: 0, y: 0, ...viewport() }),
+            recognize: (requestId, image, minLineThickness) =>
+              sendRequest<LiveImageResponse>({
+                type: "LIVE_IMAGE_REQUEST",
+                requestId,
+                sessionId,
+                image,
+                minLineThickness,
+              }),
+            onWake: () => session.wake(),
+          })
+        : undefined;
+    panel.setReadsScreen(!video);
+  };
+  follow(rect);
   const session = new LiveSession({
     readFrame: async (requestId, minLineThickness) => {
       const read = await video?.read(requestId, minLineThickness);
@@ -566,6 +574,15 @@ function startLive(rect: Rect, textScale: LiveTextScale): void {
     session,
     panel,
     sessionId,
+    measureRegion: () => region.measure(),
+    retarget: (target) => {
+      const previous = region.measure();
+      video?.dispose();
+      region.dispose();
+      follow(target);
+      panel.moveRegion(target);
+      session.regionChanged(previous.height / target.height);
+    },
     stopWatching: () => {
       document.removeEventListener("visibilitychange", wakeWhenVisible);
       video?.dispose();
@@ -581,6 +598,43 @@ function startLive(rect: Rect, textScale: LiveTextScale): void {
       session.start();
     }
   }, FIRST_LIVE_READ_DELAY_MS);
+}
+
+// Adjust the live region in the selection overlay. The session keeps running.
+async function adjustLiveRegion(): Promise<void> {
+  const current = live;
+  if (!uiRoot || !current) {
+    return;
+  }
+  const generation = ++selectionGeneration;
+  const { session } = current;
+  const wasPaused = session.isPaused;
+  // The overlay's dim and handles would be read as text.
+  session.pause();
+  cancelSelectionOverlay();
+
+  const selection = await startSelectionOverlay(uiRoot, true, {
+    pickImages: false,
+    confirmLabel: t("liveAdjustApply"),
+    initialRect: current.measureRegion(),
+  });
+
+  // The session was stopped or replaced.
+  if (generation !== selectionGeneration || live !== current) {
+    return;
+  }
+  if (selection?.kind === "area") {
+    current.retarget(selection.rect);
+  }
+  releaseSelectionDim();
+  if (!wasPaused) {
+    // A screenshot can still show the overlay.
+    setTimeout(() => {
+      if (live === current) {
+        session.resume();
+      }
+    }, FIRST_LIVE_READ_DELAY_MS);
+  }
 }
 
 function stopLive(): void {

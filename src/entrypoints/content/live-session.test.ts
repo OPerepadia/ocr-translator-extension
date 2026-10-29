@@ -938,4 +938,76 @@ describe("LiveSession", () => {
     expect(new Set(asked)).toEqual(new Set([40 * MIN_LINE_RATIO]));
     t.session.stop();
   });
+
+  describe("regionChanged", () => {
+    const askedAfter = (t: ReturnType<typeof setup>, from: number) =>
+      t.readFrame.mock.calls.slice(from).map(([, thickness]) => thickness);
+
+    it("scales the learned thickness to the new height of the region", async () => {
+      const t = setup();
+      t.replies.push(read("Good morning.", false, 0.2));
+      t.session.start();
+      await advance(READ_INTERVAL_MS);
+      const reads = t.readFrame.mock.calls.length;
+
+      // The region got twice as tall.
+      t.session.regionChanged(0.5);
+      await advance(READ_INTERVAL_MS * 2);
+
+      expect(new Set(askedAfter(t, reads))).toEqual(
+        new Set([0.2 * MIN_LINE_RATIO * 0.5]),
+      );
+      t.session.stop();
+    });
+
+    it("never asks for more than the subtitles could fill", async () => {
+      const t = setup();
+      t.replies.push(read("Good morning.", false, 0.5));
+      t.session.start();
+      await advance(READ_INTERVAL_MS);
+      const reads = t.readFrame.mock.calls.length;
+
+      t.session.regionChanged(10);
+      await advance(READ_INTERVAL_MS * 2);
+
+      expect(new Set(askedAfter(t, reads))).toEqual(new Set([MIN_LINE_RATIO]));
+      t.session.stop();
+    });
+
+    it("leaves the thickness to be learned when it is not known yet", async () => {
+      const t = setup();
+      t.session.regionChanged(0.5);
+      t.replies.push(read("Good morning.", false, 0.2));
+
+      t.session.start();
+      await advance(READ_INTERVAL_MS * 2);
+
+      const floor = 0.2 * MIN_LINE_RATIO;
+      expect(askedAfter(t, 0)).toEqual([undefined, floor, floor]);
+      t.session.stop();
+    });
+
+    it("reads again at once instead of waiting out the idle interval", async () => {
+      const t = setup();
+      t.replies.push(read("Good morning.", true));
+      t.session.start();
+      await advance(READ_INTERVAL_MS * UNCHANGED_READS_BEFORE_IDLE);
+      const reads = t.readFrame.mock.calls.length;
+
+      t.session.regionChanged(1);
+      await advance(0);
+
+      expect(t.readFrame).toHaveBeenCalledTimes(reads + 1);
+      t.session.stop();
+    });
+  });
+
+  it("reports whether it is paused", () => {
+    const t = setup();
+    expect(t.session.isPaused).toBe(false);
+    t.session.pause();
+    expect(t.session.isPaused).toBe(true);
+    t.session.resume();
+    expect(t.session.isPaused).toBe(false);
+  });
 });

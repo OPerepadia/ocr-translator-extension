@@ -341,6 +341,12 @@
   "liveSelectionStart": {
     "message": "開始"
   },
+  "liveAdjustApply": {
+    "message": "適用"
+  },
+  "liveAdjustRegion": {
+    "message": "範囲を調整"
+  },
   "languageTargetTitle": {
     "message": "翻訳先の言語：$1"
   },

@@ -386,6 +386,14 @@
     "message": "Start",
     "description": "Button that starts live translation of the selected area."
   },
+  "liveAdjustApply": {
+    "message": "Apply",
+    "description": "Button that applies the adjusted live translation area."
+  },
+  "liveAdjustRegion": {
+    "message": "Adjust area",
+    "description": "Tooltip of the live panel button that adjusts the area translated live."
+  },
   "languageTargetTitle": {
     "message": "Target language: $1",
     "description": "Language selector tooltip. $1 is the language to translate into."
