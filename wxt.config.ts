@@ -88,9 +88,11 @@ export default defineConfig({
     ],
     commands: {
       [START_SELECTION_COMMAND]: {
-        suggested_key: {
-          default: "Ctrl+Shift+F",
-        },
+        // Firefox 159 took this key for the add-ons manager and refuses it for
+        // extensions. Chrome keeps it for now.
+        ...(browser !== "firefox" && {
+          suggested_key: { default: "Ctrl+Shift+F" },
+        }),
         description: "__MSG_commandTranslateScreenRegion__",
       },
       // No suggested key: a browser shortcut can clash with the page's own,

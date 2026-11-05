@@ -31,6 +31,9 @@ Browser extension that uses local OCR to extract text from images, comics, scans
 
 Open the extension from the toolbar or context menu, or press `Ctrl+Shift+F`. Drag to select an area, or click an image to translate it.
 
+>[!IMPORTANT]
+The default `Ctrl+Shift+F` shortcut has been removed on Firefox because Firefox 159 now uses it for the add-ons manager. You can assign a different shortcut in settings.
+
 To move or resize the area before recognition starts, enable **Adjust selection before recognition** in the extension settings.
 
 You can also right-click an image and choose "Translate this image".
