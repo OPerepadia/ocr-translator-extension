@@ -17,6 +17,10 @@ import { RemoteTranslationError, type TranslationProvider } from "./types";
 
 const BATCHEXECUTE_URL =
   "https://translate.google.com/_/TranslateWebserverUi/data/batchexecute";
+// The older single-shot endpoint. Used when batchexecute answers with a body
+// that has no translation in it: that used to be reported as success and the
+// overlay painted the original line in the translation view.
+const SINGLE_URL = "https://translate.googleapis.com/translate_a/single";
 const TRANSLATE_RPC_ID = "MkEWBc";
 // Texts per request. A large selection is split into several requests rather
 // than one oversized body.
@@ -66,27 +70,39 @@ export function createGoogleTranslationProvider(
         .map((line, index) => ({ line, index }))
         .filter((entry) => entry.line.trim().length > 0);
 
-      const translatedByIndex = new Map<number, string>();
-      for (let offset = 0; offset < nonBlank.length; offset += BATCH_LIMIT) {
-        signal?.throwIfAborted();
-        const batch = nonBlank.slice(offset, offset + BATCH_LIMIT);
-        const translations = await translateBatch(
-          batch.map((entry) => entry.line),
-          from,
-          to,
-          fetchImpl,
-          timeoutMs,
-          signal,
-        );
-        batch.forEach((entry, i) => {
-          // Fall back to the original line if Google dropped this entry.
-          translatedByIndex.set(entry.index, translations[i] || entry.line);
-        });
-      }
+      const translateLines = async (fromCode: string): Promise<string> => {
+        const translatedByIndex = new Map<number, string>();
+        for (let offset = 0; offset < nonBlank.length; offset += BATCH_LIMIT) {
+          signal?.throwIfAborted();
+          const batch = nonBlank.slice(offset, offset + BATCH_LIMIT);
+          const translations = await translateBatch(
+            batch.map((entry) => entry.line),
+            fromCode,
+            to,
+            fetchImpl,
+            timeoutMs,
+            signal,
+          );
+          batch.forEach((entry, i) => {
+            translatedByIndex.set(entry.index, translations[i]);
+          });
+        }
+        return lines
+          .map((line, index) => translatedByIndex.get(index) ?? line)
+          .join("\n");
+      };
 
-      const text = lines
-        .map((line, index) => translatedByIndex.get(index) ?? line)
-        .join("\n");
+      let text = await translateLines(from);
+      // A wrong source guess (the caption was labeled Esperanto) makes Google
+      // echo the original into the translation. Ask once more with detection
+      // left to Google.
+      if (
+        from !== "auto" &&
+        from !== to &&
+        sameWriting(text, input.text)
+      ) {
+        text = await translateLines("auto");
+      }
 
       return {
         text,
@@ -135,8 +151,119 @@ async function translateBatch(
 
   const body = `f.req=${encodeURIComponent(JSON.stringify([calls]))}&`;
 
-  // fetch has no timeout, so bound the request with our own controller: abort it
-  // when the timeout fires, and also forward the caller's abort (cancel) to it.
+  let parsed: string[] | undefined;
+  try {
+    const raw = await fetchText(
+      `${BATCHEXECUTE_URL}?${params.toString()}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        // Don't attach the user's Google cookies to the request.
+        credentials: "omit",
+        body,
+      },
+      fetchImpl,
+      timeoutMs,
+      signal,
+    );
+    parsed = parseBatchResponse(raw, texts.length);
+  } catch (error) {
+    if (signal?.aborted) {
+      throw error;
+    }
+    // A stall has already waited out the timeout; don't start a second one.
+    if (
+      error instanceof RemoteTranslationError &&
+      error.message ===
+        t(
+          "errorGoogleTranslateTimeout",
+          String(Math.round(timeoutMs / 1000)),
+        )
+    ) {
+      throw error;
+    }
+    parsed = undefined;
+  }
+
+  // A 200 with no translation used to be treated as success, and the overlay
+  // then drew the original line. Ask the single-shot endpoint before giving up.
+  if (!parsed || parsed.some((line) => line.trim() === "")) {
+    const fallback = await translateLinesWithSingle(
+      texts,
+      from,
+      to,
+      fetchImpl,
+      timeoutMs,
+      signal,
+    );
+    if (fallback.some((line) => line.trim() === "")) {
+      throw new RemoteTranslationError(t("errorGoogleTranslateEmpty"));
+    }
+    return fallback;
+  }
+
+  return parsed;
+}
+
+/** One line per request, so a merged paragraph can't be assigned to the wrong row. */
+async function translateLinesWithSingle(
+  texts: string[],
+  from: string,
+  to: string,
+  fetchImpl: typeof fetch,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const results: string[] = [];
+  for (const text of texts) {
+    signal?.throwIfAborted();
+    const params = new URLSearchParams({
+      client: "gtx",
+      sl: from,
+      tl: to,
+      dt: "t",
+      q: text,
+    });
+    const raw = await fetchText(
+      `${SINGLE_URL}?${params.toString()}`,
+      { method: "GET", credentials: "omit" },
+      fetchImpl,
+      timeoutMs,
+      signal,
+    );
+    results.push(parseSingleResponse(raw));
+  }
+  return results;
+}
+
+/** `[[["translated", "source", ...], ...], ...]`. Join the translated pieces. */
+function parseSingleResponse(raw: string): string {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return "";
+  }
+  const segments = at(data, 0);
+  if (!Array.isArray(segments)) {
+    return "";
+  }
+  return segments
+    .map((segment) => at(segment, 0))
+    .filter((part): part is string => typeof part === "string" && part !== "")
+    .join("")
+    .replace(/\n$/, "");
+}
+
+async function fetchText(
+  url: string,
+  init: RequestInit,
+  fetchImpl: typeof fetch,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<string> {
   const controller = new AbortController();
   const forwardAbort = () => controller.abort();
   if (signal) {
@@ -154,19 +281,8 @@ async function translateBatch(
 
   let response: Response;
   try {
-    response = await fetchImpl(`${BATCHEXECUTE_URL}?${params.toString()}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      },
-      // Don't attach the user's Google cookies to the request.
-      credentials: "omit",
-      body,
-      signal: controller.signal,
-    });
+    response = await fetchImpl(url, { ...init, signal: controller.signal });
   } catch (error) {
-    // A real cancel by the caller propagates untouched so callers see an
-    // AbortError; our own timeout becomes a (retryable) RemoteTranslationError.
     if (signal?.aborted) {
       throw error;
     }
@@ -188,8 +304,7 @@ async function translateBatch(
       t("errorGoogleTranslateRequest", String(response.status)),
     );
   }
-
-  return parseBatchResponse(await response.text(), texts.length);
+  return response.text();
 }
 
 /**
@@ -271,6 +386,17 @@ function at(value: unknown, index: number): unknown {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Ignore surrounding space and blank lines so an echoed caption still matches. */
+function sameWriting(a: string, b: string): boolean {
+  const normalize = (value: string): string =>
+    value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .join("\n");
+  return normalize(a) === normalize(b);
 }
 
 // Map the app's canonical language code to the code Google's endpoint expects.

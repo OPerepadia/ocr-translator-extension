@@ -125,7 +125,7 @@ describe("createGoogleTranslationProvider", () => {
 
   it("sends the mapped source/target codes and 'auto' for unknown source", async () => {
     const seen: Array<[string, string]> = [];
-    const { fetchImpl } = googleFetchMock((text) => text);
+    const { fetchImpl } = googleFetchMock((text) => `T:${text}`);
     const spy = vi.fn(async (url: unknown, init?: { body?: unknown }) => {
       const body = String(init?.body ?? "");
       const encoded = body.slice("f.req=".length, body.lastIndexOf("&"));
@@ -169,6 +169,73 @@ describe("createGoogleTranslationProvider", () => {
 
     expect(result.text).toBe(lines.map((l) => l.toUpperCase()).join("\n"));
     expect(bodies).toHaveLength(3); // 50 + 50 + 20
+  });
+
+  it("asks again with auto when a pinned source language is echoed back", async () => {
+    const fetchImpl = vi.fn(async (_url: unknown, init?: { body?: unknown }) => {
+      const body = String(init?.body ?? "");
+      const encoded = body.slice("f.req=".length, body.lastIndexOf("&"));
+      const calls = JSON.parse(decodeURIComponent(encoded))[0] as string[][];
+      const [text, from] = JSON.parse(calls[0][1])[0] as [string, string];
+      const translated = from === "auto" ? "My mother-in-law arrived" : text;
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          response([{ index: 0, body: payload(translated) }]),
+      };
+    }) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const result = await provider.translate({
+      text: "Mi suegra: Ya llegó",
+      sourceLang: "eo",
+      targetLang: "en",
+    });
+
+    expect(result.text).toBe("My mother-in-law arrived");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the single-shot endpoint when the batch response has no translation", async () => {
+    const fetchImpl = vi.fn(async (url: unknown) => {
+      const href = String(url);
+      if (href.includes("translate_a/single")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify([[["My mother-in-law arrived", "Mi suegra"]]]),
+        };
+      }
+      return { ok: true, status: 200, text: async () => ")]}'\n\n" };
+    }) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const result = await provider.translate({
+      text: "Mi suegra",
+      sourceLang: "es",
+      targetLang: "en",
+    });
+
+    expect(result.text).toBe("My mother-in-law arrived");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a failure when neither endpoint returns a translation", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => ")]}'\n\n",
+    })) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const error = await provider
+      .translate({ text: "Mi suegra", sourceLang: "es", targetLang: "en" })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RemoteTranslationError);
+    expect((error as Error).message).toMatch(/no translation/i);
   });
 
   it("throws a helpful error on an HTTP failure", async () => {

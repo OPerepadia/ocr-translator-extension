@@ -562,6 +562,9 @@
     "message": "Google Translate request failed (HTTP $1). Try again later, or switch to another translation provider.",
     "description": "$1 is the HTTP status code."
   },
+  "errorGoogleTranslateEmpty": {
+    "message": "Google Translate sent back no translation. Try again, or switch to another translation provider."
+  },
   "errorLlmEndpointNotConfigured": {
     "message": "The LLM provider has no endpoint configured. Set the endpoint URL (e.g. http://localhost:8080/v1 for a local server) on the extension's settings page."
   },
