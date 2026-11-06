@@ -103,15 +103,23 @@
                 </span>
                 <input type="checkbox" name="ocrWebGpu" />
               </label>
-              <div class="settings-shortcut" hidden>
-                <span class="settings-control-text">
+              <div class="settings-shortcuts" hidden>
+                <div class="settings-shortcuts-header">
                   <span data-i18n="optionsShortcut"></span>
-                  <span class="field-hint" data-i18n="optionsShortcutHint"></span>
-                </span>
-                <span class="shortcut-controls">
-                  <kbd class="shortcut-key"></kbd>
-                  <button type="button" class="btn shortcut-edit"></button>
-                </span>
+                  <button
+                    type="button"
+                    class="btn shortcut-edit"
+                    data-i18n="optionsShortcutChange"
+                  ></button>
+                </div>
+                <div class="settings-shortcut selection-shortcut">
+                  <span data-i18n="commandTranslateScreenRegion"></span>
+                  <span class="shortcut-key"></span>
+                </div>
+                <div class="settings-shortcut live-shortcut">
+                  <span data-i18n="commandTranslateScreenRegionLive"></span>
+                  <span class="shortcut-key"></span>
+                </div>
               </div>
             </section>
 

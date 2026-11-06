@@ -203,17 +203,11 @@
   "optionsShortcut": {
     "message": "キーボードショートカット"
   },
-  "optionsShortcutHint": {
-    "message": "現在のページで範囲選択を開始します。"
-  },
   "optionsShortcutNotSet": {
     "message": "未設定"
   },
   "optionsShortcutChange": {
     "message": "変更"
-  },
-  "optionsShortcutSet": {
-    "message": "ショートカットを設定"
   },
   "optionsCouldNotOpenShortcutSettings": {
     "message": "キーボードショートカットの設定を開けませんでした。"

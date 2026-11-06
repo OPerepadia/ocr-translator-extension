@@ -708,40 +708,56 @@ select:focus-visible {
   font-weight: 600;
 }
 
-.settings-shortcut {
-  flex-wrap: wrap;
+.settings-shortcuts {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) 1fr;
 }
 
-.settings-shortcut[hidden] {
+.settings-shortcuts[hidden] {
   display: none;
 }
 
-.shortcut-controls {
+.settings-shortcut {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  column-gap: 24px;
+  margin-top: 10px;
+  padding-left: 16px;
+  font-weight: 400;
+}
+
+.settings-shortcuts-header {
   display: flex;
-  gap: 10px;
+  grid-column: 1 / -1;
+  gap: 16px;
   align-items: center;
-  margin-left: auto;
+  justify-content: space-between;
+  font-weight: 600;
 }
 
 .shortcut-key {
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 3px 8px;
-  background: var(--hover-bg);
-  font: inherit;
-  font-weight: 500;
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  font-weight: 400;
   white-space: nowrap;
 }
 
+.shortcut-key kbd {
+  font: inherit;
+  font-weight: 500;
+}
+
+.shortcut-separator,
 .shortcut-key.is-unset {
   color: var(--muted);
-  font-weight: 400;
 }
 
 .settings-section > .field + .field,
 .settings-section > .field + .settings-toggle,
 .settings-section > .settings-toggle + .settings-toggle,
-.settings-section > .settings-toggle + .settings-shortcut,
+.settings-section > .settings-toggle + .settings-shortcuts,
 .settings-section > .field-row + .llm-settings,
 .field-row > .field + .field {
   margin-top: 10px;

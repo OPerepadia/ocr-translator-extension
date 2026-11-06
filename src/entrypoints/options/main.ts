@@ -38,6 +38,7 @@ import {
 } from "@/shared/i18n";
 import type { Settings } from "@/shared/types";
 import {
+  getStartLiveSelectionShortcut,
   getStartSelectionShortcut,
   openShortcutSettings,
 } from "@/shared/shortcut";
@@ -192,25 +193,48 @@ async function initOptions(): Promise<void> {
     );
   });
 
-  const syncShortcut = async (): Promise<void> => {
+  const showShortcut = (
+    key: HTMLElement,
+    shortcut: string | undefined,
+  ): void => {
+    key.classList.toggle("is-unset", !shortcut);
+    if (!shortcut) {
+      key.textContent = t("optionsShortcutNotSet");
+      return;
+    }
+    key.replaceChildren(
+      ...shortcut.split(" + ").flatMap((part, index) => {
+        const cap = document.createElement("kbd");
+        cap.textContent = part;
+        if (index === 0) {
+          return [cap];
+        }
+        const separator = document.createElement("span");
+        separator.className = "shortcut-separator";
+        separator.textContent = "+";
+        return [separator, cap];
+      }),
+    );
+  };
+  const syncShortcuts = async (): Promise<void> => {
     try {
-      const shortcut = await getStartSelectionShortcut();
-      elements.shortcutKey.textContent = shortcut ?? t("optionsShortcutNotSet");
-      elements.shortcutKey.classList.toggle("is-unset", !shortcut);
-      elements.shortcutEditButton.textContent = shortcut
-        ? t("optionsShortcutChange")
-        : t("optionsShortcutSet");
-      elements.shortcutRow.hidden = false;
+      const [selection, live] = await Promise.all([
+        getStartSelectionShortcut(),
+        getStartLiveSelectionShortcut(),
+      ]);
+      showShortcut(elements.shortcutKey, selection);
+      showShortcut(elements.liveShortcutKey, live);
+      elements.shortcuts.hidden = false;
     } catch {
-      elements.shortcutRow.hidden = true;
+      elements.shortcuts.hidden = true;
     }
   };
-  void syncShortcut();
-  // The shortcut is edited on a browser page, so refresh it on return.
-  window.addEventListener("focus", () => void syncShortcut());
+  void syncShortcuts();
+  // Shortcuts are edited on a browser page, so refresh them on return.
+  window.addEventListener("focus", () => void syncShortcuts());
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      void syncShortcut();
+      void syncShortcuts();
     }
   });
   elements.shortcutEditButton.addEventListener("click", () => {
@@ -733,9 +757,10 @@ function getOptionsElements(): {
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
   ocrWebGpuStatus: HTMLElement;
-  shortcutRow: HTMLElement;
+  shortcuts: HTMLElement;
   shortcutKey: HTMLElement;
   shortcutEditButton: HTMLButtonElement;
+  liveShortcutKey: HTMLElement;
   deeplSettings: HTMLFieldSetElement;
   deeplApiKeyInput: HTMLInputElement;
   deeplPlanSelect: HTMLSelectElement;
@@ -785,10 +810,15 @@ function getOptionsElements(): {
   );
   const ocrWebGpuNote = app.querySelector<HTMLElement>(".ocr-webgpu-note");
   const ocrWebGpuStatus = app.querySelector<HTMLElement>(".ocr-webgpu-status");
-  const shortcutRow = app.querySelector<HTMLElement>(".settings-shortcut");
-  const shortcutKey = app.querySelector<HTMLElement>(".shortcut-key");
+  const shortcuts = app.querySelector<HTMLElement>(".settings-shortcuts");
+  const shortcutKey = app.querySelector<HTMLElement>(
+    ".selection-shortcut .shortcut-key",
+  );
   const shortcutEditButton = app.querySelector<HTMLButtonElement>(
     ".shortcut-edit",
+  );
+  const liveShortcutKey = app.querySelector<HTMLElement>(
+    ".live-shortcut .shortcut-key",
   );
   const deeplSettings = app.querySelector<HTMLFieldSetElement>(".deepl-settings");
   const deeplApiKeyInput = app.querySelector<HTMLInputElement>(
@@ -844,9 +874,10 @@ function getOptionsElements(): {
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
     !ocrWebGpuStatus ||
-    !shortcutRow ||
+    !shortcuts ||
     !shortcutKey ||
     !shortcutEditButton ||
+    !liveShortcutKey ||
     !deeplSettings ||
     !deeplApiKeyInput ||
     !deeplPlanSelect ||
@@ -882,9 +913,10 @@ function getOptionsElements(): {
     ocrWebGpuInput,
     ocrWebGpuNote,
     ocrWebGpuStatus,
-    shortcutRow,
+    shortcuts,
     shortcutKey,
     shortcutEditButton,
+    liveShortcutKey,
     deeplSettings,
     deeplApiKeyInput,
     deeplPlanSelect,

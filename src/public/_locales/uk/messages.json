@@ -201,19 +201,13 @@
     "message": "Дозволяє перемістити або змінити розмір виділеної ділянки до початку розпізнавання тексту."
   },
   "optionsShortcut": {
-    "message": "Комбінація клавіш"
-  },
-  "optionsShortcutHint": {
-    "message": "Запускає вибір ділянки на поточній сторінці."
+    "message": "Комбінації клавіш"
   },
   "optionsShortcutNotSet": {
     "message": "Не задано"
   },
   "optionsShortcutChange": {
     "message": "Змінити"
-  },
-  "optionsShortcutSet": {
-    "message": "Налаштувати"
   },
   "optionsCouldNotOpenShortcutSettings": {
     "message": "Не вдалося відкрити налаштування комбінацій клавіш."

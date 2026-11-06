@@ -201,19 +201,13 @@
     "message": "Позволяет переместить или изменить размер выделенного участка до начала распознавания текста."
   },
   "optionsShortcut": {
-    "message": "Сочетание клавиш"
-  },
-  "optionsShortcutHint": {
-    "message": "Запускает выбор области на текущей странице."
+    "message": "Сочетания клавиш"
   },
   "optionsShortcutNotSet": {
     "message": "Не задано"
   },
   "optionsShortcutChange": {
     "message": "Изменить"
-  },
-  "optionsShortcutSet": {
-    "message": "Настроить"
   },
   "optionsCouldNotOpenShortcutSettings": {
     "message": "Не удалось открыть настройки сочетаний клавиш."

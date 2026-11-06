@@ -227,19 +227,13 @@
     "message": "Move or resize the selected area before text recognition starts."
   },
   "optionsShortcut": {
-    "message": "Keyboard shortcut"
-  },
-  "optionsShortcutHint": {
-    "message": "Starts area selection on the current page."
+    "message": "Keyboard shortcuts"
   },
   "optionsShortcutNotSet": {
     "message": "Not set"
   },
   "optionsShortcutChange": {
     "message": "Change"
-  },
-  "optionsShortcutSet": {
-    "message": "Set shortcut"
   },
   "optionsCouldNotOpenShortcutSettings": {
     "message": "Could not open keyboard shortcut settings."

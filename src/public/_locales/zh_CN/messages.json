@@ -203,17 +203,11 @@
   "optionsShortcut": {
     "message": "键盘快捷键"
   },
-  "optionsShortcutHint": {
-    "message": "在当前页面开始选择区域。"
-  },
   "optionsShortcutNotSet": {
     "message": "未设置"
   },
   "optionsShortcutChange": {
     "message": "更改"
-  },
-  "optionsShortcutSet": {
-    "message": "设置快捷键"
   },
   "optionsCouldNotOpenShortcutSettings": {
     "message": "无法打开键盘快捷键设置。"
