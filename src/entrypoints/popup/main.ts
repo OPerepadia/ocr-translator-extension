@@ -33,6 +33,7 @@ import {
   LIVE_ICON,
   OVERLAY_ICON,
   PANEL_ICON,
+  SELECT_AREA_ICON,
   SETTINGS_ICON,
   translationProviderIcon,
 } from "@/entrypoints/content/icons";
@@ -55,7 +56,8 @@ async function initPopup(): Promise<void> {
   localizeMarkedElements();
   const elements = getPopupElements();
   elements.openSettings.innerHTML = SETTINGS_ICON;
-  elements.liveTranslate.insertAdjacentHTML("afterbegin", LIVE_ICON);
+  requiredElement("select-area-main", HTMLElement).insertAdjacentHTML("afterbegin", SELECT_AREA_ICON);
+  requiredElement("live-translate-main", HTMLElement).insertAdjacentHTML("afterbegin", LIVE_ICON);
   for (const input of elements.displayModeInputs) {
     input.insertAdjacentHTML(
       "afterend",

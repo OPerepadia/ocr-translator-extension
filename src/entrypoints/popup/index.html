@@ -57,18 +57,7 @@
       <p id="message" class="popup-message" role="status" hidden></p>
       <div class="popup-actions">
         <button id="select-area" class="primary-button" type="button" disabled>
-          <span class="button-main">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
-            </svg>
+          <span id="select-area-main" class="button-main">
             <span data-i18n="popupSelectArea"></span>
           </span>
           <kbd id="shortcut-key" class="shortcut-key" hidden></kbd>
@@ -80,7 +69,9 @@
           data-i18n-title="popupLiveTranslationHint"
           disabled
         >
-          <span data-i18n="popupLiveTranslation"></span>
+          <span id="live-translate-main" class="button-main">
+            <span data-i18n="popupLiveTranslation"></span>
+          </span>
           <kbd id="live-shortcut-key" class="shortcut-key" hidden></kbd>
         </button>
       </div>
