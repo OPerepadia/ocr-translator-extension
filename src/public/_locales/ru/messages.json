@@ -231,7 +231,7 @@
     "message": "Режим отображения по умолчанию"
   },
   "optionsDisplayModeOverlay": {
-    "message": "Наложение поверх выбранной области (оверлей)"
+    "message": "Оверлей поверх захваченной области"
   },
   "optionsDisplayModePanel": {
     "message": "Панель в правом нижнем углу"
@@ -248,8 +248,14 @@
   "optionsOverlayModeOriginal": {
     "message": "Оригинал"
   },
+  "optionsOverlayViewTranslation": {
+    "message": "Переведённый текст"
+  },
+  "optionsOverlayViewOriginal": {
+    "message": "Исходное изображение"
+  },
   "optionsDefaultOverlayModeHint": {
-    "message": "Выберите начальный вид для каждого нового оверлея"
+    "message": "Наведите курсор на блок текста, чтобы увидеть перевод и оригинальный текст. Клавиша Shift переключает вид."
   },
   "optionsSetEndpointFirst": {
     "message": "Сначала укажите URL конечной точки."
@@ -288,7 +294,7 @@
     "message": "Режим отображения"
   },
   "popupDisplayModeOverlay": {
-    "message": "Наложение"
+    "message": "Оверлей"
   },
   "popupDisplayModePanel": {
     "message": "Панель"

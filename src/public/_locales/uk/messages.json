@@ -231,7 +231,7 @@
     "message": "Режим відображення за замовчуванням"
   },
   "optionsDisplayModeOverlay": {
-    "message": "Оверлей поверх вибраної ділянки"
+    "message": "Оверлей поверх захопленої ділянки"
   },
   "optionsDisplayModePanel": {
     "message": "Панель у правому нижньому куті"
@@ -248,8 +248,14 @@
   "optionsOverlayModeOriginal": {
     "message": "Оригінал"
   },
+  "optionsOverlayViewTranslation": {
+    "message": "Перекладений текст"
+  },
+  "optionsOverlayViewOriginal": {
+    "message": "Вихідне зображення"
+  },
   "optionsDefaultOverlayModeHint": {
-    "message": "Виберіть початковий вигляд для кожного нового оверлею"
+    "message": "Наведіть курсор на блок тексту, щоб побачити переклад і оригінальний текст. Клавіша Shift перемикає вигляд."
   },
   "optionsSetEndpointFirst": {
     "message": "Спочатку вкажіть URL кінцевої точки."

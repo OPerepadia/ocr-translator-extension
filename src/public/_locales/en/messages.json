@@ -260,13 +260,13 @@
     "message": "Default display mode"
   },
   "optionsDisplayModeOverlay": {
-    "message": "Overlay on the selected area"
+    "message": "Overlay on the captured area"
   },
   "optionsDisplayModePanel": {
     "message": "Panel in the bottom-right corner"
   },
   "optionsDisplayHint": {
-    "message": "Where the translated text appears after capture."
+    "message": "Where translated text appears after capture."
   },
   "optionsDefaultOverlayMode": {
     "message": "Initial overlay view",
@@ -274,14 +274,22 @@
   },
   "optionsOverlayModeTranslation": {
     "message": "Translation",
-    "description": "Show translated text over the captured image."
+    "description": "Row label in the overlay popover when the language is unknown."
   },
   "optionsOverlayModeOriginal": {
     "message": "Original",
+    "description": "Row label in the overlay popover when the language is unknown."
+  },
+  "optionsOverlayViewTranslation": {
+    "message": "Translated text",
+    "description": "Show translated text over the captured image."
+  },
+  "optionsOverlayViewOriginal": {
+    "message": "Original image",
     "description": "Show the original captured image without translated text over it."
   },
   "optionsDefaultOverlayModeHint": {
-    "message": "Choose the initial view for each new overlay"
+    "message": "Hover over a text block to see the translation and original text. Press Shift to switch views."
   },
   "optionsSetEndpointFirst": {
     "message": "Set the endpoint URL first."

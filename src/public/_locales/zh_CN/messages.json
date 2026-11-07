@@ -231,7 +231,7 @@
     "message": "默认显示模式"
   },
   "optionsDisplayModeOverlay": {
-    "message": "覆盖在所选区域上"
+    "message": "覆盖在截取区域上"
   },
   "optionsDisplayModePanel": {
     "message": "显示在右下角面板中"
@@ -248,8 +248,14 @@
   "optionsOverlayModeOriginal": {
     "message": "原图"
   },
+  "optionsOverlayViewTranslation": {
+    "message": "译文"
+  },
+  "optionsOverlayViewOriginal": {
+    "message": "原图"
+  },
   "optionsDefaultOverlayModeHint": {
-    "message": "选择打开覆盖层时默认显示的内容。"
+    "message": "将鼠标悬停在文字块上可查看译文和原文。按 Shift 键可切换视图。"
   },
   "optionsSetEndpointFirst": {
     "message": "请先设置端点 URL。"

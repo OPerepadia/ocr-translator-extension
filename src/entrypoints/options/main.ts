@@ -160,7 +160,15 @@ async function initOptions(): Promise<void> {
 
   // Display mode lives under its own storage key, separate from Settings.
   elements.displayModeSelect.value = await getDisplayMode();
+  const overlayModeField = elements.defaultOverlayModeSelect.closest("label");
+  const syncOverlayModeField = () => {
+    if (overlayModeField) {
+      overlayModeField.hidden = elements.displayModeSelect.value !== "overlay";
+    }
+  };
+  syncOverlayModeField();
   elements.displayModeSelect.addEventListener("change", () => {
+    syncOverlayModeField();
     queueSave(() =>
       setDisplayMode(
         elements.displayModeSelect.value === "overlay" ? "overlay" : "panel",

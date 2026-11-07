@@ -208,7 +208,7 @@ main {
 
 .settings-select-field > select,
 .settings-select-field > .ocr-translate-popup-langpill {
-  max-width: 280px;
+  max-width: 320px;
 }
 
 .field-row {
@@ -531,6 +531,7 @@ select:focus-visible {
   background: var(--card);
 }
 
+.field[hidden],
 .llm-settings[hidden],
 .deepl-settings[hidden] {
   display: none;

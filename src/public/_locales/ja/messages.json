@@ -231,7 +231,7 @@
     "message": "既定の表示モード"
   },
   "optionsDisplayModeOverlay": {
-    "message": "選択範囲に重ねて表示"
+    "message": "キャプチャした範囲に重ねて表示"
   },
   "optionsDisplayModePanel": {
     "message": "右下のパネルに表示"
@@ -248,8 +248,14 @@
   "optionsOverlayModeOriginal": {
     "message": "元の画像"
   },
+  "optionsOverlayViewTranslation": {
+    "message": "翻訳文"
+  },
+  "optionsOverlayViewOriginal": {
+    "message": "元の画像"
+  },
   "optionsDefaultOverlayModeHint": {
-    "message": "オーバーレイを開いたときに最初に表示する内容を選択します。"
+    "message": "テキストブロックにカーソルを合わせると、翻訳と原文が表示されます。Shift キーで表示を切り替えられます。"
   },
   "optionsSetEndpointFirst": {
     "message": "先にエンドポイントURLを設定してください。"
