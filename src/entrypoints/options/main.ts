@@ -9,6 +9,7 @@ import {
   fetchAvailableModels,
   testLlmConnection,
 } from "@/providers/translation/openai";
+import { checkDeepLKey } from "@/providers/translation/deepl";
 import { resolveTargetLanguage, translationTargetLanguages } from "@/providers/translation/target-languages";
 import { translationProviderIcon } from "@/entrypoints/content/icons";
 import {
@@ -263,6 +264,7 @@ async function initOptions(): Promise<void> {
       elements.translationProviderSelect.value !== "google";
     elements.llmSettings.hidden = section !== "llm";
     elements.deeplSettings.hidden = section !== "deepl";
+    if (section === "deepl") checkDeepLKeyStatus();
   };
 
   // Flag URL paste mistakes while the user is still on this page, instead of
@@ -274,6 +276,7 @@ async function initOptions(): Promise<void> {
     elements.llmUrlError.hidden = !problem;
   };
 
+  const checkDeepLKeyStatus = createDeepLKeyStatus(elements);
   syncProviderSections();
   syncLlmUrlError();
   elements.translationProviderSelect.addEventListener(
@@ -362,6 +365,9 @@ async function initOptions(): Promise<void> {
     select: elements.targetLangSelect,
     onChange: () => void saveSettings(),
   });
+  for (const input of [elements.deeplApiKeyInput, elements.deeplPlanSelect]) {
+    input.addEventListener("change", checkDeepLKeyStatus);
+  }
   for (const input of [
     elements.deeplApiKeyInput,
     elements.deeplPlanSelect,
@@ -491,6 +497,55 @@ async function testConnection(elements: OptionsElements): Promise<void> {
   } finally {
     elements.llmTestConnectionButton.disabled = false;
   }
+}
+
+// Check each key and plan once, so the user sees whether the key works.
+function createDeepLKeyStatus(elements: OptionsElements): () => void {
+  const status = elements.deeplKeyStatus;
+  let checkedFor: string | undefined;
+  let requestId = 0;
+
+  const show = (message: string, state: "is-error" | "is-success"): void => {
+    status.textContent = message;
+    status.classList.remove("is-error", "is-success");
+    status.classList.add(state);
+    status.hidden = false;
+  };
+  const reset = (): void => {
+    requestId++;
+    checkedFor = undefined;
+    status.hidden = true;
+  };
+
+  const check = (): void => {
+    const apiKey = elements.deeplApiKeyInput.value.trim();
+    const plan = elements.deeplPlanSelect.value === "pro" ? "pro" : "free";
+    const checkKey = `${plan}\n${apiKey}`;
+    if (!apiKey) {
+      reset();
+      return;
+    }
+    if (checkKey === checkedFor) return;
+    checkedFor = checkKey;
+    const id = ++requestId;
+    status.hidden = true;
+    checkDeepLKey({ apiKey, plan }).then(
+      () => {
+        if (id === requestId) show(t("commonConnected"), "is-success");
+      },
+      (error: unknown) => {
+        if (id !== requestId) return;
+        // Retry on the next change even when the key is unchanged.
+        checkedFor = undefined;
+        show(error instanceof Error ? error.message : String(error), "is-error");
+      },
+    );
+  };
+  // Hide the old result while the key is edited. Blur re-checks it even when
+  // the edit restored the old value, which fires no change event.
+  elements.deeplApiKeyInput.addEventListener("input", reset);
+  elements.deeplApiKeyInput.addEventListener("blur", check);
+  return check;
 }
 
 /** Rebuild the model dropdown without silently changing the saved choice. */
@@ -772,6 +827,7 @@ function getOptionsElements(): {
   deeplSettings: HTMLFieldSetElement;
   deeplApiKeyInput: HTMLInputElement;
   deeplPlanSelect: HTMLSelectElement;
+  deeplKeyStatus: HTMLElement;
   llmSettings: HTMLFieldSetElement;
   llmBaseUrlInput: HTMLInputElement;
   llmRemoveOriginHeaderInput: HTMLInputElement;
@@ -835,6 +891,7 @@ function getOptionsElements(): {
   const deeplPlanSelect = app.querySelector<HTMLSelectElement>(
     "select[name='deeplPlan']",
   );
+  const deeplKeyStatus = app.querySelector<HTMLElement>(".deepl-key-status");
   const llmSettings = app.querySelector<HTMLFieldSetElement>(".llm-settings");
   const llmBaseUrlInput = app.querySelector<HTMLInputElement>(
     "input[name='llmBaseUrl']",
@@ -889,6 +946,7 @@ function getOptionsElements(): {
     !deeplSettings ||
     !deeplApiKeyInput ||
     !deeplPlanSelect ||
+    !deeplKeyStatus ||
     !llmSettings ||
     !llmBaseUrlInput ||
     !llmRemoveOriginHeaderInput ||
@@ -928,6 +986,7 @@ function getOptionsElements(): {
     deeplSettings,
     deeplApiKeyInput,
     deeplPlanSelect,
+    deeplKeyStatus,
     llmSettings,
     llmBaseUrlInput,
     llmRemoveOriginHeaderInput,

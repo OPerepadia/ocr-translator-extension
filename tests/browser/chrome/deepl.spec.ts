@@ -31,6 +31,15 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
         return originalFetch(url, init);
       };
     });
+    const usageRequests: string[] = [];
+    await context.route("**/v2/usage", (route) => {
+      const request = route.request();
+      const auth = request.headers().authorization;
+      usageRequests.push(`${new URL(request.url()).host}|${auth}`);
+      return auth === "DeepL-Auth-Key replacement-key:fx"
+        ? route.fulfill({ json: { character_count: 0, character_limit: 500000 } })
+        : route.fulfill({ status: 403, json: { message: "Forbidden" } });
+    });
     const options = await context.newPage();
     await options.goto(`${extensionUrl}/options.html#translation`);
     const providerField = options.locator("label.field", {
@@ -53,6 +62,10 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
       ((await chrome.storage.local.get("settings")).settings as Settings).translation.deepl,
     );
     await expect.poll(stored).toEqual({ apiKey: "fictional-key", plan: "free" });
+    const keyStatus = options.locator(".deepl-key-status");
+    await expect(keyStatus).toHaveText(en.errorDeepLAuth.message);
+    await expect(keyStatus).toHaveClass(/is-error/);
+    expect(usageRequests).toContain("api-free.deepl.com|DeepL-Auth-Key fictional-key");
     const translate = () => options.evaluate(async () => chrome.runtime.sendMessage({
       type: "RETRANSLATE_REQUEST", requestId: crypto.randomUUID(),
       text: "Sample text for translation", targetLang: "uk",
@@ -62,6 +75,16 @@ test("saves DeepL plan and key and refreshes the cached provider when settings c
     await key.fill("replacement-key:fx");
     await key.blur();
     await expect.poll(stored).toEqual({ apiKey: "replacement-key:fx", plan: "pro" });
+    await expect(keyStatus).toHaveText(en.commonConnected.message);
+    await expect(keyStatus).toHaveClass(/is-success/);
+    expect(usageRequests).toContain("api.deepl.com|DeepL-Auth-Key replacement-key:fx");
+    await key.press("End");
+    await key.press("x");
+    await expect(keyStatus).toBeHidden();
+    await key.press("Backspace");
+    await key.blur();
+    await expect(keyStatus).toBeVisible();
+    await expect(keyStatus).toHaveText(en.commonConnected.message);
     expect((await translate()).value.translation.text).toBe("api.deepl.com|DeepL-Auth-Key replacement-key:fx");
     await chooseProvider(en.providerGoogle.message);
     await expect(options.locator(".deepl-settings")).toBeHidden();

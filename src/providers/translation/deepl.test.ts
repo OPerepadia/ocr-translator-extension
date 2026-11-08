@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createDeepLTranslationProvider } from "./deepl";
+import { checkDeepLKey, createDeepLTranslationProvider } from "./deepl";
 import { RemoteTranslationError } from "./types";
 
 vi.mock("../../shared/fetch-with-modified-headers", () => ({
@@ -133,5 +133,38 @@ describe("DeepL translation", () => {
     await expect(translation.translate(input)).rejects.toBeInstanceOf(RemoteTranslationError);
     expect(translation.listTargetLanguages?.()).toContain("zh-Hant");
     expect(translation.listTargetLanguages?.()).not.toContain("am");
+  });
+});
+
+describe("DeepL key check", () => {
+  const statusFetch = (status: number) =>
+    vi.fn<typeof fetch>(async () => Response.json({}, { status }));
+
+  it.each([
+    ["free", "api-free.deepl.com"],
+    ["pro", "api.deepl.com"],
+  ] as const)("calls the %s plan usage endpoint", async (plan, host) => {
+    const fetchImpl = statusFetch(200);
+    await checkDeepLKey({ apiKey: " test-key ", plan, fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledWith(`https://${host}/v2/usage`, expect.objectContaining({
+      headers: { Authorization: "DeepL-Auth-Key test-key" },
+      credentials: "omit", redirect: "error",
+    }));
+  });
+
+  it("reports a rejected key", async () => {
+    await expect(checkDeepLKey({ apiKey: "test-key", fetchImpl: statusFetch(403) }))
+      .rejects.toThrow(/rejected the API key/);
+  });
+
+  it("times out", async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn<typeof fetch>((_url, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    }));
+    const result = expect(checkDeepLKey({ apiKey: "test-key", fetchImpl, timeoutMs: 100 }))
+      .rejects.toThrow(/timed out/);
+    await vi.advanceTimersByTimeAsync(100);
+    await result;
   });
 });

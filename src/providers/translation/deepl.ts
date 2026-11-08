@@ -11,12 +11,23 @@ interface DeepLProviderConfig {
   timeoutMs?: number;
 }
 
-const ENDPOINTS = {
-  free: "https://api-free.deepl.com/v2/translate",
-  pro: "https://api.deepl.com/v2/translate",
+const API_BASES = {
+  free: "https://api-free.deepl.com/v2",
+  pro: "https://api.deepl.com/v2",
 };
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_BODY_BYTES = 128 * 1024;
+
+function apiBase(plan: string | undefined): string {
+  return API_BASES[plan === "pro" ? "pro" : "free"];
+}
+
+function responseError(status: number): RemoteTranslationError {
+  if (status === 403) return new RemoteTranslationError(t("errorDeepLAuth"));
+  if (status === 456) return new RemoteTranslationError(t("errorDeepLQuota"));
+  if (status === 429) return new RemoteTranslationError(t("errorDeepLRateLimit"));
+  return new RemoteTranslationError(t("errorDeepLRequest", String(status)));
+}
 
 function targetCode(code: string): string {
   const lower = code.toLowerCase();
@@ -35,7 +46,7 @@ function sourceCode(code: string): string {
 export function createDeepLTranslationProvider(rawConfig?: unknown): TranslationProvider {
   const config = (rawConfig ?? {}) as DeepLProviderConfig;
   const apiKey = config.deepl?.apiKey?.trim();
-  const endpoint = ENDPOINTS[config.deepl?.plan === "pro" ? "pro" : "free"];
+  const endpoint = `${apiBase(config.deepl?.plan)}/translate`;
   const fetchImpl = config.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
@@ -102,12 +113,7 @@ export function createDeepLTranslationProvider(rawConfig?: unknown): Translation
             body: bodyFor(batch),
             signal: controller.signal,
           }, [{ header: "origin", operation: "remove" }], fetchImpl);
-          if (!response.ok) {
-            if (response.status === 403) throw new RemoteTranslationError(t("errorDeepLAuth"));
-            if (response.status === 456) throw new RemoteTranslationError(t("errorDeepLQuota"));
-            if (response.status === 429) throw new RemoteTranslationError(t("errorDeepLRateLimit"));
-            throw new RemoteTranslationError(t("errorDeepLRequest", String(response.status)));
-          }
+          if (!response.ok) throw responseError(response.status);
           let data;
           try {
             data = await response.json();
@@ -145,4 +151,32 @@ export function createDeepLTranslationProvider(rawConfig?: unknown): Translation
       };
     },
   };
+}
+
+// The usage endpoint bills nothing, so it is the cheapest way to validate a key.
+export async function checkDeepLKey(config: {
+  apiKey: string;
+  plan?: "free" | "pro";
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}): Promise<void> {
+  const fetchImpl = config.fetchImpl ?? globalThis.fetch.bind(globalThis);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetchWithModifiedHeaders(`${apiBase(config.plan)}/usage`, {
+      headers: { Authorization: `DeepL-Auth-Key ${config.apiKey.trim()}` },
+      credentials: "omit",
+      redirect: "error",
+      signal: controller.signal,
+    }, [{ header: "origin", operation: "remove" }], fetchImpl);
+  } catch {
+    throw new RemoteTranslationError(
+      t(controller.signal.aborted ? "errorDeepLTimeout" : "errorDeepLUnreachable"),
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response.ok) throw responseError(response.status);
 }

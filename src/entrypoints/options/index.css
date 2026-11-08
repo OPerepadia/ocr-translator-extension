@@ -533,7 +533,8 @@ select:focus-visible {
 
 .field[hidden],
 .llm-settings[hidden],
-.deepl-settings[hidden] {
+.deepl-settings[hidden],
+.deepl-key-status[hidden] {
   display: none;
 }
 
@@ -642,6 +643,24 @@ select:focus-visible {
 }
 
 .llm-models-status.is-success::before {
+  content: "✓ ";
+}
+
+.deepl-key-status {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.deepl-key-status.is-error {
+  color: var(--danger);
+}
+
+.deepl-key-status.is-success {
+  color: var(--success);
+}
+
+.deepl-key-status.is-success::before {
   content: "✓ ";
 }
 
