@@ -6,55 +6,108 @@
   <a href="https://github.com/OPerepadia/ocr-translator-extension/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue.svg" alt="MPL-2.0 license"></a>
 </p>
 
-Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, then displays the translation in an overlay or in a panel. It uses Google Translate by default, or you can use DeepL with your own API key or connect your own LLM endpoint.
+Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, and shows the translation in an overlay or in a panel.
 
-<div style="display: flex; align-items: center; gap: 10px;">
+<p align="center">
+  <img src="media/demo-comic.jpg" alt="Selecting a manga panel with two vertical Japanese speech bubbles and a sign, then the English translation drawn over them" width="800">
+  <br>
+  <sub>Comic: <a href="https://densho810.com/free/">Give My Regards to Black Jack</a>, SHUHO SATO.</sub>
+</p>
+
+Translation uses Google Translate by default. You can also use DeepL (with your own API key) or any OpenAI-compatible LLM endpoint (local or remote).
+
+## Install
+
+<p align="center">
   <a href="https://addons.mozilla.org/firefox/addon/screen-ocr-translator/"><img src="media/firefox-badge.png" alt="Get the Firefox add-on" width="172" height="60"></a>
   <a href="https://chromewebstore.google.com/detail/screen-ocr-translator/legljemohhhablgapleoakcepoofloae"><img src="media/chrome-badge.png" alt="Get from Chrome Web Store" height="60"></a>
-</div>
+</p>
 
 ## Features
 
 - Select any area of a web page and translate it in place.
-- Translate images directly from the context menu.
-- Translate a screen area live, for example hardcoded video subtitles.
-- Run OCR locally in your browser using bundled [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
-- Recognize multilingual text with automatic script detection. See [supported languages](#text-recognition).
-- Group text lines using speech-bubble and free-text regions detected by a [local layout model](docs/LAYOUT-GROUPING.md).
-- Support for several translation providers:
-    - Google Translate (no API key is required)
+- Translate an image directly from the context menu.
+- Translate a screen area live, such as hardcoded video subtitles.
+- Run OCR locally in your browser with bundled [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
+- Wide language support with automatic script detection. See [supported languages](#text-recognition).
+- Group recognized lines into speech bubbles and free-text regions with a [local layout model](docs/LAYOUT-GROUPING.md).
+- Choose a translation provider:
+    - Google Translate (no API key required)
     - DeepL (requires your own [DeepL API key](https://www.deepl.com/your-account/keys))
-    - OpenAI-compatible LLM endpoint (local or remote).
-- Copy or listen to the original and translated text, or view them side by side.
+    - Any OpenAI-compatible LLM endpoint, such as llama.cpp or Ollama.
+- Copy or listen to the text, or compare the original and translation side by side.
 
 ## Usage
 
-Open the extension from the toolbar or context menu, or press `Ctrl+Shift+F`. Drag to select an area, or click an image to translate it.
+1. Open the extension from the toolbar or context menu, or use a keyboard shortcut.
+2. Drag to select an area, or click an image to translate it.
+3. The translation appears over the selected area.
 
->[!IMPORTANT]
-The default `Ctrl+Shift+F` shortcut has been removed on Firefox because Firefox 159 now uses it for the add-ons manager. You can assign a different shortcut in settings.
+> [!IMPORTANT]
+> The default `Ctrl+Shift+F` shortcut has been removed on Firefox because Firefox 159 now uses it for the add-ons manager. You can assign a different shortcut in settings.
+
+You can also right-click an image and choose **Translate this image**.
 
 To move or resize the area before recognition starts, enable **Adjust selection before recognition** in the extension settings.
 
-You can also right-click an image and choose "Translate this image".
+### Overlay view
 
-In the overlay view, press `Shift` to switch between the translation and the original.
+The overlay has two views:
 
-By default, the translation appears in an overlay. You can switch to the panel view from the toolbar context menu, or change the default view in the extension settings.
+- **Translated text** (default): the translation is drawn over the original text.
+- **Original image**: the captured image without the translation, with the text blocks highlighted.
+
+Press `Shift` or click the translate button in the toolbar to toggle the view. Hover over a text block to see its translation and the original text.
+
+<table align="center">
+  <tr>
+    <th align="center">Translated text (default)</th>
+    <th align="center">Original image, hovering a text block</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="media/demo-overlay.jpg"><img src="media/demo-overlay.jpg" alt="English translation drawn over a Japanese speech bubble in a manga panel, with the extension toolbar above the selected area" width="400"></a>
+    </td>
+    <td align="center">
+      <a href="media/demo-hover.jpg"><img src="media/demo-hover.jpg" alt="Hovering over a vertical Japanese speech bubble in a manga page shows a popover with the English translation and the original text" width="400"></a>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <sub>Comic: <a href="https://densho810.com/free/">Give My Regards to Black Jack</a>, SHUHO SATO.</sub>
+</p>
+
+To change which view opens by default, set **Initial overlay view** in Settings > Display.
+
+### Panel view
+
+The panel view shows the recognized text next to its translation in the right bottom of the screen.
+
+You can temporarily switch to the panel view from the toolbar context menu, or change the default view in the extension settings.
 
 ### Local image files
-To use the extension on local image files, you need to grant access to local files.
-  - Firefox: open the add-on's **Permissions and data** settings and enable **Access local files on your computer**.
-  - Chrome: open the extension details and enable **Allow access to file URLs**.
-After granting the permission, reload the image and try again.
+
+To use the extension on local image files, grant access to local files:
+
+- Firefox: open the add-on's **Permissions and data** settings and enable **Access local files on your computer**.
+- Chrome: open the extension details and enable **Allow access to file URLs**.
+
+Then reload the image and try again.
 
 ## Live translation
 
-Live translation can be used for on-screen text that keeps changing, like subtitles burned into a video.
+Translate a screen area in real time, such as hardcoded video subtitles.
 
 1. Click **Live translation** in the extension popup.
 2. Drag to select the area containing the text.
 3. The translation appears in a small panel next to the selected area.
+
+<p align="center">
+  <img src="media/live-demo.png" alt="Live translation of English video subtitles into Ukrainian in a panel below the video" width="700">
+  <br>
+  <sub>Video: <a href="https://durian.blender.org/">Sintel</a>, © Blender Foundation | durian.blender.org, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.</sub>
+</p>
 
 Tips:
 
@@ -187,5 +240,12 @@ Some locales were initially machine-translated and may need improvement. Contrib
 
 ## License
 
+Copyright (C) 2026 Oleksandr Perepadia
+
 Screen OCR Translator is licensed under the [Mozilla Public License 2.0](LICENSE).
 Bundled libraries, runtime files, and OCR models retain their original licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The demo images use third-party artwork licensed for free reuse under the terms linked below:
+
+- Comic: [Give My Regards to Black Jack](https://densho810.com/free/), SHUHO SATO, used under the publisher's free-use terms.
+- Video: [Sintel](https://durian.blender.org/), © Blender Foundation | durian.blender.org, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
