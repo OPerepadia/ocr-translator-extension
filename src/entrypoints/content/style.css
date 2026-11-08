@@ -305,7 +305,6 @@
   display: none;
 }
 
-/* Hairline outside the dashed edge, so the rectangle reads on any content. */
 .ocr-translate-selection-rect {
   position: fixed;
   z-index: 2;
@@ -313,7 +312,6 @@
   box-sizing: border-box;
   border: 2px dashed var(--ocr-accent);
   background: transparent;
-  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   pointer-events: none;
 }
 
@@ -1483,7 +1481,6 @@
   position: absolute;
   box-sizing: border-box;
   border: 2px dashed var(--ocr-accent);
-  box-shadow: 0 0 0 1px var(--ocr-halo-fixed);
   pointer-events: none;
 }
 
