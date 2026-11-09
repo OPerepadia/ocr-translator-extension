@@ -82,9 +82,13 @@ To change which view opens by default, set **Initial overlay view** in Settings 
 
 ### Panel view
 
-The panel view shows the recognized text next to its translation in the right bottom of the screen.
+To show results in a panel, choose **Panel** in the extension popup. It appears in the bottom right corner of the screen. You can also temporarily switch to the panel view from the ⋯ menu in the overlay toolbar.
 
-You can temporarily switch to the panel view from the toolbar context menu, or change the default view in the extension settings.
+<p align="center">
+  <img src="media/demo-panel.png" alt="The panel view with the recognized German text and its English translation" width="400">
+</p>
+
+In the panel view, you can edit the recognized text to fix mistakes, or change the language, recognition model, or translation provider.
 
 ### Local image files
 
