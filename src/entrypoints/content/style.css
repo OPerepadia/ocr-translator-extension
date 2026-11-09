@@ -511,43 +511,29 @@
   justify-content: space-between;
   gap: 8px;
   flex: none;
-  padding: 8px 12px;
+  padding: 6px 6px 6px 12px;
   border-radius: 7px 7px 0 0;
   border-bottom: 1px solid var(--ocr-line);
   background: var(--ocr-topbar-bg);
 }
 
 .ocr-translate-popup-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   /* Keep the title clear of the resize handle. */
-  margin-left: 5px;
+  margin-left: 8px;
   color: var(--ocr-ink);
-  font-size: var(--ocr-size-title);
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: var(--ocr-tracking-title);
-}
-
-.ocr-translate-popup-title img {
-  display: block;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
 }
 
 .ocr-translate-popup-actions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
 }
 
-.ocr-translate-popup-divider {
-  width: 1px;
-  align-self: stretch;
-  margin: 4px 4px;
-  background: var(--ocr-line-divider);
+.ocr-translate-popup-actions .ocr-translate-popup-icon-button {
+  width: 28px;
+  height: 28px;
 }
 
 /* Shared controls */

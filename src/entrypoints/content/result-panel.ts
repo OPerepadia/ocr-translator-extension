@@ -422,27 +422,16 @@ function ensurePopup(): HTMLElement {
   closeButton.innerHTML = CLOSE_ICON;
   closeButton.addEventListener("click", () => closePopup());
 
-  const divider = document.createElement("span");
-  divider.className = "ocr-translate-popup-divider";
-  divider.setAttribute("aria-hidden", "true");
-
   const actions = document.createElement("div");
   actions.className = "ocr-translate-popup-actions";
-  actions.append(selectButton, menu.element, divider, closeButton);
+  actions.append(selectButton, menu.element, closeButton);
 
   // Persistent top bar: title on the left, menu/close on the right. Stays put
   // while the body below it scrolls. The language badges live in the section
   // headers instead.
   const title = document.createElement("strong");
   title.className = "ocr-translate-popup-title";
-  const logo = document.createElement("img");
-  const getExtensionUrl = browser.runtime.getURL as (path: string) => string;
-  logo.src = getExtensionUrl("icon/ocr_icon_big.svg");
-  logo.alt = "";
-  logo.setAttribute("aria-hidden", "true");
-  const titleText = document.createElement("span");
-  titleText.textContent = t("extensionName");
-  title.append(logo, titleText);
+  title.textContent = t("extensionName");
 
   const topbar = document.createElement("div");
   topbar.className = "ocr-translate-popup-topbar";
