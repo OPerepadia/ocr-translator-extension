@@ -22,6 +22,7 @@ interface RecordedRequest {
     model?: string;
     reasoning_effort?: unknown;
     chat_template_kwargs?: unknown;
+    response_format?: { type?: string };
     messages: Array<{ role: string; content: string }>;
   };
 }
@@ -250,6 +251,88 @@ describe("createOpenAiTranslationProvider", () => {
     expect(request.body.chat_template_kwargs).toEqual({
       enable_thinking: false,
     });
+    expect(request.body.response_format?.type).toBe("json_schema");
+    expect(request.body.messages[0].content).toContain("compact JSON");
+  });
+
+  // Rejections are remembered per endpoint, so each test uses its own.
+  function rejectingFetchMock(
+    rejects: (body: RecordedRequest["body"]) => boolean,
+  ): { fetchImpl: typeof fetch; requests: RecordedRequest["body"][] } {
+    const requests: RecordedRequest["body"][] = [];
+    const fetchImpl = vi.fn(
+      async (_url: unknown, init?: { body?: unknown }): Promise<unknown> => {
+        const body = JSON.parse(String(init?.body)) as RecordedRequest["body"];
+        requests.push(body);
+        if (rejects(body)) {
+          return {
+            ok: false,
+            status: 400,
+            text: async () =>
+              JSON.stringify({ error: { message: "Unsupported request" } }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              choices: [{ message: { content: translationReply(["T:hi"]) } }],
+            }),
+        };
+      },
+    );
+    return { fetchImpl: fetchImpl as unknown as typeof fetch, requests };
+  }
+
+  it("drops a rejected response format and skips it from then on", async () => {
+    const { fetchImpl, requests } = rejectingFetchMock(
+      (body) => body.response_format !== undefined,
+    );
+    const config = {
+      llm: { ...llm, baseUrl: "http://localhost:8081/v1" },
+      fetchImpl,
+    };
+
+    const first = await createOpenAiTranslationProvider(config).translate({
+      text: "hi",
+      targetLang: "en",
+    });
+    const second = await createOpenAiTranslationProvider(config).translate({
+      text: "hi",
+      targetLang: "en",
+    });
+
+    expect(first.text).toBe("T:hi");
+    expect(second.text).toBe("T:hi");
+    expect(requests.map((body) => body.response_format?.type)).toEqual([
+      "json_schema",
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("keeps the response format when a 400 has another cause", async () => {
+    const { fetchImpl, requests } = rejectingFetchMock(() => true);
+    const config = {
+      llm: { ...llm, baseUrl: "http://localhost:8082/v1" },
+      fetchImpl,
+    };
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const error = await createOpenAiTranslationProvider(config)
+        .translate({ text: "hi", targetLang: "en" })
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(RemoteTranslationError);
+      expect((error as Error).message).toMatch(/HTTP 400: Unsupported request/);
+    }
+
+    expect(requests.map((body) => body.response_format?.type)).toEqual([
+      "json_schema",
+      undefined,
+      "json_schema",
+      undefined,
+    ]);
   });
 
   it("sends the context and its translations as their own field and tells the model not to translate them", async () => {

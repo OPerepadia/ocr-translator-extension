@@ -16,6 +16,39 @@ import { fetchWithModifiedHeaders } from "../../shared/fetch-with-modified-heade
 // timeout is much more generous than Google's 15s.
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+// Stops models from merging segments into one object with repeated keys.
+// Uses OpenAI's strict subset, which other servers accept too.
+const TRANSLATIONS_RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    name: "translations",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        translations: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              text: { type: "string" },
+            },
+            required: ["id", "text"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["translations"],
+      additionalProperties: false,
+    },
+  },
+};
+
+// Endpoint and model pairs that rejected the schema. Module level because
+// providers are created per request.
+const responseFormatRejected = new Set<string>();
+
 export interface OpenAiProviderConfig {
   llm?: {
     /** OpenAI-compatible API root, e.g. "http://localhost:8080/v1";
@@ -108,6 +141,7 @@ export function createOpenAiTranslationProvider(
         model: config.llm?.model?.trim() || undefined,
         disableThinking: config.llm?.disableThinking !== false,
         removeOriginHeader: config.llm?.removeOriginHeader === true,
+        responseFormat: TRANSLATIONS_RESPONSE_FORMAT,
         systemPrompt: buildSystemPrompt(
           input.sourceLang,
           targetLang,
@@ -163,13 +197,14 @@ export function createOpenAiTranslationProvider(
   };
 }
 
-/** Send one chat-completions request and return the assistant message text. */
-async function requestChatCompletion(args: {
+interface ChatCompletionArgs {
   baseUrl: string;
   apiKey?: string;
   model?: string;
   disableThinking?: boolean;
   removeOriginHeader?: boolean;
+  /** Skipped if this endpoint and model rejected it. */
+  responseFormat?: object;
   systemPrompt: string;
   userContent: string;
   correction?: {
@@ -179,7 +214,61 @@ async function requestChatCompletion(args: {
   fetchImpl: typeof fetch;
   timeoutMs: number;
   signal?: AbortSignal;
-}): Promise<string> {
+}
+
+/** Send one chat-completions request and return the assistant message text. */
+async function requestChatCompletion(args: ChatCompletionArgs): Promise<string> {
+  const formatKey = `${args.baseUrl}\n${args.model ?? ""}`;
+  const responseFormat = responseFormatRejected.has(formatKey)
+    ? undefined
+    : args.responseFormat;
+  let { response, raw } = await postChatCompletion(args, responseFormat);
+
+  // Some servers reject json_schema. Retry without it, and remember that if
+  // the retry works.
+  if (responseFormat && (response.status === 400 || response.status === 422)) {
+    ({ response, raw } = await postChatCompletion(args, undefined));
+    if (response.ok) {
+      responseFormatRejected.add(formatKey);
+    }
+  }
+
+  if (!response.ok) {
+    const detail = extractApiErrorMessage(raw);
+    throw new RemoteTranslationError(
+      t(
+        "errorLlmRequest",
+        `${response.status}${detail ? `: ${detail}` : ""}`,
+      ),
+    );
+  }
+
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new RemoteTranslationError(
+      t("errorLlmUnexpectedResponse"),
+    );
+  }
+
+  const choices = (data as { choices?: unknown }).choices;
+  const message = Array.isArray(choices)
+    ? (choices[0] as { message?: { content?: unknown } } | undefined)?.message
+    : undefined;
+  const content = message?.content;
+  if (typeof content !== "string" || content.trim() === "") {
+    throw new RemoteTranslationError(
+      t("errorLlmEmptyResponse"),
+    );
+  }
+  return content;
+}
+
+async function postChatCompletion(
+  args: ChatCompletionArgs,
+  responseFormat: object | undefined,
+): Promise<{ response: Response; raw: string }> {
   const url = `${args.baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
   const headers: Record<string, string> = {
@@ -206,6 +295,9 @@ async function requestChatCompletion(args: {
   if (args.disableThinking) {
     body.reasoning_effort = "none";
     body.chat_template_kwargs = { enable_thinking: false };
+  }
+  if (responseFormat) {
+    body.response_format = responseFormat;
   }
 
   // fetch has no timeout, so bound the request with our own controller: abort it
@@ -263,37 +355,7 @@ async function requestChatCompletion(args: {
     clearTimeout(timer);
     args.signal?.removeEventListener("abort", forwardAbort);
   }
-
-  if (!response.ok) {
-    const detail = extractApiErrorMessage(raw);
-    throw new RemoteTranslationError(
-      t(
-        "errorLlmRequest",
-        `${response.status}${detail ? `: ${detail}` : ""}`,
-      ),
-    );
-  }
-
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    throw new RemoteTranslationError(
-      t("errorLlmUnexpectedResponse"),
-    );
-  }
-
-  const choices = (data as { choices?: unknown }).choices;
-  const message = Array.isArray(choices)
-    ? (choices[0] as { message?: { content?: unknown } } | undefined)?.message
-    : undefined;
-  const content = message?.content;
-  if (typeof content !== "string" || content.trim() === "") {
-    throw new RemoteTranslationError(
-      t("errorLlmEmptyResponse"),
-    );
-  }
-  return content;
+  return { response, raw };
 }
 
 const MODELS_TIMEOUT_MS = 10_000;
@@ -461,6 +523,7 @@ function buildSystemPrompt(
         ]
       : []),
     "Do not add explanations or code fences.",
+    "Write compact JSON on a single line, without indentation.",
   ].join(" ");
 }
 
