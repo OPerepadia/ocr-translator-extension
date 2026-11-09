@@ -1,5 +1,6 @@
 import type { LangCode } from "../../shared/types";
 import { t } from "../../shared/i18n";
+import { normalizeDetectedLanguage } from "../../shared/language";
 import { COMMON_TARGET_LANGUAGES } from "./target-languages";
 import { RemoteTranslationError, type TranslationProvider } from "./types";
 
@@ -67,20 +68,32 @@ export function createGoogleTranslationProvider(
         .filter((entry) => entry.line.trim().length > 0);
 
       const translatedByIndex = new Map<number, string>();
+      // Google detects each line on its own, and lines of symbols or a single
+      // word are often labeled English. Pick the language with the most letters.
+      const lettersByLang = new Map<LangCode, number>();
       for (let offset = 0; offset < nonBlank.length; offset += BATCH_LIMIT) {
         signal?.throwIfAborted();
         const batch = nonBlank.slice(offset, offset + BATCH_LIMIT);
-        const translations = await translateBatch(
-          batch.map((entry) => entry.line),
-          from,
-          to,
-          fetchImpl,
-          timeoutMs,
-          signal,
+        const texts = batch.map((entry) => entry.line);
+        const request = () =>
+          translateBatch(texts, from, to, fetchImpl, timeoutMs, signal);
+        const { translations, detectedLangs } = await request().catch(
+          (error: unknown) => {
+            if (!(error instanceof TransientGoogleError) || signal?.aborted) {
+              throw error;
+            }
+            return request();
+          },
         );
         batch.forEach((entry, i) => {
-          // Fall back to the original line if Google dropped this entry.
-          translatedByIndex.set(entry.index, translations[i] || entry.line);
+          translatedByIndex.set(entry.index, translations[i]);
+          const lang = detectedLangs[i];
+          if (lang) {
+            lettersByLang.set(
+              lang,
+              (lettersByLang.get(lang) ?? 0) + countLetters(entry.line),
+            );
+          }
         });
       }
 
@@ -90,17 +103,17 @@ export function createGoogleTranslationProvider(
 
       return {
         text,
-        // Echo back the source only when it was known; for "auto" we don't parse
-        // Google's detected language out of the response.
         sourceLang:
-          input.sourceLang && input.sourceLang !== "auto"
-            ? input.sourceLang
-            : undefined,
+          from === "auto" ? mostLetters(lettersByLang) : input.sourceLang,
         targetLang,
       };
     },
   };
 }
+
+/** A failure that one more request may get past. A timeout or a 4xx such as
+ * 429 is not one: repeating it would only add delay or load. */
+class TransientGoogleError extends RemoteTranslationError {}
 
 /** Send one batchexecute request and return the translations in input order. */
 async function translateBatch(
@@ -110,7 +123,10 @@ async function translateBatch(
   fetchImpl: typeof fetch,
   timeoutMs: number,
   signal?: AbortSignal,
-): Promise<string[]> {
+): Promise<{
+  translations: string[];
+  detectedLangs: Array<LangCode | undefined>;
+}> {
   // Each text becomes one RPC call; the base-36 index lets us match responses
   // back to inputs regardless of the order Google returns them in.
   const calls = texts.map((text, index) => [
@@ -175,7 +191,7 @@ async function translateBatch(
         t("errorGoogleTranslateTimeout", String(Math.round(timeoutMs / 1000))),
       );
     }
-    throw new RemoteTranslationError(
+    throw new TransientGoogleError(
       t("errorGoogleTranslateUnreachable", describeError(error)),
     );
   } finally {
@@ -184,12 +200,24 @@ async function translateBatch(
   }
 
   if (!response.ok) {
-    throw new RemoteTranslationError(
+    const ErrorType =
+      response.status >= 500 ? TransientGoogleError : RemoteTranslationError;
+    throw new ErrorType(
       t("errorGoogleTranslateRequest", String(response.status)),
     );
   }
 
-  return parseBatchResponse(await response.text(), texts.length);
+  const raw = await response.text();
+  const translations = parseBatchResponse(raw, texts.length);
+  // Google answers some lines with an error frame and no text. Showing the
+  // original line there would look like a translation.
+  if (translations.some((translation) => !translation.trim())) {
+    throw new TransientGoogleError(t("errorGoogleTranslateEmpty"));
+  }
+  return {
+    translations,
+    detectedLangs: parseDetectedLanguages(raw, texts.length),
+  };
 }
 
 /**
@@ -198,15 +226,67 @@ async function translateBatch(
  * Shape: a ")]}'" junk prefix, then newline-separated frames. Translation
  * frames look like ["wrb.fr", "MkEWBc", "<json>", ..., "<base36-index>"], where
  * the trailing element echoes the index we sent and the JSON payload holds the
- * translated sentence. Anything that doesn't match is skipped, so a format
- * change degrades to blank entries (then the original line) instead of throwing.
+ * translated sentence. Anything that doesn't match is skipped, so error frames
+ * and format changes leave blank entries for the caller to report.
  */
 export function parseBatchResponse(
   raw: string,
   expectedCount: number,
 ): string[] {
   const results = new Array<string>(expectedCount).fill("");
+  for (const { index, payload } of translationFrames(raw)) {
+    if (Number.isInteger(index) && index >= 0 && index < expectedCount) {
+      results[index] = extractTranslatedText(payload);
+    }
+  }
+  return results;
+}
 
+/** The language Google detected for each line, present only for "auto" requests. */
+export function parseDetectedLanguages(
+  raw: string,
+  expectedCount: number,
+): Array<LangCode | undefined> {
+  const results = new Array<LangCode | undefined>(expectedCount).fill(
+    undefined,
+  );
+  for (const { index, payload } of translationFrames(raw)) {
+    if (!Number.isInteger(index) || index < 0 || index >= expectedCount) {
+      continue;
+    }
+    let data: unknown;
+    try {
+      data = JSON.parse(payload);
+    } catch {
+      continue;
+    }
+    const code = at(at(data, 0), 2);
+    if (typeof code === "string") {
+      results[index] = normalizeDetectedLanguage(code);
+    }
+  }
+  return results;
+}
+
+function countLetters(text: string): number {
+  return text.match(/\p{L}/gu)?.length ?? 0;
+}
+
+function mostLetters(lettersByLang: Map<LangCode, number>): LangCode | undefined {
+  let best: LangCode | undefined;
+  let bestCount = 0;
+  for (const [lang, count] of lettersByLang) {
+    if (count > bestCount) {
+      best = lang;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+function* translationFrames(
+  raw: string,
+): Generator<{ index: number; payload: string }> {
   for (const line of raw.split("\n")) {
     if (line.charAt(0) !== "[") {
       continue;
@@ -220,24 +300,19 @@ export function parseBatchResponse(
     if (!Array.isArray(frames)) {
       continue;
     }
-
     for (const frame of frames) {
-      if (!Array.isArray(frame) || frame[0] !== "wrb.fr") {
-        continue;
+      if (
+        Array.isArray(frame) &&
+        frame[0] === "wrb.fr" &&
+        typeof frame[2] === "string"
+      ) {
+        yield {
+          index: parseInt(String(frame[frame.length - 1]), 36),
+          payload: frame[2],
+        };
       }
-      const payload = frame[2];
-      if (typeof payload !== "string") {
-        continue;
-      }
-      const index = parseInt(String(frame[frame.length - 1]), 36);
-      if (!Number.isInteger(index) || index < 0 || index >= expectedCount) {
-        continue;
-      }
-      results[index] = extractTranslatedText(payload);
     }
   }
-
-  return results;
 }
 
 /** Pull the translated text out of one frame's JSON payload. */

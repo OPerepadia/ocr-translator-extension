@@ -560,6 +560,9 @@
     "message": "Couldn't reach Google Translate ($1). Check your internet connection, or switch to another translation provider.",
     "description": "$1 is the underlying connection error detail."
   },
+  "errorGoogleTranslateEmpty": {
+    "message": "Google Translate returned no translation. Try again, or switch to another translation provider."
+  },
   "errorGoogleTranslateRequest": {
     "message": "Google Translate request failed (HTTP $1). Try again later, or switch to another translation provider.",
     "description": "$1 is the HTTP status code."

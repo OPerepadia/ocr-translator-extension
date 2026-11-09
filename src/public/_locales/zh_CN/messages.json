@@ -482,6 +482,9 @@
   "errorGoogleTranslateUnreachable": {
     "message": "无法连接 Google 翻译（$1）。请检查网络连接或切换到其他翻译服务。"
   },
+  "errorGoogleTranslateEmpty": {
+    "message": "Google 翻译未返回译文。请重试或切换到其他翻译服务。"
+  },
   "errorGoogleTranslateRequest": {
     "message": "Google 翻译请求失败（HTTP $1）。请稍后重试或切换到其他翻译服务。"
   },

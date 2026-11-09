@@ -482,6 +482,9 @@
   "errorGoogleTranslateUnreachable": {
     "message": "Google翻訳に接続できませんでした（$1）。インターネット接続を確認するか、別の翻訳サービスに切り替えてください。"
   },
+  "errorGoogleTranslateEmpty": {
+    "message": "Google翻訳から翻訳結果が返されませんでした。再試行するか、別の翻訳サービスに切り替えてください。"
+  },
   "errorGoogleTranslateRequest": {
     "message": "Google翻訳へのリクエストが失敗しました（HTTP $1）。時間をおいて再試行するか、別の翻訳サービスに切り替えてください。"
   },

@@ -482,6 +482,9 @@
   "errorGoogleTranslateUnreachable": {
     "message": "Не удалось подключиться к Google Translate ($1). Проверьте интернет-соединение или выберите другой сервис перевода."
   },
+  "errorGoogleTranslateEmpty": {
+    "message": "Google Translate не вернул перевод. Попробуйте ещё раз или выберите другой сервис перевода."
+  },
   "errorGoogleTranslateRequest": {
     "message": "Ошибка запроса к Google Translate (HTTP $1). Попробуйте позже или выберите другой сервис перевода."
   },

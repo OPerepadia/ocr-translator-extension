@@ -3,6 +3,7 @@ import { RemoteTranslationError } from "./types";
 import {
   createGoogleTranslationProvider,
   parseBatchResponse,
+  parseDetectedLanguages,
   toGoogleCode,
 } from "./google";
 
@@ -14,6 +15,15 @@ function payload(text: string, chunks?: string[]): string {
     ? [text, null, null, null, null, chunks.map((c) => [c])]
     : [text, null, null, null, null, null];
   return JSON.stringify([null, [[sentence]]]);
+}
+
+// Like `payload`, with the detected source language that Google adds to an
+// "auto" request's answer at [0][2].
+function autoPayload(text: string, detected: string): string {
+  return JSON.stringify([
+    [null, null, detected],
+    [[[text, null, null, null, null, null]]],
+  ]);
 }
 
 // Build a full response body for the given index -> payload frames.
@@ -105,6 +115,27 @@ describe("parseBatchResponse", () => {
   });
 });
 
+describe("parseDetectedLanguages", () => {
+  it("reads the language Google detected for an auto request", () => {
+    const raw = response([{ index: 0, body: autoPayload("Hello", "es") }]);
+    expect(parseDetectedLanguages(raw, 1)).toEqual(["es"]);
+  });
+
+  it("maps Chinese region tags to the app's script codes", () => {
+    const raw = response([{ index: 0, body: autoPayload("Hello", "zh-TW") }]);
+    expect(parseDetectedLanguages(raw, 1)).toEqual(["zh-Hant"]);
+  });
+
+  it("ignores the language suggestion sent for a pinned source", () => {
+    const pinned = JSON.stringify([
+      [null, [null, ["es"]], null],
+      [[["Hola", null, null, null, null, null]]],
+    ]);
+    const raw = response([{ index: 0, body: pinned }]);
+    expect(parseDetectedLanguages(raw, 1)).toEqual([undefined]);
+  });
+});
+
 describe("createGoogleTranslationProvider", () => {
   it("translates line by line and preserves blank lines", async () => {
     const { fetchImpl, bodies } = googleFetchMock((text) => `T:${text}`);
@@ -171,6 +202,121 @@ describe("createGoogleTranslationProvider", () => {
     expect(bodies).toHaveLength(3); // 50 + 50 + 20
   });
 
+  it("returns the detected source language for an auto request", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () =>
+        response([{ index: 0, body: autoPayload("Good morning", "es") }]),
+    })) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const result = await provider.translate({
+      text: "Buenos días",
+      sourceLang: "auto",
+      targetLang: "en",
+    });
+
+    expect(result).toEqual({
+      text: "Good morning",
+      sourceLang: "es",
+      targetLang: "en",
+    });
+  });
+
+  it("picks the detected language that covers the most letters", async () => {
+    // Frames arrive out of order, and short lines are labeled English.
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () =>
+        response([
+          { index: 1, body: autoPayload("x", "en") },
+          { index: 2, body: autoPayload("12:45", "en") },
+          { index: 0, body: autoPayload("Hello friends", "es") },
+          { index: 3, body: autoPayload("Good night", "es") },
+        ]),
+    })) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const result = await provider.translate({
+      text: "Hola amigos\nx\n12:45\nBuenas noches",
+      sourceLang: "auto",
+      targetLang: "en",
+    });
+
+    expect(result.sourceLang).toBe("es");
+  });
+
+  it("reports an error frame instead of showing the original line", async () => {
+    const errorFrame = JSON.stringify([
+      ["wrb.fr", "MkEWBc", null, null, null, [13], "0"],
+    ]);
+    const translated = JSON.stringify([
+      ["wrb.fr", "MkEWBc", payload("Good morning"), null, null, null, "1"],
+    ]);
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => `)]}'\n\n${errorFrame}\n${translated}\n`,
+    })) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const error = await provider
+      .translate({ text: "Hola\nBuenos días", targetLang: "en" })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RemoteTranslationError);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries once when a line comes back without a translation", async () => {
+    const errorFrame = JSON.stringify([
+      ["wrb.fr", "MkEWBc", null, null, null, [13], "0"],
+    ]);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => `)]}'\n\n${errorFrame}\n`,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => response([{ index: 0, body: payload("Hello") }]),
+      }) as unknown as typeof fetch;
+    const provider = createGoogleTranslationProvider({ fetchImpl });
+
+    const result = await provider.translate({ text: "Hola", targetLang: "en" });
+
+    expect(result.text).toBe("Hello");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries once after a network error or a server error", async () => {
+    const ok = {
+      ok: true,
+      status: 200,
+      text: async () => response([{ index: 0, body: payload("Hello") }]),
+    };
+    for (const failure of [
+      () => Promise.reject(new TypeError("Failed to fetch")),
+      () => Promise.resolve({ ok: false, status: 503, text: async () => "" }),
+    ]) {
+      const fetchImpl = vi
+        .fn()
+        .mockImplementationOnce(failure)
+        .mockResolvedValueOnce(ok) as unknown as typeof fetch;
+      const provider = createGoogleTranslationProvider({ fetchImpl });
+
+      const result = await provider.translate({ text: "Hola", targetLang: "en" });
+
+      expect(result.text).toBe("Hello");
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    }
+  });
+
   it("throws a helpful error on an HTTP failure", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: false,
@@ -182,6 +328,8 @@ describe("createGoogleTranslationProvider", () => {
     await expect(
       provider.translate({ text: "hi", sourceLang: "ja", targetLang: "en" }),
     ).rejects.toThrow(/HTTP 429/);
+    // Retrying a rate limit right away would only add load.
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("times out a hung request as a retryable RemoteTranslationError", async () => {
@@ -202,6 +350,7 @@ describe("createGoogleTranslationProvider", () => {
 
     expect(error).toBeInstanceOf(RemoteTranslationError);
     expect((error as Error).message).toMatch(/timed out/i);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("rejects an already-aborted request without fetching", async () => {
