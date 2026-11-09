@@ -39,10 +39,12 @@ export async function runPipeline(args: {
     args.signal,
     args.onStatus,
   );
-  let sourceLang = recognized.lang ?? args.sourceLang;
-  if ((!sourceLang || sourceLang === "auto") && args.detectLanguage) {
-    sourceLang = (await args.detectLanguage(recognized.text)) ?? sourceLang;
-  }
+  const requestedLang = recognized.lang ?? args.sourceLang;
+  const detectedLang =
+    (!requestedLang || requestedLang === "auto") && args.detectLanguage
+      ? await args.detectLanguage(recognized.text)
+      : undefined;
+  const sourceLang = detectedLang ?? requestedLang;
   const ocr =
     !recognized.lang && sourceLang && sourceLang !== "auto"
       ? { ...recognized, lang: sourceLang }
@@ -52,7 +54,8 @@ export async function runPipeline(args: {
   const { translation, translationStatus } = await translateText({
     text: ocr.text,
     translationProvider: args.translationProvider,
-    sourceLang,
+    sourceLang: requestedLang,
+    detectedSourceLang: detectedLang,
     targetLang: args.targetLang,
     onStatus: args.onStatus,
     signal: args.signal,
@@ -71,6 +74,8 @@ export async function translateText(args: {
   text: string;
   translationProvider: TranslationProvider;
   sourceLang?: LangCode | "auto";
+  /** A language already detected for "auto", so it isn't detected twice. */
+  detectedSourceLang?: LangCode;
   targetLang: LangCode;
   /** Lines that came just before `text`, for providers that can use them. */
   context?: TranslationContextLine[];
@@ -82,13 +87,14 @@ export async function translateText(args: {
   translationStatus: TranslationStatus;
 }> {
   // Resolve the source language for the language badge and same-language check.
-  let sourceLang = args.sourceLang;
-  if ((!sourceLang || sourceLang === "auto") && args.detectLanguage) {
-    sourceLang = (await args.detectLanguage(args.text)) ?? sourceLang;
+  const auto = !args.sourceLang || args.sourceLang === "auto";
+  let sourceLang = auto ? args.detectedSourceLang : args.sourceLang;
+  if (auto && !sourceLang && args.detectLanguage) {
+    sourceLang = await args.detectLanguage(args.text);
   }
 
   // Nothing to translate when the text is already in the target language.
-  if (sourceLang && sourceLang !== "auto" && sourceLang === args.targetLang) {
+  if (sourceLang && sourceLang === args.targetLang) {
     return {
       translationStatus: {
         state: "same_language",
@@ -103,14 +109,23 @@ export async function translateText(args: {
     const translation = await args.translationProvider.translate(
       {
         text: args.text,
-        sourceLang,
+        // Keep "auto" rather than sending the local guess. The guess is often
+        // wrong on short text, and a wrong source makes Google return the text
+        // untranslated. Providers detect the language themselves.
+        sourceLang: auto ? args.sourceLang : sourceLang,
         targetLang: args.targetLang,
         context: args.context,
       },
       args.signal,
     );
 
-    return { translation, translationStatus: { state: "ok" } };
+    return {
+      translation:
+        auto && sourceLang && !translation.sourceLang
+          ? { ...translation, sourceLang }
+          : translation,
+      translationStatus: { state: "ok" },
+    };
   } catch (error) {
     const status = translationStatusForError(error, args.targetLang);
     if (!status) {
@@ -118,7 +133,7 @@ export async function translateText(args: {
     }
     // Surface the resolved source language so the recognized-text badge still
     // shows it even though translation produced no output.
-    if (sourceLang && sourceLang !== "auto") {
+    if (sourceLang) {
       status.sourceLang = sourceLang;
     }
     return { translationStatus: status };

@@ -72,7 +72,7 @@ describe("runPipeline", () => {
     });
   });
 
-  it("detects the source language when it is auto and OCR reports none", async () => {
+  it("detects the source language for the UI but sends auto to the provider", async () => {
     const events: string[] = [];
     const translationCalls: unknown[] = [];
     const ocrProvider: OcrProvider = {
@@ -108,9 +108,37 @@ describe("runPipeline", () => {
 
     expect(events).toEqual(["detect-language", "ocr-result", "translate"]);
     expect(translationCalls).toEqual([
-      { text: "Guten Tag", sourceLang: "de", targetLang: "en" },
+      { text: "Guten Tag", sourceLang: "auto", targetLang: "en" },
     ]);
     expect(result.ocr).toEqual({ text: "Guten Tag", lang: "de" });
+    expect(result.translation).toEqual({
+      text: "Good day",
+      sourceLang: "de",
+      targetLang: "en",
+    });
+  });
+
+  it("keeps the provider's detected language over the local guess", async () => {
+    const result = await runPipeline({
+      image: new Blob(["image"]),
+      ocrProvider: {
+        id: "ocr-test",
+        async recognize() {
+          return { text: "Buenos días" };
+        },
+      },
+      translationProvider: {
+        id: "translation-test",
+        async translate(input) {
+          return { text: "Good morning", sourceLang: "es", targetLang: input.targetLang };
+        },
+      },
+      sourceLang: "auto",
+      targetLang: "en",
+      detectLanguage: async () => "eo",
+    });
+
+    expect(result.translation?.sourceLang).toBe("es");
   });
 
   it("reports the OCR result before translating", async () => {
@@ -284,6 +312,55 @@ describe("runPipeline", () => {
 });
 
 describe("translateText", () => {
+  it("sends auto to the provider and detects only once", async () => {
+    const calls: unknown[] = [];
+    let detections = 0;
+
+    const result = await translateText({
+      text: "Buenos días",
+      translationProvider: {
+        id: "translation-test",
+        async translate(input) {
+          calls.push(input);
+          return { text: "Good morning", targetLang: input.targetLang };
+        },
+      },
+      sourceLang: "auto",
+      targetLang: "en",
+      detectLanguage: async () => {
+        detections += 1;
+        return "es";
+      },
+    });
+
+    expect(detections).toBe(1);
+    expect(calls).toEqual([
+      { text: "Buenos días", sourceLang: "auto", targetLang: "en" },
+    ]);
+    expect(result.translation?.sourceLang).toBe("es");
+  });
+
+  it("still skips translation when the detected language is the target", async () => {
+    let translated = false;
+
+    const result = await translateText({
+      text: "Hello",
+      translationProvider: {
+        id: "translation-test",
+        async translate(input) {
+          translated = true;
+          return { text: input.text, targetLang: input.targetLang };
+        },
+      },
+      sourceLang: "auto",
+      targetLang: "en",
+      detectLanguage: async () => "en",
+    });
+
+    expect(translated).toBe(false);
+    expect(result.translationStatus.state).toBe("same_language");
+  });
+
   it("passes the context on to the provider", async () => {
     const calls: unknown[] = [];
     const translationProvider: TranslationProvider = {
