@@ -34,7 +34,7 @@ Translation uses Google Translate by default. You can also use DeepL (with your 
 - Choose a translation provider:
     - Google Translate (no API key required)
     - DeepL (requires your own [DeepL API key](https://www.deepl.com/your-account/keys))
-    - Any OpenAI-compatible LLM endpoint, such as llama.cpp or Ollama.
+    - Any OpenAI-compatible LLM endpoint, such as llama.cpp or Ollama. See [LLM setup](#llm-setup).
 - Copy or listen to the text, or compare the original and translation side by side.
 
 ## Usage
@@ -43,8 +43,12 @@ Translation uses Google Translate by default. You can also use DeepL (with your 
 2. Drag to select an area, or click an image to translate it.
 3. The translation appears over the selected area.
 
-> [!IMPORTANT]
-> The default `Ctrl+Shift+F` shortcut has been removed on Firefox because Firefox 159 now uses it for the add-ons manager. You can assign a different shortcut in settings.
+Keyboard shortcuts:
+
+- Chrome: `Ctrl+Shift+F` by default.
+- Firefox: no default, because Firefox 159+ reserves it for the add-ons manager.
+
+You can set or change a shortcut in the extension settings.
 
 You can also right-click an image and choose **Translate this image**.
 
@@ -120,10 +124,6 @@ Tips:
 - When using an LLM endpoint, the previous few lines and their translations are included as context to improve translation quality.
 - DRM-protected videos may not work.
 
-> [!NOTE]
-> If you notice growing RAM usage while using **llama.cpp**, start the server with `--cache-ram 0`.
-> This turns off the prompt cache, which keeps copies of earlier prompts in RAM.
-
 ## Supported languages
 
 ### Text recognition
@@ -145,13 +145,56 @@ When the source language is set to Auto, a local classifier detects the script a
 
 Recognized text can be translated into any language supported by your chosen translation provider.
 
-If Ollama returns HTTP 403, enable **Remove Origin header** in the LLM endpoint settings.
+To use an LLM for translation, see [LLM setup](#llm-setup).
 
 ## Limitations
 
 Recognized text lines are grouped into regions using a bundled RT-DETR model.
-It may still miss or incorrectly group very small text, tables, or dense
-multi-column layouts. Selecting a smaller area can improve results.
+It may still miss or incorrectly group very small text, tables, or dense multi-column layouts.
+Selecting a smaller area can improve results.
+
+## LLM setup
+
+The **LLM** translation provider works with any server that has an OpenAI-compatible chat completions API, whether it runs on your computer or is a hosted service.
+
+1. Start your server, or get an API key for a hosted service.
+2. In the extension settings, set **Translation provider** to **LLM**.
+3. Enter the **Endpoint URL**. It usually ends in `/v1`.
+4. Enter an **API key** if the server requires one.
+5. Click **Fetch models** and pick a model.
+6. Click **Test connection**.
+
+Default endpoints of common servers:
+
+| Server | Endpoint URL | Notes |
+|---|---|---|
+| [llama.cpp](https://llama.app/) | `http://localhost:8080/v1` | For live translation, start the server with `--cache-ram 0` to prevent the growing RAM usage (see [Troubleshooting](#troubleshooting)). |
+| [Ollama](https://ollama.com/) | `http://localhost:11434/v1` | Turn on **Remove Origin header**, or Ollama answers with HTTP 403. |
+| [LM Studio](https://lmstudio.ai/) | `http://localhost:1234/v1` | Start the local server in LM Studio first. |
+| [OpenRouter](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | Needs an API key. |
+| OpenAI | `https://api.openai.com/v1` | Needs an API key. Also turn off **Disable model thinking**. |
+
+## Troubleshooting
+ 
+### Translation
+ 
+| Problem | What to do |
+|---|---|
+| *Couldn't reach the LLM endpoint* | Check that the server is running and that the URL, port, and `http`/`https` are correct. |
+| *Invalid translation format after a retry* | The model isn't following the JSON format. This often happens with smaller models. Try a larger or instruction-tuned model. |
+| Ollama returns HTTP 403 | Turn on **Remove Origin header** in the LLM settings. |
+| RAM usage grows while using llama.cpp | Start the server with `--cache-ram 0`. This turns off the prompt cache, which keeps copies of earlier prompts in RAM. |
+| LLM request failed (HTTP 400) from a hosted LLM API | Turn off **Disable model thinking**, and check that the model name is correct. |
+| Google Translate times out | Try again, or switch to another provider. Google may rate-limit frequent requests. |
+ 
+### Recognition
+ 
+| Problem | What to do |
+|---|---|
+| Nothing happens on a local image file | Grant the extension access to local files. See [Local image files](#local-image-files). |
+| The first recognition takes 15–20 seconds in Firefox on Windows | This is slow WebGPU shader compilation in Firefox. Turn off **GPU acceleration** in settings. See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18). |
+| *Insufficient memory* error | Close GPU-heavy tabs, or turn off **GPU acceleration**. |
+| Text is missed or grouped wrongly | Select a smaller area. For comics, try the manga recognition model. |
 
 ## WebGPU setup
 
