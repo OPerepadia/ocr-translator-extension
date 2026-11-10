@@ -162,7 +162,7 @@ Default endpoints of common servers:
 
 | Server | Endpoint URL | Notes |
 |---|---|---|
-| [llama.cpp](https://llama.app/) | `http://localhost:8080/v1` | For live translation, start the server with `--cache-ram 0` to prevent the growing RAM usage (see [Troubleshooting](#troubleshooting)). |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | `http://localhost:8080/v1` | For live translation, start the server with `--cache-ram 0` to prevent the growing RAM usage (see [Troubleshooting](#troubleshooting)). |
 | [Ollama](https://ollama.com/) | `http://localhost:11434/v1` | Turn on **Remove Origin header**, or Ollama answers with HTTP 403. |
 | [LM Studio](https://lmstudio.ai/) | `http://localhost:1234/v1` | Start the local server in LM Studio first. |
 | [OpenRouter](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | Needs an API key. |
