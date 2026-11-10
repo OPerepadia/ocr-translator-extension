@@ -6,15 +6,15 @@
   <a href="https://github.com/OPerepadia/ocr-translator-extension/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue.svg" alt="MPL-2.0 license"></a>
 </p>
 
-Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, and shows the translation in an overlay or in a panel.
+Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, and shows the translation in an overlay or a panel.
+
+Text recognition runs locally in your browser. Translation uses Google Translate by default. You can also use DeepL (with your own API key) or any OpenAI-compatible LLM endpoint (local or remote).
 
 <p align="center">
   <img src="media/demo-comic.jpg" alt="Selecting a manga panel with two vertical Japanese speech bubbles and a sign, then the English translation drawn over them" width="800">
   <br>
   <sub>Comic: <a href="https://densho810.com/free/">Give My Regards to Black Jack</a>, SHUHO SATO.</sub>
 </p>
-
-Translation uses Google Translate by default. You can also use DeepL (with your own API key) or any OpenAI-compatible LLM endpoint (local or remote).
 
 ## Install
 
@@ -170,7 +170,7 @@ Default endpoints of common servers:
 
 ## WebGPU setup
 
-The **GPU acceleration** setting runs text recognition on WebGPU instead of the CPU. It is off by default.
+The **GPU acceleration** setting runs text recognition on WebGPU instead of the CPU. It is off by default. You can turn it on in the extension settings.
 If the setting shows that WebGPU is unavailable, enable WebGPU in your browser as described below.
 
 > [!WARNING]
@@ -178,6 +178,8 @@ If the setting shows that WebGPU is unavailable, enable WebGPU in your browser a
 > The flags below enable WebGPU for all websites and can cause crashes or instability, so use them at your own risk.
 
 ### Firefox
+
+WebGPU is on by default on Windows. On Linux, enable it manually:
 
 1. Open `about:config`.
 2. Set `dom.webgpu.enabled` to `true`.
@@ -197,24 +199,18 @@ for a walkthrough.
     - **Vulkan** (`chrome://flags/#enable-vulkan`)
 3. Restart the browser.
 
-## Limitations
-
-Recognized text lines are grouped into regions using a bundled RT-DETR model.
-It may still miss or incorrectly group very small text, tables, or dense multi-column layouts.
-Selecting a smaller area can improve results.
-
 ## Troubleshooting
 
 ### Translation
 
 | Problem | What to do |
 |---|---|
-| *Couldn't reach the LLM endpoint* | Check that the server is running and that the URL, port, and `http`/`https` are correct. |
-| *Invalid translation format after a retry* | The model isn't following the JSON format. This often happens with smaller models. Try a larger or instruction-tuned model. |
-| Ollama returns HTTP 403 | Turn on **Remove Origin header** in the LLM settings. |
+| Couldn't reach the LLM endpoint | Check that the server is running and that the URL, port, and `http`/`https` are correct. |
+| The LLM returned an invalid translation format after a retry | The model isn't following the JSON format. This often happens with smaller models. Try a larger or instruction-tuned model. |
+| HTTP 403 with Ollama | Turn on **Remove Origin header** in the LLM settings. |
 | RAM usage grows while using llama.cpp | Start the server with `--cache-ram 0`. This turns off the prompt cache, which keeps copies of earlier prompts in RAM. |
 | LLM request failed (HTTP 400) from a hosted LLM API | Turn off **Disable model thinking**, and check that the model name is correct. |
-| Google Translate times out | Try again, or switch to another provider. Google may rate-limit frequent requests. |
+| Google Translate timed out | Try again, or switch to another provider. Google may rate-limit frequent requests. |
 
 ### Recognition
 
@@ -222,15 +218,15 @@ Selecting a smaller area can improve results.
 |---|---|
 | Nothing happens on a local image file | Grant the extension access to local files. See [Local image files](#local-image-files). |
 | The first recognition takes 15–20 seconds in Firefox on Windows | This is slow WebGPU shader compilation in Firefox. Turn off **GPU acceleration** in settings. See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18). |
-| *Insufficient memory* error | Close GPU-heavy tabs, or turn off **GPU acceleration**. |
+| Insufficient memory error | Close GPU-heavy tabs, or turn off **GPU acceleration**. |
 | Text is missed or grouped wrongly | Select a smaller area. For comics, try the manga recognition model. |
 
 ## Privacy
 
 - Captured images are processed locally.
 - Recognized text is sent to the selected translation provider for translation.
-- Settings and API keys are stored locally. An API key is sent only to the
-  endpoint configured by the user.
+- Read aloud sends the text to Google text-to-speech.
+- Settings and API keys are stored locally. An API key is sent only to the endpoint you configured.
 
 See the [Privacy Policy](PRIVACY.md) for details.
 
