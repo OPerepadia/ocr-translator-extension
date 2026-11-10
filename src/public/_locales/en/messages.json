@@ -142,6 +142,10 @@
   "optionsLlmEndpointHint": {
     "message": "Any server with an OpenAI-compatible API, such as llama.cpp, Ollama, LM Studio, OpenRouter, etc."
   },
+  "optionsLlmSetupLink": {
+    "message": "LLM setup guide and troubleshooting",
+    "description": "Link text to the LLM setup and troubleshooting guide in the README."
+  },
   "optionsRemoveOriginHeader": {
     "message": "Remove Origin header",
     "description": "Origin is the HTTP request header name; keep it unchanged."

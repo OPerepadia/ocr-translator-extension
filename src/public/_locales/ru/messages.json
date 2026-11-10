@@ -125,6 +125,9 @@
   "optionsLlmEndpointHint": {
     "message": "Любой сервер, совместимый с OpenAI API, например llama.cpp, Ollama, LM Studio или OpenRouter."
   },
+  "optionsLlmSetupLink": {
+    "message": "Настройка LLM и устранение неполадок"
+  },
   "optionsRemoveOriginHeader": {
     "message": "Удалять заголовок Origin"
   },

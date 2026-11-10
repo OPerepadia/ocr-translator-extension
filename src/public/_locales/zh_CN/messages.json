@@ -125,6 +125,9 @@
   "optionsLlmEndpointHint": {
     "message": "支持任何提供 OpenAI 兼容 API 的服务器，例如 llama.cpp、Ollama、LM Studio 和 OpenRouter 等。"
   },
+  "optionsLlmSetupLink": {
+    "message": "LLM 设置指南和故障排除"
+  },
   "optionsRemoveOriginHeader": {
     "message": "移除 Origin 标头"
   },

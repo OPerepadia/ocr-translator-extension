@@ -125,6 +125,9 @@
   "optionsLlmEndpointHint": {
     "message": "llama.cpp、Ollama、LM Studio、OpenRouterなど、OpenAI互換APIを提供するサーバーを利用できます。"
   },
+  "optionsLlmSetupLink": {
+    "message": "LLMのセットアップとトラブルシューティング"
+  },
   "optionsRemoveOriginHeader": {
     "message": "Originヘッダーを削除"
   },
