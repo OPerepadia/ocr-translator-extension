@@ -147,12 +147,6 @@ Recognized text can be translated into any language supported by your chosen tra
 
 To use an LLM for translation, see [LLM setup](#llm-setup).
 
-## Limitations
-
-Recognized text lines are grouped into regions using a bundled RT-DETR model.
-It may still miss or incorrectly group very small text, tables, or dense multi-column layouts.
-Selecting a smaller area can improve results.
-
 ## LLM setup
 
 The **LLM** translation provider works with any server that has an OpenAI-compatible chat completions API, whether it runs on your computer or is a hosted service.
@@ -174,29 +168,10 @@ Default endpoints of common servers:
 | [OpenRouter](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | Needs an API key. |
 | OpenAI | `https://api.openai.com/v1` | Needs an API key. Also turn off **Disable model thinking**. |
 
-## Troubleshooting
- 
-### Translation
- 
-| Problem | What to do |
-|---|---|
-| *Couldn't reach the LLM endpoint* | Check that the server is running and that the URL, port, and `http`/`https` are correct. |
-| *Invalid translation format after a retry* | The model isn't following the JSON format. This often happens with smaller models. Try a larger or instruction-tuned model. |
-| Ollama returns HTTP 403 | Turn on **Remove Origin header** in the LLM settings. |
-| RAM usage grows while using llama.cpp | Start the server with `--cache-ram 0`. This turns off the prompt cache, which keeps copies of earlier prompts in RAM. |
-| LLM request failed (HTTP 400) from a hosted LLM API | Turn off **Disable model thinking**, and check that the model name is correct. |
-| Google Translate times out | Try again, or switch to another provider. Google may rate-limit frequent requests. |
- 
-### Recognition
- 
-| Problem | What to do |
-|---|---|
-| Nothing happens on a local image file | Grant the extension access to local files. See [Local image files](#local-image-files). |
-| The first recognition takes 15–20 seconds in Firefox on Windows | This is slow WebGPU shader compilation in Firefox. Turn off **GPU acceleration** in settings. See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18). |
-| *Insufficient memory* error | Close GPU-heavy tabs, or turn off **GPU acceleration**. |
-| Text is missed or grouped wrongly | Select a smaller area. For comics, try the manga recognition model. |
-
 ## WebGPU setup
+
+The **GPU acceleration** setting runs text recognition on WebGPU instead of the CPU. It is off by default.
+If the setting shows that WebGPU is unavailable, enable WebGPU in your browser as described below.
 
 > [!WARNING]
 > GPU acceleration is experimental. Depending on your browser, OS and hardware, it may make text recognition faster or slower.
@@ -212,10 +187,7 @@ See the [Firefox guide on enableGPU.com](https://enablegpu.com/guides/firefox/)
 for a walkthrough.
 
 > [!NOTE]
-> In Firefox on Windows, with GPU acceleration enabled, the first recognition can take 15–20 seconds.
-> The cause is slow shader compilation in Firefox, which needs to be fixed upstream.
-> Until then, turn off **GPU acceleration** in the extension settings if this bothers you.
-> See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18).
+> In Firefox on Windows, the first recognition can take 15–20 seconds with GPU acceleration enabled. See [Troubleshooting](#recognition).
 
 ### Chromium
 
@@ -224,6 +196,34 @@ for a walkthrough.
     - **Unsafe WebGPU Support** (`chrome://flags/#enable-unsafe-webgpu`)
     - **Vulkan** (`chrome://flags/#enable-vulkan`)
 3. Restart the browser.
+
+## Limitations
+
+Recognized text lines are grouped into regions using a bundled RT-DETR model.
+It may still miss or incorrectly group very small text, tables, or dense multi-column layouts.
+Selecting a smaller area can improve results.
+
+## Troubleshooting
+
+### Translation
+
+| Problem | What to do |
+|---|---|
+| *Couldn't reach the LLM endpoint* | Check that the server is running and that the URL, port, and `http`/`https` are correct. |
+| *Invalid translation format after a retry* | The model isn't following the JSON format. This often happens with smaller models. Try a larger or instruction-tuned model. |
+| Ollama returns HTTP 403 | Turn on **Remove Origin header** in the LLM settings. |
+| RAM usage grows while using llama.cpp | Start the server with `--cache-ram 0`. This turns off the prompt cache, which keeps copies of earlier prompts in RAM. |
+| LLM request failed (HTTP 400) from a hosted LLM API | Turn off **Disable model thinking**, and check that the model name is correct. |
+| Google Translate times out | Try again, or switch to another provider. Google may rate-limit frequent requests. |
+
+### Recognition
+
+| Problem | What to do |
+|---|---|
+| Nothing happens on a local image file | Grant the extension access to local files. See [Local image files](#local-image-files). |
+| The first recognition takes 15–20 seconds in Firefox on Windows | This is slow WebGPU shader compilation in Firefox. Turn off **GPU acceleration** in settings. See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18). |
+| *Insufficient memory* error | Close GPU-heavy tabs, or turn off **GPU acceleration**. |
+| Text is missed or grouped wrongly | Select a smaller area. For comics, try the manga recognition model. |
 
 ## Privacy
 
@@ -267,6 +267,8 @@ npm run typecheck
 
 ### Firefox for Android
 
+The extension targets desktop browsers. But you can still load it in Firefox for Android for testing.
+
 Enable Android USB debugging and in Firefox Settings, enable **Remote debugging via USB**. Connect the device and run:
 
 ```sh
@@ -292,7 +294,4 @@ Copyright (C) 2026 Oleksandr Perepadia
 Screen OCR Translator is licensed under the [Mozilla Public License 2.0](LICENSE).
 Bundled libraries, runtime files, and OCR models retain their original licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The demo images use third-party artwork licensed for free reuse under the terms linked below:
-
-- Comic: [Give My Regards to Black Jack](https://densho810.com/free/), SHUHO SATO, used under the publisher's free-use terms.
-- Video: [Sintel](https://durian.blender.org/), © Blender Foundation | durian.blender.org, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+The demo images contain third-party artwork and are not covered by this license.
