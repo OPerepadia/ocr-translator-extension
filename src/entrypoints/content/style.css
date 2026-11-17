@@ -1195,6 +1195,27 @@
   hyphens: auto;
   overflow-wrap: normal;
   white-space: pre-wrap;
+  /* Anchors the truncation marker. */
+  position: relative;
+}
+
+/* A triangle in the panel's bottom end corner, in the text colour. The panel's
+   rounded clip shapes its corner. */
+.ocr-translate-overlay-truncation-marker {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0.6em;
+  height: 0.6em;
+  background: linear-gradient(135deg, transparent 50%, currentColor 50%);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.ocr-translate-overlay-truncation-marker[data-end="left"] {
+  right: auto;
+  left: 0;
+  background: linear-gradient(225deg, transparent 50%, currentColor 50%);
 }
 
 .ocr-translate-overlay-translation-text.is-vertical-source {

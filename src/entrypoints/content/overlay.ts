@@ -1189,7 +1189,33 @@ function clampToWholeLines(panel: HTMLElement, box: HTMLElement): void {
   const lines = Math.floor(
     (box.clientHeight - padding) / lineHeight + CLAMP_SPILL_LINES,
   );
-  panel.style.setProperty("-webkit-line-clamp", `${Math.max(1, lines)}`);
+  const clampLines = Math.max(1, lines);
+  panel.querySelector(".ocr-translate-overlay-truncation-marker")?.remove();
+  const contentHeight = panel.scrollHeight - padding;
+  panel.style.setProperty("-webkit-line-clamp", `${clampLines}`);
+  if (isClampTruncated(contentHeight, clampLines, lineHeight)) {
+    panel.append(createTruncationMarker(panel));
+  }
+}
+
+// Half a line of slack keeps rounding from flagging text that fits.
+export function isClampTruncated(
+  contentHeight: number,
+  clampLines: number,
+  lineHeight: number,
+): boolean {
+  return contentHeight > clampLines * lineHeight + lineHeight / 2;
+}
+
+// The clamp's ellipsis looks like one in the text itself, so a marker tells
+// a cut-off translation from one that ends in "…".
+function createTruncationMarker(panel: HTMLElement): HTMLElement {
+  const marker = document.createElement("span");
+  marker.className = "ocr-translate-overlay-truncation-marker";
+  marker.setAttribute("aria-hidden", "true");
+  marker.dataset.end =
+    getComputedStyle(panel).direction === "rtl" ? "left" : "right";
+  return marker;
 }
 
 function createBox(

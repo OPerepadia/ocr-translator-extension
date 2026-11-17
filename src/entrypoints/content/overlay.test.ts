@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineResult } from "@/shared/types";
 import {
+  isClampTruncated,
   isOverlayable,
   overlayDisplayText,
   overlayTargetLanguage,
@@ -110,5 +111,19 @@ describe("toolbarErrorChipY", () => {
     );
 
     expect(y + height).toBeLessThanOrEqual(toolbar.top - 8);
+  });
+});
+
+describe("isClampTruncated", () => {
+  it("is false when the content fits the clamp", () => {
+    expect(isClampTruncated(40, 2, 20)).toBe(false);
+  });
+
+  it("ignores sub-pixel rounding", () => {
+    expect(isClampTruncated(40.4, 2, 20)).toBe(false);
+  });
+
+  it("is true when whole lines are cut off", () => {
+    expect(isClampTruncated(60, 2, 20)).toBe(true);
   });
 });
