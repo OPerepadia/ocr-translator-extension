@@ -14,57 +14,39 @@ export type OcrImageSource =
   | { rect: Rect; viewport: Viewport }
   | { imageUrl: string };
 
-export type RuntimeMessage =
-  // Popup -> content: checks that the content script runs in the tab.
-  | {
-      type: "PING";
-    }
-  | {
-      type: "START_SELECTION";
-    }
-  // Popup or shortcut -> content (top frame): pick a screen region to
-  // translate continuously.
-  | {
-      type: "START_LIVE_SELECTION";
-    }
-  // Content (iframe) -> background -> content (top frame): the image an
-  // iframe found at a point region selection asked about. The background adds
-  // the iframe's ID. `image` is absent when nothing is there.
-  | {
-      type: "FRAME_IMAGE_AT_POINT";
-      probeId: number;
-      frameId?: number;
-      image?: { rect: Rect; point: { x: number; y: number } };
-    }
-  // Content (top frame) -> background -> content (iframe `frameId`):
-  // translate the image at `point`, picked during region selection.
-  | {
-      type: "TRANSLATE_FRAME_IMAGE";
-      frameId: number;
-      point: { x: number; y: number };
-    }
-  | {
-      type: "START_IMAGE_TRANSLATION";
-      imageUrl: string;
-    }
+// Popup, shortcut or menu -> content (top frame), or content (iframe) ->
+// background -> content (top frame): pick a screen region to translate.
+interface StartSelectionMessage {
+  type: "START_SELECTION";
+}
+
+// Content (iframe) -> background -> content (top frame): the image an
+// iframe found at a point region selection asked about. The background adds
+// the iframe's ID. `image` is absent when nothing is there.
+interface FrameImageAtPointMessage {
+  type: "FRAME_IMAGE_AT_POINT";
+  probeId: number;
+  frameId?: number;
+  image?: { rect: Rect; point: { x: number; y: number } };
+}
+
+// Content (top frame) -> background -> content (iframe `frameId`):
+// translate the image at `point`, picked during region selection.
+interface TranslateFrameImageMessage {
+  type: "TRANSLATE_FRAME_IMAGE";
+  frameId: number;
+  point: { x: number; y: number };
+}
+
+/** Messages the background handles (runtime.sendMessage). */
+export type BackgroundRequest =
+  | StartSelectionMessage
+  | FrameImageAtPointMessage
+  | TranslateFrameImageMessage
   // Content -> background: run the pipeline over a region or an image. The
   // response resolves to a PipelineResult, and a failure rejects it — neither
   // comes back as a message of its own.
   | ({ type: "OCR_TRANSLATE_REQUEST"; requestId: string } & OcrImageSource)
-  // Background -> content tab: which pipeline step is running, so the loading
-  // popup can show the current status (recognizing, translating, …).
-  | {
-      type: "OCR_TRANSLATE_STATUS";
-      requestId: string;
-      status: PipelineStatus;
-    }
-  // Background -> content tab: the OCR step has completed, while translation may
-  // still be running. Lets the panel replace stale recognized text immediately.
-  | {
-      type: "OCR_TRANSLATE_OCR_RESULT";
-      requestId: string;
-      ocr: PipelineOcrResult;
-    }
   // Content -> background: start loading the OCR worker and model while the user
   // is still doing the selection, so recognition can begin as soon as the
   // screenshot is ready. Fire-and-forget; failures surface on the real request.
@@ -186,6 +168,51 @@ export type RuntimeMessage =
       requestId: string;
     };
 
+/** Messages a content script handles (tabs.sendMessage). */
+export type ContentMessage =
+  | StartSelectionMessage
+  | FrameImageAtPointMessage
+  | TranslateFrameImageMessage
+  // Popup -> content: checks that the content script runs in the tab.
+  | {
+      type: "PING";
+    }
+  // Popup or shortcut -> content (top frame): pick a screen region to
+  // translate continuously.
+  | {
+      type: "START_LIVE_SELECTION";
+    }
+  | {
+      type: "START_IMAGE_TRANSLATION";
+      imageUrl: string;
+    }
+  // Background -> content tab: which pipeline step is running, so the loading
+  // popup can show the current status (recognizing, translating, …).
+  | {
+      type: "OCR_TRANSLATE_STATUS";
+      requestId: string;
+      status: PipelineStatus;
+    }
+  // Background -> content tab: the OCR step has completed, while translation may
+  // still be running. Lets the panel replace stale recognized text immediately.
+  | {
+      type: "OCR_TRANSLATE_OCR_RESULT";
+      requestId: string;
+      ocr: PipelineOcrResult;
+    };
+
+export type BackgroundRequestOf<T extends BackgroundRequest["type"]> = Extract<
+  BackgroundRequest,
+  { type: T }
+>;
+
+/** tabs.sendMessage, narrowed to the messages a content script handles. */
+export type SendToContent = (
+  tabId: number,
+  message: ContentMessage,
+  options?: { frameId?: number },
+) => Promise<unknown>;
+
 export interface OcrSourceLanguagesResponse {
   /** The languages the current OCR provider can read. */
   languages: Array<{ id: string }>;
@@ -237,18 +264,6 @@ export type LiveTranslationResponse = Pick<
 
 export interface SpeakResponse {
   audioChunks: string[];
-}
-
-export function isRuntimeMessage<T extends RuntimeMessage["type"]>(
-  value: unknown,
-  type: T,
-): value is Extract<RuntimeMessage, { type: T }> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    value.type === type
-  );
 }
 
 export function serializeError(error: unknown): SerializedError {

@@ -22,6 +22,7 @@ import {
   translationProviderLabel,
 } from "@/shared/i18n";
 import { isFirefoxLocalFileAccessDenied } from "@/shared/local-file-access";
+import { sendToContent } from "@/shared/runtime-messaging";
 import {
   createSettingsRepository,
   getDisplayMode,
@@ -152,9 +153,7 @@ async function initPopup(): Promise<void> {
 
     if (
       typeof activeTab?.id !== "number" ||
-      !(await isTabActivatable(activeTab, (tabId, message, options) =>
-        browser.tabs.sendMessage(tabId, message, options),
-      ))
+      !(await isTabActivatable(activeTab, sendToContent))
     ) {
       disableSelection(elements, t("popupRestrictedPage"));
     } else if (
@@ -305,7 +304,7 @@ async function startPageAction(
       disableSelection(elements, t("popupRestrictedPage"));
       return;
     }
-    await browser.tabs.sendMessage(tab.id, { type }, { frameId: 0 });
+    await sendToContent(tab.id, { type }, { frameId: 0 });
     window.close();
   } catch (error) {
     const [tab] = await browser.tabs.query({

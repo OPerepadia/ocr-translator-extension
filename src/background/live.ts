@@ -8,7 +8,7 @@ import type {
   LiveFrameResponse,
   LiveImageResponse,
   LiveTranslationResponse,
-  RuntimeMessage,
+  BackgroundRequestOf,
 } from "../shared/messages";
 import type { OcrBlock, Settings } from "../shared/types";
 import { translateText } from "./pipeline";
@@ -79,7 +79,7 @@ function getLiveSession(
 export async function handleLiveFrameRequest(
   dependencies: LiveDependencies,
   sessions: LiveSessions,
-  message: Extract<RuntimeMessage, { type: "LIVE_FRAME_REQUEST" }>,
+  message: BackgroundRequestOf<"LIVE_FRAME_REQUEST">,
   sender: LiveSender | undefined,
   signal: AbortSignal,
 ): Promise<LiveFrameResponse> {
@@ -149,7 +149,7 @@ export async function handleLiveFrameRequest(
 export async function handleLiveImageRequest(
   dependencies: LiveDependencies,
   sessions: LiveSessions,
-  message: Extract<RuntimeMessage, { type: "LIVE_IMAGE_REQUEST" }>,
+  message: BackgroundRequestOf<"LIVE_IMAGE_REQUEST">,
   signal: AbortSignal,
 ): Promise<LiveImageResponse> {
   const settings = await dependencies.settingsRepository.get();
@@ -226,7 +226,7 @@ function thickestLine(blocks: OcrBlock[] | undefined): number | undefined {
 /** Translate a line the live loop read, into the saved target language. */
 export async function handleLiveTranslateRequest(
   dependencies: LiveDependencies,
-  message: Extract<RuntimeMessage, { type: "LIVE_TRANSLATE_REQUEST" }>,
+  message: BackgroundRequestOf<"LIVE_TRANSLATE_REQUEST">,
   signal: AbortSignal,
 ): Promise<LiveTranslationResponse> {
   const settings = await dependencies.settingsRepository.get();

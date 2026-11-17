@@ -1,10 +1,8 @@
 import { browser } from "wxt/browser";
-import {
-  isRuntimeMessage,
-  serializeError,
-} from "@/shared/messages";
+import { serializeError } from "@/shared/messages";
 import type {
   CaptureSnapshotResponse,
+  ContentMessage,
   LiveFrameResponse,
   LiveImageResponse,
   LiveTranslationResponse,
@@ -152,9 +150,7 @@ const contentControls: ContentControls = {
 };
 
 const requestRunner = new LatestRequestRunner(createRequestId, (requestId) => {
-  void browser.runtime
-    .sendMessage({ type: "CANCEL_REQUEST", requestId })
-    .catch(() => {});
+  void sendRequest({ type: "CANCEL_REQUEST", requestId }).catch(() => {});
 });
 
 export default defineContentScript({
@@ -277,67 +273,61 @@ export default defineContentScript({
     };
 
     const handleRuntimeMessage = (
-      message: unknown,
+      rawMessage: unknown,
       _sender: unknown,
       sendResponse: (response: unknown) => void,
     ): undefined => {
-      if (isRuntimeMessage(message, "PING")) {
-        sendResponse(true);
-        return undefined;
-      }
-      if (isRuntimeMessage(message, "START_SELECTION")) {
-        closePopup();
-        closeOverlay();
-        withUi(() => void runSelectionFlow());
-        return undefined;
-      }
-      if (isRuntimeMessage(message, "START_LIVE_SELECTION")) {
-        closePopup();
-        closeOverlay();
-        withUi(() => void runLiveSelectionFlow());
-        return undefined;
-      }
-      if (isRuntimeMessage(message, "START_IMAGE_TRANSLATION")) {
-        startImageTranslation(() => runImageFlow(message.imageUrl));
-        return undefined;
-      }
-      if (isRuntimeMessage(message, "FRAME_IMAGE_AT_POINT")) {
-        receiveFrameImage(message);
-        return undefined;
-      }
-      if (isRuntimeMessage(message, "TRANSLATE_FRAME_IMAGE")) {
-        const { x, y } = message.point;
-        const image = findImageAtPoint(x, y, getUiHost());
-        if (image instanceof HTMLImageElement) {
-          startImageTranslation(() => runImageElementFlow(image));
+      const message = rawMessage as ContentMessage;
+      switch (message?.type) {
+        case "PING":
+          sendResponse(true);
+          break;
+        case "START_SELECTION":
+          closePopup();
+          closeOverlay();
+          withUi(() => void runSelectionFlow());
+          break;
+        case "START_LIVE_SELECTION":
+          closePopup();
+          closeOverlay();
+          withUi(() => void runLiveSelectionFlow());
+          break;
+        case "START_IMAGE_TRANSLATION":
+          startImageTranslation(() => runImageFlow(message.imageUrl));
+          break;
+        case "FRAME_IMAGE_AT_POINT":
+          receiveFrameImage(message);
+          break;
+        case "TRANSLATE_FRAME_IMAGE": {
+          const { x, y } = message.point;
+          const image = findImageAtPoint(x, y, getUiHost());
+          if (image instanceof HTMLImageElement) {
+            startImageTranslation(() => runImageElementFlow(image));
+          }
+          break;
         }
-        return undefined;
-      }
-      if (
-        isRuntimeMessage(message, "OCR_TRANSLATE_STATUS") &&
-        message.requestId === requestRunner.activeRequestId
-      ) {
-        activePipelineStage = message.status.stage;
-        showActiveLoading(message.status);
-        // The loading view takes over; overlay mode draws its own dim.
-        releaseSelectionDim();
-        // Image URL requests report loading before their pixels are stored.
-        if (message.status.stage !== "loading") {
-          syncPanelRegionOutline();
+        case "OCR_TRANSLATE_STATUS":
+          if (message.requestId !== requestRunner.activeRequestId) break;
+          activePipelineStage = message.status.stage;
+          showActiveLoading(message.status);
+          // The loading view takes over; overlay mode draws its own dim.
+          releaseSelectionDim();
+          // Image URL requests report loading before their pixels are stored.
+          if (message.status.stage !== "loading") {
+            syncPanelRegionOutline();
+            requestCaptureSnapshot();
+          }
+          break;
+        case "OCR_TRANSLATE_OCR_RESULT":
+          if (message.requestId !== requestRunner.activeRequestId) break;
+          pendingText = message.ocr.text;
+          showActiveOcrResult(message.ocr);
+          // The pipeline always reports its OCR result, so the frozen region
+          // does not depend on a recognizer that reports no status along the way.
           requestCaptureSnapshot();
-        }
-        return undefined;
-      }
-      if (
-        isRuntimeMessage(message, "OCR_TRANSLATE_OCR_RESULT") &&
-        message.requestId === requestRunner.activeRequestId
-      ) {
-        pendingText = message.ocr.text;
-        showActiveOcrResult(message.ocr);
-        // The pipeline always reports its OCR result, so the frozen region does
-        // not depend on a recognizer that reports no status along the way.
-        requestCaptureSnapshot();
-        return undefined;
+          break;
+        default:
+          message satisfies never;
       }
       return undefined;
     };

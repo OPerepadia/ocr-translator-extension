@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RuntimeMessage } from "./messages";
+import type { BackgroundRequest } from "./messages";
 import { onRequest, sendRequest } from "./runtime-messaging";
 
 type Listener = (
@@ -140,11 +140,11 @@ describe("sendRequest", () => {
             listener = next;
           }),
         },
-        sendMessage: (message: RuntimeMessage) => respond(listener, message),
+        sendMessage: (message: BackgroundRequest) => respond(listener, message),
       },
     });
 
-    onRequest((message) => ({ echoed: (message as RuntimeMessage).type }));
+    onRequest((message) => ({ echoed: (message as BackgroundRequest).type }));
 
     await expect(sendRequest({ type: "PRELOAD_OCR" })).resolves.toEqual({
       echoed: "PRELOAD_OCR",

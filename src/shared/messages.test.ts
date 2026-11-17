@@ -1,18 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRuntimeMessage, serializeError } from "./messages";
-
-describe("runtime message guards", () => {
-  it("matches the requested message type", () => {
-    expect(isRuntimeMessage({ type: "START_SELECTION" }, "START_SELECTION")).toBe(
-      true,
-    );
-    expect(
-      isRuntimeMessage({ type: "OCR_TRANSLATE_REQUEST" }, "START_SELECTION"),
-    ).toBe(false);
-    expect(isRuntimeMessage({ type: 123 }, "START_SELECTION")).toBe(false);
-    expect(isRuntimeMessage(null, "START_SELECTION")).toBe(false);
-  });
-});
+import { serializeError } from "./messages";
 
 describe("serializeError", () => {
   it("keeps Error details", () => {

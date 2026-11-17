@@ -1,8 +1,9 @@
-import { browser } from "wxt/browser";
+import { browser, type Browser } from "wxt/browser";
 import {
   deserializeError,
   serializeError,
-  type RuntimeMessage,
+  type BackgroundRequest,
+  type SendToContent,
 } from "./messages";
 import type { SerializedError } from "./types";
 
@@ -16,7 +17,7 @@ type ResponseEnvelope =
 
 export type RequestHandler = (
   message: unknown,
-  sender: unknown,
+  sender: Browser.runtime.MessageSender,
 ) => Promise<unknown> | unknown;
 
 /** Always answers, even with nothing to return, so no sender is left waiting
@@ -35,10 +36,10 @@ export function onRequest(handler: RequestHandler): void {
 }
 
 export async function sendRequest<TResponse = unknown>(
-  message: RuntimeMessage,
+  message: BackgroundRequest,
 ): Promise<TResponse> {
   const envelope = await browser.runtime.sendMessage<
-    RuntimeMessage,
+    BackgroundRequest,
     ResponseEnvelope | undefined
   >(message);
 
@@ -48,3 +49,7 @@ export async function sendRequest<TResponse = unknown>(
 
   return envelope?.value as TResponse;
 }
+
+// Spread keeps an omitted `options` omitted, not `undefined`.
+export const sendToContent: SendToContent = (...args) =>
+  browser.tabs.sendMessage(...args);

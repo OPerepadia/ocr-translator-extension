@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { OcrProvider } from "../providers/ocr/types";
 import type { TranslationProvider } from "../providers/translation/types";
-import type { RuntimeMessage } from "../shared/messages";
+import type { BackgroundRequestOf } from "../shared/messages";
 import { defaultSettings } from "../shared/storage";
 import type { OcrBlock, Settings } from "../shared/types";
 import type { LiveFrame } from "./capture";
@@ -14,8 +14,8 @@ import {
   type LiveSessions,
 } from "./live";
 
-type FrameMessage = Extract<RuntimeMessage, { type: "LIVE_FRAME_REQUEST" }>;
-type ImageMessage = Extract<RuntimeMessage, { type: "LIVE_IMAGE_REQUEST" }>;
+type FrameMessage = BackgroundRequestOf<"LIVE_FRAME_REQUEST">;
+type ImageMessage = BackgroundRequestOf<"LIVE_IMAGE_REQUEST">;
 
 function frameOf(brightness: number, pixelRatio = 1): LiveFrame {
   const width = 40;
@@ -623,7 +623,7 @@ describe("handleLiveImageRequest", () => {
 });
 
 describe("handleLiveTranslateRequest", () => {
-  const message: Extract<RuntimeMessage, { type: "LIVE_TRANSLATE_REQUEST" }> = {
+  const message: BackgroundRequestOf<"LIVE_TRANSLATE_REQUEST"> = {
     type: "LIVE_TRANSLATE_REQUEST",
     requestId: "request-2",
     text: "Good evening",

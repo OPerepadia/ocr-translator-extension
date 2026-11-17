@@ -3,12 +3,13 @@ import {
   START_LIVE_SELECTION_COMMAND,
   START_SELECTION_COMMAND,
 } from "../shared/commands";
+import type { SendToContent } from "../shared/messages";
 
 export type CommandApi = {
   commands?: {
     onCommand?: Pick<typeof browser.commands.onCommand, "addListener">;
   };
-  tabs: Pick<typeof browser.tabs, "query" | "sendMessage">;
+  tabs: Pick<typeof browser.tabs, "query"> & { sendMessage: SendToContent };
 };
 
 const COMMAND_MESSAGES = {

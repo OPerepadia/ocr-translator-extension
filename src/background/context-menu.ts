@@ -1,5 +1,6 @@
 import { browser } from "wxt/browser";
 import { t } from "../shared/i18n";
+import type { SendToContent } from "../shared/messages";
 
 export type ContextMenuApi = {
   runtime: {
@@ -10,7 +11,7 @@ export type ContextMenuApi = {
     update: typeof browser.contextMenus.update;
     onClicked: Pick<typeof browser.contextMenus.onClicked, "addListener">;
   };
-  tabs: Pick<typeof browser.tabs, "sendMessage">;
+  tabs: { sendMessage: SendToContent };
 };
 
 export const START_SELECTION_MENU_ID = "select-region-for-ocr";

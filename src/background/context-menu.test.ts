@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RuntimeMessage } from "../shared/messages";
+import type { ContentMessage } from "../shared/messages";
 import {
   START_SELECTION_MENU_ID,
   TRANSLATE_IMAGE_MENU_ID,
@@ -147,7 +147,7 @@ function createContextMenuApi(overrides: {
   update?: (id: string, changes: { title: string }) => Promise<void>;
   sendMessage?: (
     tabId: number,
-    message: RuntimeMessage,
+    message: ContentMessage,
     options?: { frameId?: number },
   ) => Promise<unknown>;
 }): ContextMenuApi {
