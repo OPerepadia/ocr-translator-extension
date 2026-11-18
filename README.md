@@ -61,7 +61,7 @@ The overlay has two views:
 - **Translated text** (default): the translation is drawn over the original text.
 - **Original image**: the captured image without the translation, with the text blocks highlighted.
 
-Press `Shift` or click the translate button in the toolbar to toggle the view. Hover over a text block to see its translation and the original text.
+Press `Shift` or click the translate button in the toolbar to toggle the view. Hover over a text block to see its translation and the original text. If a translation doesn't fit its box, a small triangle appears in the corner. Hover over the block to read the full text.
 
 <table align="center">
   <tr>
