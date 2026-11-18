@@ -302,7 +302,7 @@ function orientedParagraphRect(lines: OrientedRect[], angle: number): Rect {
   };
 }
 
-function orientedCorners(oriented: OrientedRect): Array<{ x: number; y: number }> {
+export function orientedCorners(oriented: OrientedRect): Array<{ x: number; y: number }> {
   const { rect, angle } = oriented;
   const cx = rect.x + rect.width / 2;
   const cy = rect.y + rect.height / 2;
@@ -319,7 +319,7 @@ function orientedCorners(oriented: OrientedRect): Array<{ x: number; y: number }
   });
 }
 
-function rotatePoint(
+export function rotatePoint(
   point: { x: number; y: number },
   angle: number,
 ): { x: number; y: number } {

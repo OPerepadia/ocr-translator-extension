@@ -44,7 +44,7 @@ import {
 } from "./overlay-layout";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 import { startTextSelection } from "./overlay-selection";
-import { detectOverlayBackground } from "./overlay-background";
+import { estimateSurroundingTint } from "./overlay-background";
 import type { ContentControls } from "./content-controls";
 import {
   createOverlayPopover,
@@ -81,7 +81,6 @@ let regionFrame: HTMLElement | undefined;
 // page paints next, which for animated content is something else entirely.
 let regionSnapshot: HTMLCanvasElement | undefined;
 let currentSnapshot: ImageBitmap | undefined;
-let backgroundMasks: Array<{ element: HTMLElement; rect: Rect }> = [];
 // The loading spinner shown over the region while OCR/translation runs, and a
 // patcher for its label and progress bar, kept so repeated status updates don't
 // restart the spinner animation.
@@ -326,7 +325,6 @@ export function closeOverlay(): void {
   regionBackdrop = undefined;
   regionFrame = undefined;
   regionSnapshot = undefined;
-  backgroundMasks = [];
   statusChip = undefined;
   updateLoadingChip = undefined;
   currentLayout = undefined;
@@ -427,7 +425,6 @@ function mountChip(chip: HTMLElement, showSourceLanguageToolbar = false): void {
   boxLayers = {};
   disposePopover();
   toolbar = undefined;
-  backgroundMasks = [];
   modeButton = undefined;
   clearOutsideClickHandlers();
   currentLayout = undefined;
@@ -515,9 +512,6 @@ function ensureGlobalHandlers(): void {
 }
 
 function reposition(): void {
-  for (const mask of backgroundMasks) {
-    positionRectElement(mask.element, mask.rect);
-  }
   if (regionSnapshot && currentRect) {
     positionRectElement(regionSnapshot, currentRect);
   }
@@ -874,17 +868,12 @@ function renderBoxes(): void {
 }
 
 function refreshTranslationBackgrounds(): void {
-  for (const mask of backgroundMasks) {
-    mask.element.remove();
-  }
-  backgroundMasks = [];
   const layer = boxLayers.translation;
   const capture = currentRect;
   if (!layer || !currentLayout || !capture) {
     return;
   }
   for (const box of layer.boxes) {
-    box.element.classList.remove("is-solid-background");
     box.element.style.removeProperty("--ocr-text-background");
     box.element.style.removeProperty("--ocr-text-foreground");
   }
@@ -905,33 +894,20 @@ function refreshTranslationBackgrounds(): void {
     ? currentLayout.paragraphs.map((paragraph) => [paragraph])
     : [currentLayout.paragraphs];
   groups.forEach((paragraphs, index) => {
-    if (paragraphs.some((paragraph) => paragraph.vertical || paragraph.angle !== 0)) {
-      return;
-    }
     const box = layer.boxes[index];
     if (!box?.content.translated.trim()) {
       return;
     }
-    const background = detectOverlayBackground(
+    const tint = estimateSurroundingTint(
       pixels,
       capture,
       paragraphs.flatMap((paragraph) => paragraph.lines),
     );
-    if (!background) {
+    if (!tint) {
       return;
     }
-    box.element.classList.add("is-solid-background");
-    box.element.style.setProperty("--ocr-text-background", background.background);
-    box.element.style.setProperty("--ocr-text-foreground", background.foreground);
-    for (const rect of background.masks) {
-      const element = document.createElement("div");
-      element.className = "ocr-translate-overlay-background-mask";
-      element.setAttribute("aria-hidden", "true");
-      element.style.backgroundColor = background.background;
-      positionRectElement(element, rect);
-      layer.element.prepend(element);
-      backgroundMasks.push({ element, rect });
-    }
+    box.element.style.setProperty("--ocr-text-background", tint.background);
+    box.element.style.setProperty("--ocr-text-foreground", tint.foreground);
   });
 }
 
@@ -1810,9 +1786,6 @@ function updateAnchor(): void {
 }
 
 function moveCurrentLayout(dx: number, dy: number): void {
-  for (const mask of backgroundMasks) {
-    mask.rect = moveRect(mask.rect, dx, dy);
-  }
   if (currentRect) {
     currentRect = moveRect(currentRect, dx, dy);
   }

@@ -1,235 +1,132 @@
-// Estimates background colors inside horizontal OCR boxes using morphology.
-// Returns masks and text colors only when all lines have a consistent, uniform
-// background. Uncertain regions keep the default translation panels.
+// Picks a translation card color from the image around each OCR block.
 
 import type { Rect } from "@/shared/types";
-import type { OverlayLine } from "./overlay-layout";
+import {
+  orientedCorners,
+  paragraphAngle,
+  rotatePoint,
+  type OverlayLine,
+} from "./overlay-layout";
 
 type Rgb = [number, number, number];
 
-export interface OverlayBackground {
-  masks: Rect[];
+export interface OverlayTint {
   background: string;
   foreground: string;
 }
 
-// JPEG color fringes can vary more than brightness on an otherwise flat background.
-const COLOR_TOLERANCE = 20;
-const BRIGHTNESS_TOLERANCE = 10;
+// Wide enough to clear antialiasing, narrow enough to stay near the block.
+const SURROUND_MARGIN = 6;
+const SURROUND_SAMPLES = 4096;
+// Share of the block's short side the band reaches inside it.
+const SURROUND_INSET = 0.25;
 
-export function detectOverlayBackground(
+/** The most common color in a band around the lines, for their translation
+ * card. The band straddles the block's edge and follows the text's tilt, so it hugs
+ * a tilted block instead of its wider page-aligned bounds. */
+export function estimateSurroundingTint(
   image: Pick<ImageData, "width" | "height" | "data">,
   capture: Rect,
   lines: OverlayLine[],
-): OverlayBackground | undefined {
+): OverlayTint | undefined {
   if (!lines.length || capture.width <= 0 || capture.height <= 0) {
     return undefined;
   }
   const sx = image.width / capture.width;
   const sy = image.height / capture.height;
-  const masks: Rect[] = [];
-  const colors: Rgb[] = [];
-  for (const line of lines) {
-    if (line.vertical || Math.abs(line.oriented?.angle ?? 0) > Math.PI / 60) {
-      return undefined;
+  const oriented = lines.map((line) => line.oriented ?? { rect: line.rect, angle: 0 });
+  const angle = paragraphAngle(oriented);
+  // Corners in a frame turned by the tilt, where the block is upright.
+  const corners = oriented.flatMap((line) =>
+    orientedCorners(line).map((point) => rotatePoint(point, -angle)));
+  const block = {
+    left: Math.min(...corners.map((p) => p.x)),
+    top: Math.min(...corners.map((p) => p.y)),
+    right: Math.max(...corners.map((p) => p.x)),
+    bottom: Math.max(...corners.map((p) => p.y)),
+  };
+  const grow = (box: typeof block, by: number) => ({
+    left: box.left - by, top: box.top - by, right: box.right + by, bottom: box.bottom + by,
+  });
+  const sampleBand = (outer: typeof block, inner: typeof block): Rgb[] => {
+    const area = (outer.right - outer.left) * (outer.bottom - outer.top) -
+      Math.max(0, inner.right - inner.left) * Math.max(0, inner.bottom - inner.top);
+    const step = Math.max(1 / Math.max(sx, sy), Math.sqrt(area / SURROUND_SAMPLES));
+    const samples: Rgb[] = [];
+    for (let v = outer.top + step / 2; v < outer.bottom; v += step) {
+      const crossesInner = v >= inner.top && v < inner.bottom;
+      for (let u = outer.left + step / 2; u < outer.right; u += step) {
+        if (crossesInner && u >= inner.left && u < inner.right) {
+          u += Math.floor((inner.right - u) / step) * step;
+          continue;
+        }
+        const point = rotatePoint({ x: u, y: v }, angle);
+        const x = Math.floor((point.x - capture.x) * sx);
+        const y = Math.floor((point.y - capture.y) * sy);
+        if (x < 0 || y < 0 || x >= image.width || y >= image.height) {
+          continue;
+        }
+        const index = (y * image.width + x) * 4;
+        if (image.data[index + 3] === 255) {
+          samples.push([image.data[index], image.data[index + 1], image.data[index + 2]]);
+        }
+      }
     }
-    const left = Math.max(
-      0, Math.floor((line.rect.x - capture.x) * sx),
-    );
-    const top = Math.max(
-      0, Math.floor((line.rect.y - capture.y) * sy),
-    );
-    const right = Math.min(
-      image.width,
-      Math.ceil((line.rect.x + line.rect.width - capture.x) * sx),
-    );
-    const bottom = Math.min(
-      image.height,
-      Math.ceil((line.rect.y + line.rect.height - capture.y) * sy),
-    );
-    if (right <= left || bottom <= top) {
-      return undefined;
-    }
-    const rect = { x: left, y: top, width: right - left, height: bottom - top };
-    const color = sampleBackground(image, rect);
-    if (!color || (colors[0] && !similar(color, colors[0]))) {
-      return undefined;
-    }
-    colors.push(color);
-    masks.push({
-      x: capture.x + left / sx,
-      y: capture.y + top / sy,
-      width: rect.width / sx,
-      height: rect.height / sy,
-    });
+    return samples;
+  };
+  // OCR boxes pad the glyphs, so the inner edge shows what the text sits on: a
+  // sign or label can end right at the box, leaving only the wall outside.
+  const inset = Math.min(block.right - block.left, block.bottom - block.top) * SURROUND_INSET;
+  const samples = sampleBand(grow(block, SURROUND_MARGIN), grow(block, -inset));
+  if (samples.length < 16) {
+    return undefined;
   }
-  const color = medianColor(colors);
+  // The most common coarse color, so a neighboring line or frame edge in the
+  // band does not pull the color toward a mix that is not in the image. Each
+  // bin counts with its neighbors: one flat color near a bin edge would
+  // otherwise split in two and lose to the glyph ink.
+  const bins = new Map<number, Rgb[]>();
+  for (const sample of samples) {
+    const key = binKey(sample[0] >> 5, sample[1] >> 5, sample[2] >> 5);
+    const bin = bins.get(key);
+    if (bin) bin.push(sample);
+    else bins.set(key, [sample]);
+  }
+  const neighborhood = (key: number): Rgb[] => {
+    const [r, g, b] = [key >> 6, (key >> 3) & 7, key & 7];
+    const members: Rgb[] = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dg = -1; dg <= 1; dg++) {
+        for (let db = -1; db <= 1; db++) {
+          const bin = bins.get(binKey(r + dr, g + dg, b + db));
+          if (bin) members.push(...bin);
+        }
+      }
+    }
+    return members;
+  };
+  let best: Rgb[] = [];
+  for (const key of bins.keys()) {
+    const members = neighborhood(key);
+    if (members.length > best.length) best = members;
+  }
+  return panelColors(medianColor(best));
+}
+
+function binKey(r: number, g: number, b: number): number {
+  return r < 0 || g < 0 || b < 0 || r > 7 || g > 7 || b > 7 ? -1 : r << 6 | g << 3 | b;
+}
+
+function panelColors(color: Rgb): OverlayTint {
   const [red, green, blue] = color.map((channel) => {
     const value = channel / 255;
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   });
   const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
   return {
-    masks,
     background: `rgb(${color.join(", ")})`,
     foreground: luminance > 0.22 ? "#152034" : "#ffffff",
   };
-}
-
-function sampleBackground(
-  image: Pick<ImageData, "width" | "height" | "data">,
-  rect: Rect,
-): Rgb | undefined {
-  // Bound the work even for large captures.
-  const width = Math.min(160, rect.width);
-  const height = Math.min(48, rect.height);
-  if (width < 3 || height < 3) {
-    return undefined;
-  }
-  const pixels: Rgb[] = [];
-  const edges: Rgb[][] = [[], [], [], []];
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const sourceX = rect.x + Math.round(x * (rect.width - 1) / (width - 1));
-      const sourceY = rect.y + Math.round(y * (rect.height - 1) / (height - 1));
-      const index = (sourceY * image.width + sourceX) * 4;
-      if (image.data[index + 3] !== 255) {
-        return undefined;
-      }
-      const color: Rgb = [image.data[index], image.data[index + 1], image.data[index + 2]];
-      pixels.push(color);
-      if (y === 0) edges[0].push(color);
-      if (y === height - 1) edges[1].push(color);
-      if (x === 0) edges[2].push(color);
-      if (x === width - 1) edges[3].push(color);
-    }
-  }
-  const radiusX = Math.max(1, Math.ceil(rect.height * width / rect.width / 2));
-  const radiusY = Math.ceil(height / 2);
-  const levels = pixels.map(brightness);
-  // Extrema filters spread isolated JPEG artifacts across otherwise flat areas.
-  const denoised = medianFilter(levels, width, height);
-  const candidates: Rgb[] = [];
-  // Closing removes dark strokes; opening removes light strokes.
-  for (const maximum of [true, false]) {
-    const firstPass = morph(denoised, width, height, radiusX, radiusY, maximum);
-    const background = morph(firstPass, width, height, radiusX, radiusY, !maximum);
-    const unchangedMask = levels.map((level, index) =>
-      Number(Math.abs(level - background[index]) <= BRIGHTNESS_TOLERANCE));
-    const interior = morph(unchangedMask, width, height, 1, 1, false);
-    const unchanged = pixels.filter((_, index) => interior[index]);
-    if (!unchanged.length) {
-      continue;
-    }
-    // Read RGB from original pixels, excluding glyphs and their antialiased edges.
-    const color = medianColor(unchanged);
-    const uniform = background.filter((level) =>
-      Math.abs(level - brightness(color)) <= BRIGHTNESS_TOLERANCE).length / background.length;
-    const fraction = (samples: Rgb[]): number =>
-      samples.filter((pixel) => similar(pixel, color)).length / samples.length;
-    // Morphology can flatten textures too. Require support along the original
-    // inner perimeter, including every side, before painting the whole rectangle.
-    if (
-      uniform >= 0.9 && fraction(unchanged) >= 0.9 &&
-      fraction(edges.flat()) >= 0.8 && edges.every((edge) => fraction(edge) >= 0.5) &&
-      hasInteriorBackground(pixels, width, height, color)
-    ) {
-      candidates.push(color);
-    }
-  }
-  return candidates.length && candidates.every((color) => similar(color, candidates[0]))
-    ? candidates[0]
-    : undefined;
-}
-
-function hasInteriorBackground(pixels: Rgb[], width: number, height: number, color: Rgb): boolean {
-  const insetX = Math.max(1, Math.floor(width * 0.15));
-  const insetY = Math.max(1, Math.floor(height * 0.15));
-  const innerWidth = width - 2 * insetX;
-  const innerHeight = height - 2 * insetY;
-  if (innerWidth < 3 || innerHeight < 3) {
-    return false;
-  }
-  const totals = new Array<number>(9).fill(0);
-  const matches = new Array<number>(9).fill(0);
-  for (let y = 0; y < innerHeight; y++) {
-    for (let x = 0; x < innerWidth; x++) {
-      const cell = Math.floor(y * 3 / innerHeight) * 3 + Math.floor(x * 3 / innerWidth);
-      totals[cell]++;
-      if (similar(pixels[(y + insetY) * width + x + insetX], color)) matches[cell]++;
-    }
-  }
-  // A flat border alone cannot justify erasing the interior. Allow sparse
-  // background between bold strokes, but require it across the interior.
-  const supported = matches.map((count, cell) => count / totals[cell] >= 0.1);
-  return supported[4] && supported.filter(Boolean).length >= 5;
-}
-
-function medianFilter(pixels: number[], width: number, height: number): number[] {
-  return pixels.map((_, index) => {
-    const x = index % width;
-    const y = Math.floor(index / width);
-    const neighbors: number[] = [];
-    for (let row = Math.max(0, y - 1); row <= Math.min(height - 1, y + 1); row++) {
-      for (let col = Math.max(0, x - 1); col <= Math.min(width - 1, x + 1); col++) {
-        neighbors.push(pixels[row * width + col]);
-      }
-    }
-    neighbors.sort((a, b) => a - b);
-    return neighbors[Math.floor(neighbors.length / 2)];
-  });
-}
-
-export function morph(
-  pixels: number[],
-  width: number,
-  height: number,
-  radiusX: number,
-  radiusY: number,
-  maximum: boolean,
-): number[] {
-  let result = pixels;
-  const queue = new Int32Array(Math.max(width, height));
-  for (const horizontal of [true, false]) {
-    const source = result;
-    const radius = horizontal ? radiusX : radiusY;
-    const length = horizontal ? width : height;
-    const count = horizontal ? height : width;
-    const stride = horizontal ? 1 : width;
-    result = new Array(source.length);
-    for (let line = 0; line < count; line++) {
-      const start = horizontal ? line * width : line;
-      let head = 0;
-      let tail = 0;
-      let next = 0;
-      for (let position = 0; position < length; position++) {
-        const left = Math.max(0, position - radius);
-        const right = Math.min(length - 1, position + radius);
-        while (head < tail && queue[head] < left) head++;
-        // Each position enters and leaves the monotonic queue at most once.
-        for (; next <= right; next++) {
-          const value = source[start + next * stride];
-          while (head < tail) {
-            const last = source[start + queue[tail - 1] * stride];
-            if (maximum ? last > value : last < value) break;
-            tail--;
-          }
-          queue[tail++] = next;
-        }
-        result[start + position * stride] = source[start + queue[head] * stride];
-      }
-    }
-  }
-  return result;
-}
-
-function similar(a: Rgb, b: Rgb): boolean {
-  return Math.abs(brightness(a) - brightness(b)) <= BRIGHTNESS_TOLERANCE &&
-    a.every((channel, index) => Math.abs(channel - b[index]) <= COLOR_TOLERANCE);
-}
-
-function brightness([r, g, b]: Rgb): number {
-  return r * 0.2126 + g * 0.7152 + b * 0.0722;
 }
 
 function medianColor(colors: Rgb[]): Rgb {

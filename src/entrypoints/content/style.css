@@ -1173,7 +1173,7 @@
   transition: opacity var(--ocr-duration-fast) ease;
 }
 
-/* Light in both themes: it sits on the capture, not on the page. */
+/* The script sets the colors from the image around the block. */
 .ocr-translate-overlay-translation-text {
   box-sizing: border-box;
   max-width: 100%;
@@ -1183,11 +1183,14 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   padding: 0.2em 0.4em;
-  border: 1px solid rgba(15, 23, 42, 0.16);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
   border-radius: var(--ocr-radius-box);
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(3px);
-  color: #152034;
+  background: var(--ocr-text-background, rgba(255, 255, 255, 0.97));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16);
+  color: var(--ocr-text-foreground, #152034);
+  transition:
+    border-color var(--ocr-duration-fast) ease,
+    box-shadow var(--ocr-duration-fast) ease;
   cursor: text;
   font-family: var(--ocr-font);
   line-height: 1.25;
@@ -1222,29 +1225,16 @@
   text-align: center;
 }
 
-.ocr-translate-overlay-background-mask {
-  position: absolute;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.ocr-translate-overlay-translation-box.is-solid-background
-  .ocr-translate-overlay-translation-text {
-  border-color: transparent;
-  border-radius: 0;
-  background: var(--ocr-text-background);
-  backdrop-filter: none;
-  color: var(--ocr-text-foreground);
-}
-
-.ocr-translate-overlay-translation-box.is-solid-background:hover
-  .ocr-translate-overlay-translation-text {
-  outline: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-}
-
 .ocr-translate-overlay-translation-box:hover,
 .ocr-translate-overlay-translation-box:focus {
   z-index: 4;
+}
+
+/* Lifts the card a little on hover. Its colors stay matched to the image. */
+.ocr-translate-overlay-translation-box:hover .ocr-translate-overlay-translation-text,
+.ocr-translate-overlay-translation-box:focus-visible .ocr-translate-overlay-translation-text {
+  border-color: color-mix(in srgb, currentColor 36%, transparent);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 
 /* The script positions this and sets its max width/height from the box and the
@@ -2303,6 +2293,7 @@
   .ocr-translate-popup-retry,
   .ocr-translate-overlay-frame-box,
   .ocr-translate-overlay-translation-box,
+  .ocr-translate-overlay-translation-text,
   .ocr-translate-overlay-icon-button,
   .ocr-translate-overlay-retry,
   .ocr-translate-overlay-popover-button,
