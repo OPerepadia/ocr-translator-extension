@@ -41,6 +41,13 @@ export interface OverlayParagraph {
    * view then renders it with a vertical writing mode. Per paragraph because a
    * capture can mix orientations (vertical columns plus a horizontal footer). */
   vertical: boolean;
+  /** Typical thickness of the source lines in page pixels, roughly the source
+   * font size. The painted translation aims for a font near it. */
+  textSize: number;
+  /** The room inside the paragraph's speech bubble, when one was found and is
+   * wider than the source text. The painted card prefers to fill it; when the
+   * translation does not fit, it may still use all of `translationRect`. */
+  bubbleRoom?: Rect;
 }
 
 export interface OverlayLayout {
@@ -56,6 +63,8 @@ export interface OverlayLayout {
    * frame and popover. */
   combinedSourceRect: Rect;
   combinedTranslation: string;
+  /** `textSize` across all paragraphs, for the combined box. */
+  combinedTextSize: number;
 }
 
 export interface BuildOverlayInput {
@@ -69,7 +78,15 @@ export interface BuildOverlayInput {
   orientation?: "horizontal" | "vertical";
 }
 
+// Room a painted translation of vertical text may take. The card itself only
+// grows as wide as its text needs.
 const VERTICAL_TRANSLATION_MIN_WIDTH = 110;
+// Space kept between painted cards that had to be moved apart.
+const CARD_GAP = 2;
+// Share of a bubble's box a translation may use. Bubbles are rounded, so the
+// corners of their box are outside them.
+const BUBBLE_ROOM_SHARE = 0.8;
+const CARD_SEPARATION_PASSES = 8;
 // A line only votes on tilt if it is clearly oblong, the same bar the OCR
 // assembler sets for reading orientation.
 const ANGLE_VOTE_MIN_ASPECT = 1.5;
@@ -132,6 +149,7 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
   lineOriented: OrientedRect[];
   lineChars: Array<OcrChar[] | undefined>;
   orientation?: "horizontal" | "vertical";
+  bubble?: Rect;
 }> {
   const groups = new Map<
     number,
@@ -141,6 +159,7 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
       texts: string[];
       chars: Array<OcrChar[] | undefined>;
       orientation?: "horizontal" | "vertical";
+      bubble?: Rect;
     }
   >();
   blocks.forEach((block, index) => {
@@ -161,6 +180,7 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
         texts: [block.text],
         chars: [block.chars],
         orientation: block.orientation,
+        bubble: block.bubble,
       });
     }
   });
@@ -174,6 +194,7 @@ export function groupParagraphs(blocks: OcrBlock[]): Array<{
       lineOriented: group.oriented,
       lineChars: group.chars,
       orientation: group.orientation,
+      ...(group.bubble ? { bubble: group.bubble } : {}),
     }))
     .sort((a, b) => a.paragraph - b.paragraph);
 }
@@ -391,16 +412,26 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
       };
     });
     const translated = segmented ? (translatedLines[group.paragraph] ?? "") : null;
+    // A tilted paragraph keeps the plain room: the bubble box is upright.
+    const bubbleRoom =
+      group.bubble && angle === 0
+        ? buildBubbleRoom(toPage(group.bubble), sourceRect, input.rect)
+        : undefined;
+    const plainRoom = buildTranslationRect(sourceRect, input.rect, vertical);
     return {
       sourceRect,
-      translationRect: translated
-        ? buildTranslationRect(sourceRect, input.rect, vertical)
-        : sourceRect,
+      translationRect: !translated
+        ? sourceRect
+        : bubbleRoom
+          ? unionRect([plainRoom, bubbleRoom])
+          : plainRoom,
       angle,
       original: originalLines[group.paragraph] ?? "",
       translated,
       lines,
       vertical,
+      textSize: medianLineThickness(orientedLines),
+      ...(translated && bubbleRoom ? { bubbleRoom } : {}),
     };
   });
   // The combined box gathers paragraphs that may each be tilted their own way,
@@ -422,7 +453,127 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
     ),
     combinedSourceRect,
     combinedTranslation: input.translationText,
+    combinedTextSize: medianLineThickness(
+      paragraphs.flatMap((paragraph) =>
+        paragraph.lines.flatMap((line) => (line.oriented ? [line.oriented] : [])),
+      ),
+    ),
   };
+}
+
+/** The median short side of the lines' tilted boxes: the line's thickness
+ * whichever way it runs. Zero when there are no lines. */
+export function medianLineThickness(lines: OrientedRect[]): number {
+  const sizes = lines
+    .map((line) => Math.min(line.rect.width, line.rect.height))
+    .sort((a, b) => a - b);
+  if (sizes.length === 0) {
+    return 0;
+  }
+  const middle = Math.floor(sizes.length / 2);
+  return sizes.length % 2 === 1
+    ? sizes[middle]
+    : (sizes[middle - 1] + sizes[middle]) / 2;
+}
+
+export interface CardPlacement {
+  /** The card's current box. */
+  rect: Rect;
+  /** Where the card's centre may move to, so it stays over its source text. */
+  slide: Rect;
+}
+
+/** Move overlapping cards apart. Each pair is pushed along the axis that frees
+ * it with the shorter move, as far as their slide areas and `bounds` allow.
+ * Overlaps that no move can clear are reduced as much as possible. */
+export function separateCards(cards: CardPlacement[], bounds?: Rect): Rect[] {
+  const rects = cards.map((card) => ({ ...card.rect }));
+  for (let pass = 0; pass < CARD_SEPARATION_PASSES; pass++) {
+    let moved = false;
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        if (pushApart(rects, cards, i, j, bounds)) {
+          moved = true;
+        }
+      }
+    }
+    if (!moved) {
+      break;
+    }
+  }
+  return rects;
+}
+
+type Axis = "x" | "y";
+
+function pushApart(
+  rects: Rect[],
+  cards: CardPlacement[],
+  i: number,
+  j: number,
+  bounds: Rect | undefined,
+): boolean {
+  const a = rects[i];
+  const b = rects[j];
+  const plans = (["x", "y"] as Axis[])
+    .map((axis) => {
+      const size = axis === "x" ? "width" : "height";
+      const need =
+        Math.min(a[axis] + a[size], b[axis] + b[size]) -
+        Math.max(a[axis], b[axis]) +
+        CARD_GAP;
+      // The card whose centre comes first moves back, the other forward.
+      const aFirst = a[axis] + a[size] / 2 <= b[axis] + b[size] / 2;
+      const roomA = moveRoom(a, cards[i].slide, bounds, axis, aFirst ? -1 : 1);
+      const roomB = moveRoom(b, cards[j].slide, bounds, axis, aFirst ? 1 : -1);
+      return { axis, need, aFirst, roomA, roomB };
+    });
+  // Not touching on either axis: nothing to do.
+  if (plans.some((plan) => plan.need <= CARD_GAP)) {
+    return false;
+  }
+  const solvable = plans.filter((plan) => plan.roomA + plan.roomB >= plan.need);
+  const plan =
+    solvable.length > 0
+      ? solvable.reduce((best, next) => (next.need < best.need ? next : best))
+      : plans.reduce((best, next) =>
+          (next.roomA + next.roomB) / next.need >
+          (best.roomA + best.roomB) / best.need
+            ? next
+            : best,
+        );
+  // Share the move, letting one card take more when the other is blocked.
+  const moveA = Math.min(plan.roomA, Math.max(plan.need / 2, plan.need - plan.roomB));
+  const moveB = Math.min(plan.roomB, plan.need - moveA);
+  if (moveA + moveB < 0.5) {
+    return false;
+  }
+  const sign = plan.aFirst ? -1 : 1;
+  rects[i] = { ...a, [plan.axis]: a[plan.axis] + sign * moveA };
+  rects[j] = { ...b, [plan.axis]: b[plan.axis] - sign * moveB };
+  return true;
+}
+
+/** How far a card can move along one axis before its centre leaves its slide
+ * area or its edge leaves `bounds`. */
+function moveRoom(
+  rect: Rect,
+  slide: Rect,
+  bounds: Rect | undefined,
+  axis: Axis,
+  direction: -1 | 1,
+): number {
+  const size = axis === "x" ? "width" : "height";
+  const center = rect[axis] + rect[size] / 2;
+  let low = slide[axis];
+  let high = slide[axis] + slide[size];
+  // A card larger than the bounds cannot be kept inside them anyway.
+  if (bounds && rect[size] <= bounds[size]) {
+    low = Math.max(low, bounds[axis] + rect[size] / 2);
+    high = Math.min(high, bounds[axis] + bounds[size] - rect[size] / 2);
+  }
+  const room = direction < 0 ? center - low : high - center;
+  return Math.max(0, room);
 }
 
 /** Shift every page-space rectangle after the anchored content reflows. */
@@ -445,6 +596,9 @@ export function moveOverlayLayout(
       ...paragraph,
       sourceRect: move(paragraph.sourceRect),
       translationRect: move(paragraph.translationRect),
+      ...(paragraph.bubbleRoom
+        ? { bubbleRoom: move(paragraph.bubbleRoom) }
+        : {}),
       lines: paragraph.lines.map((line) => ({
         ...line,
         rect: move(line.rect),
@@ -467,6 +621,40 @@ export function moveOverlayLayout(
     combinedRect: move(layout.combinedRect),
     combinedSourceRect: move(layout.combinedSourceRect),
   };
+}
+
+/** The room inside a speech bubble: the middle of its box, grown to cover the
+ * source text and cut to the capture. Undefined when the bubble does not
+ * reach past the source text, so there is no room to gain. */
+export function buildBubbleRoom(
+  bubble: Rect,
+  sourceRect: Rect,
+  bounds: Rect,
+): Rect | undefined {
+  const width = bubble.width * BUBBLE_ROOM_SHARE;
+  const height = bubble.height * BUBBLE_ROOM_SHARE;
+  const inner = {
+    x: bubble.x + (bubble.width - width) / 2,
+    y: bubble.y + (bubble.height - height) / 2,
+    width,
+    height,
+  };
+  const room = intersectRect(unionRect([inner, sourceRect]), bounds);
+  if (!room || room.width <= sourceRect.width) {
+    return undefined;
+  }
+  return room;
+}
+
+function intersectRect(a: Rect, b: Rect): Rect | undefined {
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  if (right <= left || bottom <= top) {
+    return undefined;
+  }
+  return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
 // Painted translations only. Translated vertical text gets more horizontal
@@ -493,7 +681,8 @@ function buildTranslationRect(
   );
 }
 
-function fitRectNearBounds(rect: Rect, bounds: Rect): Rect {
+/** Shift `rect` inside `bounds` on each axis where it fits. */
+export function fitRectNearBounds(rect: Rect, bounds: Rect): Rect {
   return {
     ...rect,
     x: fitAxis(rect.x, rect.width, bounds.x, bounds.width),
