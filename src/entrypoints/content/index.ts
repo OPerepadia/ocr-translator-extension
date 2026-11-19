@@ -32,6 +32,7 @@ import {
 import { createRequestId } from "@/shared/request-id";
 import { sendRequest } from "@/shared/runtime-messaging";
 import { LatestRequestRunner } from "./latest-request";
+import { screenshotFallbackRect } from "./screenshot-fallback";
 import type { ContentControls } from "./content-controls";
 import { translationProviderIcon } from "./icons";
 import {
@@ -759,11 +760,18 @@ async function runCapture(
         }
         requestSource = { imageUrl };
       }
-      return sendRequest<PipelineResult>({
-        type: "OCR_TRANSLATE_REQUEST",
-        requestId,
-        ...requestSource,
-      });
+      try {
+        return await sendRequest<PipelineResult>({
+          type: "OCR_TRANSLATE_REQUEST",
+          requestId,
+          ...requestSource,
+        });
+      } catch (error) {
+        if (!("imageUrl" in source)) {
+          throw error;
+        }
+        return captureImageInstead(requestId, source.imageUrl, error);
+      }
     },
     onSuccess: (result) => {
       pendingText = result.ocr.text;
@@ -786,6 +794,53 @@ async function runCapture(
       syncPanelRegionOutline();
     },
   });
+}
+
+// If the image could not be downloaded, take a screenshot of it instead.
+// Works only in the top frame.
+async function captureImageInstead(
+  requestId: string,
+  imageUrl: string,
+  loadError: unknown,
+): Promise<PipelineResult> {
+  // A cancelled download can still fail later. Don't touch a newer request's UI.
+  if (requestRunner.activeRequestId !== requestId) {
+    throw loadError;
+  }
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const rect =
+    window === window.top
+      ? screenshotFallbackRect(loadError, findImageRect(imageUrl), viewport)
+      : undefined;
+  if (!rect) {
+    throw loadError;
+  }
+  console.debug(
+    "[Screen OCR Translator] Image download failed; reading from a screenshot",
+    imageUrl,
+    loadError,
+  );
+
+  // Hide the loading view so it is not in the screenshot.
+  closePopup({ notify: false });
+  closeOverlay({ notify: false });
+  await nextPaint();
+  if (requestRunner.activeRequestId !== requestId) {
+    throw new DOMException("Request cancelled", "AbortError");
+  }
+  lastRect = toPageRect(rect);
+  return sendRequest<PipelineResult>({
+    type: "OCR_TRANSLATE_REQUEST",
+    requestId,
+    rect,
+    viewport,
+  });
+}
+
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
 }
 
 async function readAsDataUrl(url: string): Promise<string> {

@@ -266,6 +266,9 @@ export interface SpeakResponse {
   audioChunks: string[];
 }
 
+// Error name used when an image could not be downloaded.
+export const IMAGE_LOAD_ERROR = "ImageLoadError";
+
 export function serializeError(error: unknown): SerializedError {
   if (error instanceof Error) {
     return {

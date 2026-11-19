@@ -7,6 +7,7 @@ import {
 } from "../shared/image";
 import { t } from "../shared/i18n";
 import { fetchWithModifiedHeaders } from "../shared/fetch-with-modified-headers";
+import { IMAGE_LOAD_ERROR } from "../shared/messages";
 import type { Rect, Viewport } from "../shared/types";
 import { createThrottle } from "./capture-throttle";
 import { createFrameSignature, type FrameSignature } from "../shared/frame-signature";
@@ -14,13 +15,24 @@ import { createFrameSignature, type FrameSignature } from "../shared/frame-signa
 export async function loadImage(url: string, pageUrl?: string): Promise<Blob> {
   // Image hosts such as pixiv reject extension requests without the page Referer.
   const referrer = resolveReferrer(url, pageUrl);
-  const response = referrer
-    ? await fetchWithReferrer(url, referrer)
-    : await fetch(url, { credentials: "include" });
+  let response: Response;
+  try {
+    response = referrer
+      ? await fetchWithReferrer(url, referrer)
+      : await fetch(url, { credentials: "include" });
+  } catch (error) {
+    throw imageLoadError(error instanceof Error ? error.message : String(error));
+  }
   if (!response.ok) {
-    throw new Error(t("errorCouldNotLoadImage", String(response.status)));
+    throw imageLoadError(t("errorCouldNotLoadImage", String(response.status)));
   }
   return response.blob();
+}
+
+function imageLoadError(message: string): Error {
+  const error = new Error(message);
+  error.name = IMAGE_LOAD_ERROR;
+  return error;
 }
 
 async function fetchWithReferrer(

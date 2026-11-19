@@ -86,7 +86,23 @@ describe("loadImage", () => {
 
     await expect(
       loadImage("https://example.com/missing.png"),
-    ).rejects.toThrow("Could not load image (404).");
+    ).rejects.toMatchObject({
+      name: "ImageLoadError",
+      message: "Could not load image (404).",
+    });
+  });
+
+  it("marks network failures as image load errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("NetworkError when attempting to fetch resource.");
+      }),
+    );
+
+    await expect(
+      loadImage("https://example.com/sample.png"),
+    ).rejects.toMatchObject({ name: "ImageLoadError" });
   });
 
   it("loads a cross-origin image with the page referrer", async () => {

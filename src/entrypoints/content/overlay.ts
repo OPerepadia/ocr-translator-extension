@@ -284,7 +284,7 @@ export function showOverlayError(args: {
   );
 }
 
-export function closeOverlay(): void {
+export function closeOverlay(options: { notify?: boolean } = {}): void {
   if (isSpeaking(OVERLAY_SPEECH_OWNER)) {
     stopSpeaking();
   }
@@ -336,7 +336,9 @@ export function closeOverlay(): void {
   currentTargetLang = undefined;
   currentTranslationError = undefined;
   anchor = undefined;
-  config?.onClose();
+  if (options.notify !== false) {
+    config?.onClose();
+  }
 
   if (!closingToolbar) {
     closingContainer.remove();
@@ -667,7 +669,7 @@ function createOcrRecoveryToolbar(): HTMLElement {
   const divider = document.createElement("span");
   divider.className = "ocr-translate-overlay-divider";
   divider.setAttribute("aria-hidden", "true");
-  const closeButton = iconButton(CLOSE_ICON, t("commonClose"), closeOverlay);
+  const closeButton = iconButton(CLOSE_ICON, t("commonClose"), () => closeOverlay());
   closeButton.classList.add("ocr-translate-overlay-close");
   bar.append(divider, closeButton);
   return bar;
@@ -1588,7 +1590,7 @@ function createLoadingChip(status: PipelineStatus): HTMLElement {
     spinner,
     icon,
     label,
-    iconButton(CLOSE_ICON, t("commonClose"), closeOverlay),
+    iconButton(CLOSE_ICON, t("commonClose"), () => closeOverlay()),
     progress,
   );
   return chip;
@@ -1632,7 +1634,7 @@ function createErrorChip(args: {
       iconButton(
         CLOSE_ICON,
         args.onDismiss ? t("commonDismiss") : t("commonClose"),
-        args.onDismiss ?? closeOverlay,
+        args.onDismiss ?? (() => closeOverlay()),
       ),
     );
   }
