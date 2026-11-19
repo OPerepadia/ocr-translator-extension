@@ -30,6 +30,7 @@ import {
 import { computeDetSize, imageDataToNchw, type Rgb } from "./preprocess";
 import type { InitRequest, WorkerModelConfig } from "./protocol";
 import {
+  attachBubbles,
   findEnclosingRegions,
   groupAsSingleRegion,
   RegionGrouper,
@@ -260,10 +261,11 @@ export class PaddleEngine {
       const sourceImageData =
         boxes.length > 0 || readsRegions ? bitmapToImageData(bitmap) : null;
       // Found before recognition, so that progress can count the regions too.
-      const regions =
+      const detection =
         readsRegions && sourceImageData
           ? await this.regionGrouper.detectRegions(sourceImageData)
           : undefined;
+      const regions = detection?.regions;
       // A region around several others would read their text a second time.
       const enclosing = regions ? findEnclosingRegions(regions) : undefined;
       const readable = regions?.filter((_, index) => !enclosing?.has(index));
@@ -314,7 +316,7 @@ export class PaddleEngine {
       const groupingStartedAt = now();
       const grouping = single
         ? groupAsSingleRegion(lines)
-        : await this.regionGrouper.group(sourceImageData, lines, regions);
+        : await this.regionGrouper.group(sourceImageData, lines, detection);
       throwIfCancelled(isCancelled);
       if (this.debug) {
         console.log(
@@ -325,6 +327,7 @@ export class PaddleEngine {
         backend: this.backend,
         direction: script === "arabic" ? "rtl" : "ltr",
       });
+      attachBubbles(result.blocks ?? [], grouping.bubbles);
       result.providerMeta = {
         ...(result.providerMeta as Record<string, unknown>),
         modelId: recognized.modelId,
