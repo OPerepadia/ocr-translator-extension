@@ -16,6 +16,23 @@ function image(
   return { width, height, data };
 }
 
+function rgb(color = ""): number[] {
+  return color.match(/\d+/g)?.map(Number) ?? [];
+}
+
+// WCAG contrast ratio between two sRGB colors.
+function contrast(a: number[], b: number[]): number {
+  const luminance = (color: number[]) => {
+    const [r, g, bl] = color.map((channel) => {
+      const value = channel / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return r * 0.2126 + g * 0.7152 + bl * 0.0722;
+  };
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (light + 0.05) / (dark + 0.05);
+}
+
 const capture = { x: 100, y: 200, width: 240, height: 120 };
 const line: OverlayLine = {
   rect: { x: 120, y: 220, width: 160, height: 20 },
@@ -103,11 +120,33 @@ describe("estimateSurroundingTint", () => {
 
   it("uses the most common color even when no color dominates", () => {
     const palette = [
-      [230, 40, 40], [230, 40, 40], [230, 40, 40],
+      [200, 40, 40], [200, 40, 40], [200, 40, 40],
       [40, 200, 60], [40, 200, 60], [40, 60, 220], [40, 60, 220], [20, 20, 20],
     ];
     const pixels = image((x, y) => [...palette[(x * 3 + y * 5) % palette.length], 255]);
-    expect(estimateSurroundingTint(pixels, capture, [line])?.background).toBe("rgb(230, 40, 40)");
+    expect(estimateSurroundingTint(pixels, capture, [line])?.background).toBe("rgb(200, 40, 40)");
+  });
+
+  it("lightens a mid gray just enough for dark text", () => {
+    const tint = estimateSurroundingTint(image(() => [138, 133, 127, 255]), capture, [line]);
+    expect(tint?.foreground).toBe("#152034");
+    const background = rgb(tint?.background);
+    expect(contrast(background, [0x15, 0x20, 0x34])).toBeGreaterThanOrEqual(5);
+    expect(Math.max(...background.map((value, i) => value - [138, 133, 127][i])))
+      .toBeLessThanOrEqual(10);
+  });
+
+  it("darkens a mid tone just enough for light text", () => {
+    const tint = estimateSurroundingTint(image(() => [230, 40, 40, 255]), capture, [line]);
+    expect(tint?.foreground).toBe("#ffffff");
+    const background = rgb(tint?.background);
+    expect(contrast(background, [255, 255, 255])).toBeGreaterThanOrEqual(5);
+    expect(background[0]).toBeGreaterThanOrEqual(210);
+  });
+
+  it("keeps a background that already has enough contrast", () => {
+    const tint = estimateSurroundingTint(image(() => [210, 190, 150, 255]), capture, [line]);
+    expect(tint?.background).toBe("rgb(210, 190, 150)");
   });
 
   it("leaves transparent and empty input alone", () => {
