@@ -129,12 +129,18 @@ let anchor:
 
 // Smallest/largest font the auto-fit will use inside a painted box.
 const MIN_FONT_PX = 12;
+// Cap for horizontal text of ordinary size. Larger lines may go up to
+// MAX_FONT_PX_LARGE_HORIZONTAL_SOURCE.
 const MAX_FONT_PX_HORIZONTAL_SOURCE = 24;
+// Ceiling for large horizontal text such as titles, so a huge headline or a
+// logo does not get a card that covers half the image.
+const MAX_FONT_PX_LARGE_HORIZONTAL_SOURCE = 32;
 const MAX_FONT_PX_VERTICAL_SOURCE = 18;
 const MAX_FONT_PX_EXPANDED_VERTICAL_SOURCE = 16;
-// Target font for vertical source text, as a share of the column width. Latin
+// Target font for vertical source text, as a share of the column width, and
+// the font cap for large horizontal text, as a share of the line height. Latin
 // and Cyrillic letters look larger than CJK glyphs at the same size.
-const TARGET_FONT_PER_SOURCE_PX = 0.6;
+const FONT_PER_SOURCE_SIZE = 0.6;
 // How far past its frame a panel may spill, in fractions of a line, so a last
 // line that only just misses is kept rather than dropped. The frame is only an
 // approximate OCR box, so a slight overhang beats losing a line.
@@ -1205,11 +1211,17 @@ function fitTranslationCard(
   if (!(panel instanceof HTMLElement)) {
     return;
   }
+  // Large horizontal text, such as a title, may get a larger font, in step
+  // with its line height.
   const maxFontSize = vertical
     ? expanded
       ? MAX_FONT_PX_EXPANDED_VERTICAL_SOURCE
       : MAX_FONT_PX_VERTICAL_SOURCE
-    : MAX_FONT_PX_HORIZONTAL_SOURCE;
+    : clamp(
+        Math.round(textSize * FONT_PER_SOURCE_SIZE),
+        MAX_FONT_PX_HORIZONTAL_SOURCE,
+        MAX_FONT_PX_LARGE_HORIZONTAL_SOURCE,
+      );
   const cap = Math.max(
     MIN_FONT_PX,
     Math.min(maxFontSize, Math.floor(box.clientHeight)),
@@ -1218,7 +1230,7 @@ function fitTranslationCard(
   // covers the source lines.
   const target =
     vertical && textSize > 0
-      ? clamp(Math.round(textSize * TARGET_FONT_PER_SOURCE_PX), MIN_FONT_PX, cap)
+      ? clamp(Math.round(textSize * FONT_PER_SOURCE_SIZE), MIN_FONT_PX, cap)
       : cap;
   let maxWidth = box.clientWidth;
   // The tallest the card may grow. Raised below when even the smallest font
@@ -1262,9 +1274,12 @@ function fitTranslationCard(
   // otherwise split words to keep the line count while the card narrows.
   const hyphens = panel.style.hyphens;
   panel.style.hyphens = "manual";
-  // A one-line translation shorter than the source needs no more room.
+  // A one-line translation shorter than the source needs no more room. Read
+  // the exact width: offsetWidth rounds, and a line a fraction of a pixel too
+  // narrow wraps.
   panel.style.width = "max-content";
-  const minWidth = Math.ceil(Math.min(sourceWidth, panel.offsetWidth, maxWidth));
+  const oneLine = panel.getBoundingClientRect().width;
+  const minWidth = Math.ceil(Math.min(sourceWidth, oneLine, maxWidth));
   panel.style.width = `${narrowestFit(minWidth, maxWidth, (width) => {
     panel.style.width = `${width}px`;
     return fits();
