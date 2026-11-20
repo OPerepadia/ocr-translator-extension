@@ -1170,7 +1170,6 @@
   box-shadow: none;
   cursor: default;
   user-select: text;
-  transition: opacity var(--ocr-duration-fast) ease;
 }
 
 /* The script sets the colors from the image around the block. */

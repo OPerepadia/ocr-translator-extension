@@ -117,16 +117,44 @@ function binKey(r: number, g: number, b: number): number {
   return r < 0 || g < 0 || b < 0 || r > 7 || g > 7 || b > 7 ? -1 : r << 6 | g << 3 | b;
 }
 
+const DARK_TEXT = "#152034";
+const DARK_TEXT_LUMINANCE = luminance([0x15, 0x20, 0x34].map(toLinear));
+// A little above WCAG AA (4.5:1) so cards read clearly, not just pass.
+const MIN_CONTRAST = 5;
+
 function panelColors(color: Rgb): OverlayTint {
-  const [red, green, blue] = color.map((channel) => {
-    const value = channel / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+  const linear = color.map(toLinear);
+  const current = luminance(linear);
+  const darkText = current > 0.22;
+  // Mix the background toward white (or black) just enough to reach MIN_CONTRAST.
+  const mix = darkText
+    ? (MIN_CONTRAST * (DARK_TEXT_LUMINANCE + 0.05) - 0.05 - current) / (1 - current)
+    : 1 - (1.05 / MIN_CONTRAST - 0.05) / current;
+  const background = mix > 0
+    ? linear.map((value) => {
+      const srgb = toSrgb(darkText ? value + (1 - value) * mix : value * (1 - mix));
+      // Round away from the text color so rounding can't undo the fix.
+      return darkText ? Math.ceil(srgb) : Math.floor(srgb);
+    })
+    : color;
   return {
-    background: `rgb(${color.join(", ")})`,
-    foreground: luminance > 0.22 ? "#152034" : "#ffffff",
+    background: `rgb(${background.join(", ")})`,
+    foreground: darkText ? DARK_TEXT : "#ffffff",
   };
+}
+
+function toLinear(channel: number): number {
+  const value = channel / 255;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+function toSrgb(value: number): number {
+  const srgb = value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055;
+  return Math.min(255, Math.max(0, srgb * 255));
+}
+
+function luminance([red, green, blue]: number[]): number {
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 }
 
 function medianColor(colors: Rgb[]): Rgb {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { OcrBlock } from "../../../shared/types";
 import type { RecognizedLine } from "./assemble";
 import {
+  attachBubbles,
   decodeTextRegions,
   groupAsSingleRegion,
   groupLinesByRegions,
@@ -170,5 +172,39 @@ describe("single-region grouping", () => {
     expect(
       groupAsSingleRegion([{ ...line(0, 0), confidence: 0.1 }]).groups,
     ).toEqual([]);
+  });
+});
+
+describe("attachBubbles", () => {
+  const block = (paragraph: number, x: number, y: number): OcrBlock => ({
+    text: "sample",
+    bbox: { x, y, width: 10, height: 40 },
+    paragraph,
+  });
+
+  it("gives each paragraph the smallest bubble around it", () => {
+    const blocks = [block(0, 20, 20), block(0, 35, 20), block(1, 200, 20)];
+    const outer = region(0, 0, 300, 100);
+    const inner = region(10, 10, 50, 60);
+    attachBubbles(blocks, [outer, inner]);
+
+    expect(blocks[0].bubble).toEqual(inner.bbox);
+    expect(blocks[1].bubble).toEqual(inner.bbox);
+    expect(blocks[2].bubble).toEqual(outer.bbox);
+  });
+
+  it("skips bubbles that cover too little of the paragraph", () => {
+    const blocks = [block(0, 20, 20)];
+    // Holds the centre, but only the lower half of the line.
+    attachBubbles(blocks, [region(0, 40, 50, 50)]);
+
+    expect(blocks[0]).not.toHaveProperty("bubble");
+  });
+
+  it("leaves blocks without a paragraph alone", () => {
+    const blocks: OcrBlock[] = [{ text: "sample", bbox: { x: 20, y: 20, width: 10, height: 10 } }];
+    attachBubbles(blocks, [region(0, 0, 100, 100)]);
+
+    expect(blocks[0]).not.toHaveProperty("bubble");
   });
 });
