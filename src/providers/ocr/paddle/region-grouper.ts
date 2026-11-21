@@ -1,4 +1,4 @@
-import type { Rect } from "../../../shared/types";
+import type { OcrBlock, Rect } from "../../../shared/types";
 import type { RecognizedLine } from "./assemble";
 import { filterRecognizedLines } from "./assemble";
 import { fetchJson } from "./utils";
@@ -12,6 +12,9 @@ interface RegionManifest {
   inputShape: [number, number, number];
   inputScale: number;
   origTargetSizeOrder: ["width", "height"];
+  /** Class names by id. The class named "bubble" gives the speech-bubble
+   * outlines, used to size the painted translations. */
+  classes?: Record<string, string>;
   textClassIds: number[];
   confidenceThreshold: number;
   nmsIouThreshold: number;
@@ -22,13 +25,24 @@ export interface TextRegion {
   confidence: number;
 }
 
+/** One run of the layout model: the text regions that group lines, and the
+ * speech bubbles around them. */
+export interface RegionDetection {
+  regions: TextRegion[];
+  bubbles: TextRegion[];
+}
+
 interface RegionGroupingResult {
   groups: RecognizedLine[][];
   regionCount: number;
   matchedLineCount: number;
+  /** Speech bubbles the layout model found. Empty when it did not run. */
+  bubbles: TextRegion[];
 }
 
 const NESTED_REGION_CONTAINMENT_THRESHOLD = 0.9;
+// Share of a paragraph's area a bubble must cover to count as its bubble.
+const BUBBLE_MIN_CONTAINMENT = 0.7;
 const NESTED_REGION_MIN_AREA_RATIO = 2;
 const NESTED_REGION_COUNT_THRESHOLD = 2;
 
@@ -42,6 +56,7 @@ export function groupAsSingleRegion(
     groups: eligible.length > 0 ? [eligible] : [],
     regionCount: 0,
     matchedLineCount: 0,
+    bubbles: [],
   };
 }
 
@@ -72,8 +87,9 @@ export class RegionGrouper {
     };
   }
 
-  /** The page's text regions: the text in speech bubbles and free text. */
-  async detectRegions(source: RgbaImage): Promise<TextRegion[]> {
+  /** The page's text regions (the text in speech bubbles and free text) and
+   * its speech bubbles. */
+  async detectRegions(source: RgbaImage): Promise<RegionDetection> {
     const [, height, width] = this.manifest.inputShape;
     const input = imageToNchw(
       source,
@@ -89,38 +105,50 @@ export class RegionGrouper {
         [1, 2],
       ),
     });
-    return decodeTextRegions(
-      output.labels.data as BigInt64Array,
-      output.boxes.data as Float32Array,
-      output.scores.data as Float32Array,
-      source.width,
-      source.height,
-      this.manifest.textClassIds,
-      this.manifest.confidenceThreshold,
-      this.manifest.nmsIouThreshold,
-    );
+    const decode = (classIds: number[]): TextRegion[] =>
+      decodeTextRegions(
+        output.labels.data as BigInt64Array,
+        output.boxes.data as Float32Array,
+        output.scores.data as Float32Array,
+        source.width,
+        source.height,
+        classIds,
+        this.manifest.confidenceThreshold,
+        this.manifest.nmsIouThreshold,
+      );
+    const bubbleClassIds = Object.entries(this.manifest.classes ?? {})
+      .filter(([, name]) => name === "bubble")
+      .map(([id]) => Number(id));
+    return {
+      regions: decode(this.manifest.textClassIds),
+      bubbles: bubbleClassIds.length > 0 ? decode(bubbleClassIds) : [],
+    };
   }
 
-  /** Group the lines by text region. Pass `regions` when they are already
+  /** Group the lines by text region. Pass `detection` when it is already
    * known, to skip running the layout model again. */
   async group(
     source: RgbaImage | null,
     lines: RecognizedLine[],
-    regions?: TextRegion[],
+    detection?: RegionDetection,
   ): Promise<RegionGroupingResult> {
     const eligible = filterRecognizedLines(lines);
     if (eligible.length <= 1) {
-      return groupAsSingleRegion(eligible);
+      return {
+        ...groupAsSingleRegion(eligible),
+        bubbles: detection?.bubbles ?? [],
+      };
     }
     if (!source) {
       throw new Error("Text-region grouping requires source image pixels.");
     }
 
-    const found = regions ?? (await this.detectRegions(source));
-    const grouping = groupLinesByRegions(eligible, found);
+    const found = detection ?? (await this.detectRegions(source));
+    const grouping = groupLinesByRegions(eligible, found.regions);
     return {
       ...grouping,
-      regionCount: found.length,
+      regionCount: found.regions.length,
+      bubbles: found.bubbles,
     };
   }
 
@@ -215,7 +243,7 @@ export function suppressOverlaps(
 export function groupLinesByRegions(
   lines: RecognizedLine[],
   regions: TextRegion[],
-): Omit<RegionGroupingResult, "regionCount"> {
+): Omit<RegionGroupingResult, "regionCount" | "bubbles"> {
   const grouped = regions.map(() => [] as RecognizedLine[]);
   const unmatched: RecognizedLine[] = [];
   const enclosingRegions = findEnclosingRegions(regions);
@@ -368,4 +396,55 @@ function validateManifest(manifest: RegionManifest): void {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Give each paragraph the smallest speech bubble that holds the centre of its
+ * lines and most of their area. Paragraphs outside any bubble, such as text
+ * over the art, get none. */
+export function attachBubbles(blocks: OcrBlock[], bubbles: TextRegion[]): void {
+  if (bubbles.length === 0) {
+    return;
+  }
+  const paragraphs = new Map<number, OcrBlock[]>();
+  for (const block of blocks) {
+    if (block.paragraph === undefined) continue;
+    const group = paragraphs.get(block.paragraph) ?? [];
+    group.push(block);
+    paragraphs.set(block.paragraph, group);
+  }
+  for (const group of paragraphs.values()) {
+    const bounds = unionRect(group.map((block) => block.bbox));
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    let best: Rect | undefined;
+    for (const { bbox } of bubbles) {
+      const holdsCenter =
+        centerX >= bbox.x &&
+        centerX <= bbox.x + bbox.width &&
+        centerY >= bbox.y &&
+        centerY <= bbox.y + bbox.height;
+      if (
+        !holdsCenter ||
+        intersectionArea(bounds, bbox) / area(bounds) < BUBBLE_MIN_CONTAINMENT
+      ) {
+        continue;
+      }
+      if (!best || area(bbox) < area(best)) {
+        best = bbox;
+      }
+    }
+    if (best) {
+      for (const block of group) {
+        block.bubble = { ...best };
+      }
+    }
+  }
+}
+
+function unionRect(rects: Rect[]): Rect {
+  const left = Math.min(...rects.map((rect) => rect.x));
+  const top = Math.min(...rects.map((rect) => rect.y));
+  const right = Math.max(...rects.map((rect) => rect.x + rect.width));
+  const bottom = Math.max(...rects.map((rect) => rect.y + rect.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
 }

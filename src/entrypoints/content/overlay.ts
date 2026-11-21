@@ -39,6 +39,8 @@ import {
 import {
   buildOverlayLayout,
   moveOverlayLayout,
+  fitRectNearBounds,
+  separateCards,
   type OverlayLayout,
   type OverlayLine,
 } from "./overlay-layout";
@@ -127,9 +129,18 @@ let anchor:
 
 // Smallest/largest font the auto-fit will use inside a painted box.
 const MIN_FONT_PX = 12;
+// Cap for horizontal text of ordinary size. Larger lines may go up to
+// MAX_FONT_PX_LARGE_HORIZONTAL_SOURCE.
 const MAX_FONT_PX_HORIZONTAL_SOURCE = 24;
+// Ceiling for large horizontal text such as titles, so a huge headline or a
+// logo does not get a card that covers half the image.
+const MAX_FONT_PX_LARGE_HORIZONTAL_SOURCE = 32;
 const MAX_FONT_PX_VERTICAL_SOURCE = 18;
 const MAX_FONT_PX_EXPANDED_VERTICAL_SOURCE = 16;
+// Target font for vertical source text, as a share of the column width, and
+// the font cap for large horizontal text, as a share of the line height. Latin
+// and Cyrillic letters look larger than CJK glyphs at the same size.
+const FONT_PER_SOURCE_SIZE = 0.6;
 // How far past its frame a panel may spill, in fractions of a line, so a last
 // line that only just misses is kept rather than dropped. The frame is only an
 // approximate OCR box, so a slight overhang beats losing a line.
@@ -940,7 +951,16 @@ function renderTranslationBoxes(
   overlayContainer: HTMLElement,
 ): OverlayPopoverBox[] {
   const boxes: OverlayPopoverBox[] = [];
-  const fontOptions: Array<{ vertical: boolean; expanded: boolean }> = [];
+  const fitOptions: Array<{
+    vertical: boolean;
+    expanded: boolean;
+    textSize: number;
+    sourceWidth: number;
+    bubbleRoom?: Rect;
+    /** Where the card is centred before cards are moved apart. */
+    center: Rect;
+    slide: Rect;
+  }> = [];
   // Without a per-paragraph split, one combined box, so the whole translation is
   // never misattributed to a single region.
   if (!layout.segmented) {
@@ -966,9 +986,13 @@ function renderTranslationBoxes(
       },
       "translation",
     );
-    fontOptions.push({
+    fitOptions.push({
       vertical,
       expanded: layout.combinedRect.width > layout.combinedSourceRect.width,
+      textSize: layout.combinedTextSize,
+      sourceWidth: layout.combinedSourceRect.width,
+      center: centerPoint(layout.combinedRect),
+      slide: centerPoint(layout.combinedRect),
     });
   } else {
     layout.paragraphs.forEach((paragraph) => {
@@ -991,18 +1015,76 @@ function renderTranslationBoxes(
         },
         "translation",
       );
-      fontOptions.push({
+      fitOptions.push({
         vertical: paragraph.vertical,
         expanded: paragraph.translationRect.width > paragraph.sourceRect.width,
+        textSize: paragraph.textSize,
+        sourceWidth: paragraph.sourceRect.width,
+        bubbleRoom: paragraph.bubbleRoom,
+        // A card in a bubble covers its source text; the rest stay centred in
+        // their room, which keeps them inside the capture.
+        center: centerPoint(
+          paragraph.bubbleRoom ? paragraph.sourceRect : paragraph.translationRect,
+        ),
+        // A card may slide within its bubble, or else over its source text. A
+        // tilted card stays put: sliding it would drag it off its text.
+        slide:
+          paragraph.angle !== 0
+            ? centerPoint(paragraph.translationRect)
+            : (paragraph.bubbleRoom ?? paragraph.sourceRect),
       });
     });
   }
 
   boxes.forEach((box, index) => {
-    const { vertical, expanded } = fontOptions[index];
-    fitFontSize(box.element, vertical, expanded);
+    fitTranslationCard(box.element, fitOptions[index]);
   });
+  shrinkBoxesToCards(
+    boxes,
+    fitOptions.map((options) => ({
+      slide: options.slide,
+      center: options.center,
+      room: options.bubbleRoom,
+    })),
+  );
   return boxes;
+}
+
+// Shrink each box from the room it was given to its fitted card, shift a card
+// that spills out of its bubble back inside, then move cards apart where they
+// overlap. Boxes keep the card's size for hovering and for placing the popover.
+function shrinkBoxesToCards(
+  boxes: OverlayPopoverBox[],
+  places: Array<{ slide: Rect; center: Rect; room?: Rect }>,
+): void {
+  const cards = boxes.map((box, index) => {
+    const panel = box.element.firstElementChild;
+    const width = panel instanceof HTMLElement ? panel.offsetWidth : box.rect.width;
+    const height =
+      panel instanceof HTMLElement ? panel.offsetHeight : box.rect.height;
+    const { slide, center, room } = places[index];
+    const rect = {
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      width,
+      height,
+    };
+    return { rect: room ? fitRectNearBounds(rect, room) : rect, slide };
+  });
+  const placed = separateCards(cards, currentRect);
+  boxes.forEach((box, index) => {
+    box.rect = placed[index];
+    positionRectElement(box.element, box.rect);
+  });
+}
+
+function centerPoint(rect: Rect): Rect {
+  return {
+    x: rect.x + rect.width / 2,
+    y: rect.y + rect.height / 2,
+    width: 0,
+    height: 0,
+  };
 }
 
 function renderSourceBoxes(
@@ -1100,42 +1182,194 @@ function createTranslationBox(
   return box;
 }
 
-// Shrink the font with a binary search until the translation fits, flooring at
-// the configured minimum. `clampToWholeLines` truncates whatever still
-// overflows. The panel is capped at the box's width, so a wide word overflows
-// the panel rather than widening it. Its height is measured against the box.
-function fitFontSize(box: HTMLElement, vertical: boolean, expanded: boolean): void {
+// Pick the card's font and width. For vertical source text the font aims at
+// the source's size; horizontal text starts from the largest font. In
+// a speech bubble the card first tries the room inside it: if the text fits
+// there at that font, the card keeps the line count it has across the room and
+// narrows to even lines. Otherwise, the font shrinks if the text does not fit
+// the whole box, down to the minimum, and then words may break. The card then
+// takes the narrowest width that keeps the text from growing taller or
+// breaking words, but stays as wide as the source text unless the translation
+// is shorter. `clampToWholeLines` truncates whatever still overflows.
+function fitTranslationCard(
+  box: HTMLElement,
+  {
+    textSize,
+    sourceWidth,
+    vertical,
+    expanded,
+    bubbleRoom,
+  }: {
+    textSize: number;
+    sourceWidth: number;
+    vertical: boolean;
+    expanded: boolean;
+    bubbleRoom?: Rect;
+  },
+): void {
   const panel = box.firstElementChild;
   if (!(panel instanceof HTMLElement)) {
     return;
   }
+  // Large horizontal text, such as a title, may get a larger font, in step
+  // with its line height.
   const maxFontSize = vertical
     ? expanded
       ? MAX_FONT_PX_EXPANDED_VERTICAL_SOURCE
       : MAX_FONT_PX_VERTICAL_SOURCE
-    : MAX_FONT_PX_HORIZONTAL_SOURCE;
+    : clamp(
+        Math.round(textSize * FONT_PER_SOURCE_SIZE),
+        MAX_FONT_PX_HORIZONTAL_SOURCE,
+        MAX_FONT_PX_LARGE_HORIZONTAL_SOURCE,
+      );
   const cap = Math.max(
     MIN_FONT_PX,
     Math.min(maxFontSize, Math.floor(box.clientHeight)),
   );
-  let lo = MIN_FONT_PX;
-  let hi = cap;
-  let best = MIN_FONT_PX;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    box.style.fontSize = `${mid}px`;
-    if (
-      panel.offsetHeight <= box.clientHeight &&
-      panel.scrollWidth <= panel.clientWidth
-    ) {
-      best = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
+  // Horizontal text keeps the largest font that fits its box, so the card
+  // covers the source lines.
+  const target =
+    vertical && textSize > 0
+      ? clamp(Math.round(textSize * FONT_PER_SOURCE_SIZE), MIN_FONT_PX, cap)
+      : cap;
+  let maxWidth = box.clientWidth;
+  // The tallest the card may grow. Raised below when even the smallest font
+  // overflows the box, so narrowing never makes that worse.
+  let maxHeight = box.clientHeight;
+  const fits = (): boolean =>
+    panel.offsetHeight <= maxHeight && !textOverflowsPanel(panel);
+
+  // Without hyphenation a word too long for the line overflows, which `fits`
+  // can see. Hyphenation would hide it by splitting the word.
+  panel.style.hyphens = "manual";
+  box.style.fontSize = `${target}px`;
+
+  const roomWidth = bubbleRoom ? Math.min(maxWidth, bubbleRoom.width) : 0;
+  panel.style.width = `${roomWidth}px`;
+  if (
+    bubbleRoom &&
+    panel.offsetHeight <= Math.min(maxHeight, bubbleRoom.height) &&
+    !textOverflowsPanel(panel)
+  ) {
+    maxWidth = roomWidth;
+    maxHeight = panel.offsetHeight;
+  } else {
+    panel.style.width = `${maxWidth}px`;
+    if (!fits()) {
+      const font =
+        largestFit(MIN_FONT_PX, target - 1, (size) => {
+          box.style.fontSize = `${size}px`;
+          return fits();
+        }) ?? MIN_FONT_PX;
+      box.style.fontSize = `${font}px`;
+      if (!fits()) {
+        // Still too big at the smallest font: break words rather than cut them.
+        panel.style.removeProperty("hyphens");
+        maxHeight = Math.max(maxHeight, panel.offsetHeight);
+      }
     }
   }
-  box.style.fontSize = `${best}px`;
+
+  // Narrow without hyphenation even where the text needs it: the browser would
+  // otherwise split words to keep the line count while the card narrows.
+  const hyphens = panel.style.hyphens;
+  panel.style.hyphens = "manual";
+  // A one-line translation shorter than the source needs no more room. Read
+  // the exact width: offsetWidth rounds, and a line a fraction of a pixel too
+  // narrow wraps.
+  panel.style.width = "max-content";
+  const oneLine = panel.getBoundingClientRect().width;
+  const minWidth = Math.ceil(Math.min(sourceWidth, oneLine, maxWidth));
+  panel.style.width = `${narrowestFit(minWidth, maxWidth, (width) => {
+    panel.style.width = `${width}px`;
+    return fits();
+  })}px`;
+  panel.style.hyphens = hyphens;
   clampToWholeLines(panel, box);
+}
+
+// True when a line runs into the panel's side padding or past it. scrollWidth
+// cannot tell: Chrome reports no overflow for this box at all, and Firefox only
+// once the text passes the padding. A line wider than the panel starts at its
+// start edge, so a centred card would show it hugging one side.
+function textOverflowsPanel(panel: HTMLElement): boolean {
+  const bounds = wordBounds(panel);
+  if (!bounds) {
+    return false;
+  }
+  const box = panel.getBoundingClientRect();
+  const styles = getComputedStyle(panel);
+  const left =
+    box.left +
+    Number.parseFloat(styles.borderLeftWidth) +
+    Number.parseFloat(styles.paddingLeft);
+  const right =
+    box.right -
+    Number.parseFloat(styles.borderRightWidth) -
+    Number.parseFloat(styles.paddingRight);
+  // Half a pixel of slack for subpixel text positions.
+  return bounds.left < left - 0.5 || bounds.right > right + 0.5;
+}
+
+// The horizontal extent of the panel's words. Spaces are left out: with
+// `pre-wrap` each line keeps its trailing space, which sits past the last word.
+function wordBounds(panel: HTMLElement): { left: number; right: number } | undefined {
+  const text = panel.firstChild;
+  if (!text || text.nodeType !== Node.TEXT_NODE) {
+    return undefined;
+  }
+  const range = document.createRange();
+  let left = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  for (const word of (text.textContent ?? "").matchAll(/\S+/g)) {
+    range.setStart(text, word.index);
+    range.setEnd(text, word.index + word[0].length);
+    for (const rect of range.getClientRects()) {
+      left = Math.min(left, rect.left);
+      right = Math.max(right, rect.right);
+    }
+  }
+  return left < right ? { left, right } : undefined;
+}
+
+/** The smallest value in [low, high] that `test` accepts, assuming it accepts
+ * every value above one it accepts. Returns `high` when none is smaller. */
+function narrowestFit(
+  low: number,
+  high: number,
+  test: (value: number) => boolean,
+): number {
+  let best = high;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (test(mid)) {
+      best = mid;
+      high = mid - 1;
+    } else {
+      low = mid + 1;
+    }
+  }
+  return best;
+}
+
+/** The largest value in [low, high] that `test` accepts, assuming it accepts
+ * every value below one it accepts. Undefined when it accepts none. */
+function largestFit(
+  low: number,
+  high: number,
+  test: (value: number) => boolean,
+): number | undefined {
+  let best: number | undefined;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (test(mid)) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return best;
 }
 
 // Cut a too-long translation to whole lines with an ellipsis rather than at

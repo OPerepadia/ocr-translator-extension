@@ -66,6 +66,10 @@ export interface OcrBlock {
    * distinguishes it — a mixed capture can hold e.g. vertical CJK columns and
    * a horizontal footer. Falls back to the result-level orientation. */
   orientation?: "horizontal" | "vertical";
+  /** The speech bubble around this block's paragraph, in the same pixel space
+   * as `bbox`, when the layout model found one. The painted translation may
+   * use the room inside it. */
+  bubble?: Rect;
 }
 
 export interface PipelineOcrResult {

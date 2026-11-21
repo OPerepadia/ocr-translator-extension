@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 import type { OcrBlock, Rect } from "../../shared/types";
 import { assembleGroupedResult } from "../../providers/ocr/paddle/assemble";
 import {
+  buildBubbleRoom,
   buildOverlayLayout,
+  fitRectNearBounds,
   getRenderedImageRect,
   groupParagraphs,
   mapAngleToPage,
   mapBboxToPage,
+  medianLineThickness,
   moveOverlayLayout,
   paragraphAngle,
   rotatedBounds,
+  separateCards,
 } from "./overlay-layout";
 
 function block(
@@ -650,5 +654,198 @@ describe("moveOverlayLayout", () => {
 
   it("leaves the layout alone when nothing moved", () => {
     expect(moveOverlayLayout(layout, 0, 0)).toBe(layout);
+  });
+});
+
+describe("medianLineThickness", () => {
+  it("takes the short side of each line, whichever way it runs", () => {
+    expect(
+      medianLineThickness([
+        { rect: { x: 0, y: 0, width: 100, height: 10 }, angle: 0 },
+        { rect: { x: 0, y: 0, width: 14, height: 80 }, angle: 0 },
+        { rect: { x: 0, y: 0, width: 60, height: 12 }, angle: 0 },
+      ]),
+    ).toBe(12);
+  });
+
+  it("is zero without lines", () => {
+    expect(medianLineThickness([])).toBe(0);
+  });
+
+  it("sets each paragraph's text size from its lines", () => {
+    const layout = buildOverlayLayout({
+      blocks: [
+        { ...block(0, { x: 10, y: 0, width: 20, height: 100 }), orientation: "vertical" },
+        { ...block(1, { x: 60, y: 0, width: 10, height: 100 }), orientation: "vertical" },
+      ],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 100, height: 100 },
+      ocrText: "a\nb",
+      translationText: "one\ntwo",
+    });
+    expect(layout.paragraphs.map((p) => p.textSize)).toEqual([20, 10]);
+    expect(layout.combinedTextSize).toBe(15);
+  });
+});
+
+describe("separateCards", () => {
+  const column = (x: number): Rect => ({ x, y: 0, width: 20, height: 200 });
+
+  it("slides cards in neighbouring columns apart along the columns", () => {
+    const [a, b] = separateCards([
+      { rect: { x: 0, y: 80, width: 60, height: 40 }, slide: column(10) },
+      { rect: { x: 30, y: 90, width: 60, height: 40 }, slide: column(50) },
+    ]);
+    // Moving along y frees them with less travel than along x would need.
+    expect(a.x).toBe(0);
+    expect(b.x).toBe(30);
+    expect(a.y + a.height).toBeLessThanOrEqual(b.y);
+  });
+
+  it("leaves cards that do not overlap alone", () => {
+    const cards = [
+      { rect: { x: 0, y: 0, width: 20, height: 20 }, slide: column(0) },
+      { rect: { x: 30, y: 0, width: 20, height: 20 }, slide: column(30) },
+    ];
+    expect(separateCards(cards)).toEqual(cards.map((card) => card.rect));
+  });
+
+  it("moves only the card that has room", () => {
+    const fixed = { x: 50, y: 50, width: 0, height: 0 };
+    const [a, b] = separateCards([
+      { rect: { x: 30, y: 30, width: 40, height: 40 }, slide: fixed },
+      { rect: { x: 40, y: 50, width: 40, height: 40 }, slide: column(50) },
+    ]);
+    expect(a).toEqual({ x: 30, y: 30, width: 40, height: 40 });
+    expect(b.y).toBeGreaterThanOrEqual(70);
+  });
+
+  it("keeps cards inside the bounds", () => {
+    const bounds = { x: 0, y: 0, width: 100, height: 60 };
+    const placed = separateCards(
+      [
+        { rect: { x: 0, y: 10, width: 60, height: 30 }, slide: column(20) },
+        { rect: { x: 30, y: 20, width: 60, height: 30 }, slide: column(50) },
+      ],
+      bounds,
+    );
+    for (const rect of placed) {
+      expect(rect.y).toBeGreaterThanOrEqual(0);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(60);
+    }
+    expect(placed[0].y + placed[0].height).toBeLessThanOrEqual(placed[1].y);
+  });
+});
+
+describe("bubble room", () => {
+  it("uses the middle of the bubble, grown to cover the source text", () => {
+    const room = buildBubbleRoom(
+      { x: 0, y: 0, width: 100, height: 200 },
+      { x: 50, y: 40, width: 40, height: 100 },
+      { x: 0, y: 0, width: 500, height: 500 },
+    );
+    expect(room).toEqual({ x: 10, y: 20, width: 80, height: 160 });
+  });
+
+  it("is cut to the capture", () => {
+    const room = buildBubbleRoom(
+      { x: -50, y: 0, width: 100, height: 100 },
+      { x: 0, y: 20, width: 20, height: 60 },
+      { x: 0, y: 0, width: 500, height: 500 },
+    );
+    expect(room).toEqual({ x: 0, y: 10, width: 40, height: 80 });
+  });
+
+  it("is none when the bubble is no wider than the source text", () => {
+    expect(
+      buildBubbleRoom(
+        { x: 0, y: 0, width: 40, height: 100 },
+        { x: 0, y: 10, width: 40, height: 80 },
+        { x: 0, y: 0, width: 500, height: 500 },
+      ),
+    ).toBeUndefined();
+  });
+
+  it("offers a bubble's room to its translation", () => {
+    const layout = buildOverlayLayout({
+      blocks: [
+        {
+          ...block(0, { x: 40, y: 20, width: 20, height: 60 }),
+          orientation: "vertical",
+          oriented: { rect: { x: 20, y: 40, width: 60, height: 20 }, angle: Math.PI / 2 },
+          bubble: { x: 0, y: 0, width: 100, height: 100 },
+        },
+      ],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 200, height: 200 },
+      ocrText: "縦書き",
+      translationText: "Generic phrase",
+    });
+    const [paragraph] = layout.paragraphs;
+    expect(paragraph.angle).toBe(0);
+    expect(paragraph.bubbleRoom).toEqual({ x: 20, y: 20, width: 160, height: 160 });
+    // The card may still spill past a bubble its text does not fit.
+    expect(paragraph.translationRect).toEqual({ x: 20, y: 20, width: 160, height: 160 });
+  });
+
+  it("keeps the plain room without a bubble", () => {
+    const layout = buildOverlayLayout({
+      blocks: [block(0, { x: 40, y: 20, width: 20, height: 10 })],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 100, height: 100 },
+      ocrText: "a",
+      translationText: "b",
+    });
+    expect(layout.paragraphs[0]).not.toHaveProperty("bubbleRoom");
+    expect(layout.paragraphs[0].translationRect).toEqual(layout.paragraphs[0].sourceRect);
+  });
+});
+
+describe("bubble room with a narrow bubble", () => {
+  it("keeps the plain room as the limit when it is wider", () => {
+    const layout = buildOverlayLayout({
+      blocks: [
+        {
+          ...block(0, { x: 45, y: 20, width: 10, height: 60 }),
+          orientation: "vertical",
+          oriented: { rect: { x: 20, y: 45, width: 60, height: 10 }, angle: Math.PI / 2 },
+          bubble: { x: 35, y: 10, width: 30, height: 80 },
+        },
+      ],
+      imageWidth: 100,
+      imageHeight: 100,
+      rect: { x: 0, y: 0, width: 400, height: 400 },
+      ocrText: "縦書き",
+      translationText: "Generic phrase",
+    });
+    const [paragraph] = layout.paragraphs;
+    expect(paragraph.bubbleRoom?.width).toBeCloseTo(96);
+    expect(paragraph.translationRect.width).toBe(110);
+    expect(paragraph.translationRect.height).toBeCloseTo(256);
+  });
+});
+
+describe("fitRectNearBounds", () => {
+  const bounds = { x: 0, y: 0, width: 100, height: 100 };
+
+  it("shifts a rect that spills over an edge back inside", () => {
+    expect(fitRectNearBounds({ x: 80, y: -10, width: 40, height: 30 }, bounds)).toEqual({
+      x: 60,
+      y: 0,
+      width: 40,
+      height: 30,
+    });
+  });
+
+  it("leaves an axis alone where the rect is too big to fit", () => {
+    expect(fitRectNearBounds({ x: -20, y: 90, width: 140, height: 30 }, bounds)).toEqual({
+      x: -20,
+      y: 70,
+      width: 140,
+      height: 30,
+    });
   });
 });
