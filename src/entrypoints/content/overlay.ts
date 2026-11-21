@@ -480,12 +480,13 @@ function ensureGlobalHandlers(): void {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        const openLanguageButton = toolbar?.querySelector<HTMLButtonElement>(
-          '.ocr-translate-popup-langpill-button[aria-expanded="true"]',
+        // Close an open language list or the ⋯ menu before the overlay itself.
+        const openControlButton = toolbar?.querySelector<HTMLButtonElement>(
+          '.ocr-translate-popup-langpill-button[aria-expanded="true"], .ocr-translate-popup-menu > button[aria-expanded="true"]',
         );
-        if (openLanguageButton) {
-          openLanguageButton.click();
-          openLanguageButton.focus();
+        if (openControlButton) {
+          openControlButton.click();
+          openControlButton.focus();
           return;
         }
         if (!popover?.dismiss()) {

@@ -569,6 +569,12 @@
   display: inline-flex;
 }
 
+/* Keep the button in its hover look while its menu is open. */
+.ocr-translate-popup-menu > button[aria-expanded="true"] {
+  color: var(--ocr-ink-strong);
+  background: var(--ocr-surface-hover);
+}
+
 .ocr-translate-popup-menu-list {
   position: absolute;
   top: calc(100% + 6px);
