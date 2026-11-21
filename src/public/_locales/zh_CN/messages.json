@@ -476,6 +476,9 @@
   "overlayShowInPanel": {
     "message": "在面板中显示"
   },
+  "overlayInitialView": {
+    "message": "默认显示"
+  },
   "overlayRecognizedAndTranslatedText": {
     "message": "已识别并翻译的文字"
   },

@@ -82,7 +82,7 @@ Press `Shift` or click the translate button in the toolbar to toggle the view. H
   <sub>Comic: <a href="https://densho810.com/free/">Give My Regards to Black Jack</a>, SHUHO SATO.</sub>
 </p>
 
-To change which view opens by default, set **Initial overlay view** in Settings > Display.
+To change which view opens by default, choose **Initial view** in the ⋯ menu of the overlay toolbar, or set **Initial overlay view** in Settings > Display.
 
 ### Panel view
 

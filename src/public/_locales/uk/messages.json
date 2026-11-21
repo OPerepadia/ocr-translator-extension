@@ -476,6 +476,9 @@
   "overlayShowInPanel": {
     "message": "Показати в панелі"
   },
+  "overlayInitialView": {
+    "message": "Початковий вигляд"
+  },
   "overlayRecognizedAndTranslatedText": {
     "message": "Розпізнаний і перекладений текст"
   },

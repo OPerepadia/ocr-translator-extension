@@ -476,6 +476,9 @@
   "overlayShowInPanel": {
     "message": "パネルで表示"
   },
+  "overlayInitialView": {
+    "message": "初期表示"
+  },
   "overlayRecognizedAndTranslatedText": {
     "message": "認識・翻訳されたテキスト"
   },

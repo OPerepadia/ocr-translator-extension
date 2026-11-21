@@ -630,6 +630,41 @@
   color: var(--ocr-ink-muted);
 }
 
+/* The check mark of an unchosen item keeps its space so labels stay aligned. */
+.ocr-translate-popup-menu-item[aria-checked="false"] .ocr-translate-popup-menu-icon {
+  visibility: hidden;
+}
+
+.ocr-translate-popup-menu-value {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--ocr-ink-muted);
+  font-size: var(--ocr-size-sm);
+}
+
+/* Points right when the choices are closed and down when they are open. */
+.ocr-translate-popup-menu-chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--ocr-ink-muted);
+  transform: rotate(-90deg);
+}
+
+.ocr-translate-popup-menu-group[aria-expanded="true"]
+  .ocr-translate-popup-menu-chevron {
+  transform: none;
+}
+
+.ocr-translate-popup-menu-choices {
+  display: flex;
+  flex-direction: column;
+  padding-left: 12px;
+}
+
+.ocr-translate-popup-menu-choices[hidden] {
+  display: none;
+}
+
 .ocr-translate-popup-langpill {
   position: relative;
   display: inline-flex;

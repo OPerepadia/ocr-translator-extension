@@ -553,6 +553,10 @@
     "message": "Show in panel",
     "description": "Switch from results over the selected area to the floating result panel."
   },
+  "overlayInitialView": {
+    "message": "Initial view",
+    "description": "Toolbar menu row that opens a choice of which view new overlays start in."
+  },
   "overlayRecognizedAndTranslatedText": {
     "message": "Recognized and translated text"
   },

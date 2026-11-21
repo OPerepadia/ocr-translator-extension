@@ -7,10 +7,12 @@ import type {
   Rect,
 } from "@/shared/types";
 import { t } from "@/shared/i18n";
+import { setDefaultOverlayMode } from "@/shared/storage";
 import {
   CLOSE_ICON,
   COPY_ICON,
   DRAG_HANDLE_ICON,
+  OVERLAY_ICON,
   PANEL_ICON,
   RECOGNIZE_TEXT_ICON,
   RETRANSLATE_ICON,
@@ -23,6 +25,7 @@ import {
 import {
   createActionMenu,
   type ActionMenu,
+  type ActionMenuChoiceGroup,
   type ActionMenuItem,
 } from "./action-menu";
 import {
@@ -103,6 +106,8 @@ let currentRect: Rect | undefined;
 // selected off the picture itself.
 let mode: OverlayMode = "translation";
 let selectedMode: OverlayMode = "translation";
+// The saved view that new overlays start in, shown in the toolbar menu.
+let defaultMode: OverlayMode = "translation";
 let activeReadAllMode: OverlayMode | undefined;
 let hasTranslationText = false;
 let currentOriginalText = "";
@@ -164,6 +169,7 @@ export function setOverlaySnapshot(snapshot: ImageBitmap | undefined): void {
 export function resetOverlayMode(initialMode: OverlayMode): void {
   mode = initialMode;
   selectedMode = initialMode;
+  defaultMode = initialMode;
 }
 
 export function configureOverlay(nextConfig: OverlayConfig): void {
@@ -741,7 +747,7 @@ function updateModeButton(): void {
 }
 
 function createMenu(): ActionMenu {
-  const items: ActionMenuItem[] = [];
+  const items: Array<ActionMenuItem | ActionMenuChoiceGroup> = [];
   const addItem = (
     iconMarkup: string,
     labelText: string,
@@ -798,8 +804,33 @@ function createMenu(): ActionMenu {
     () => config?.onShowPanel(),
     !canRetranslate,
   );
-  addItem(SETTINGS_ICON, t("commonSettings"), openSettings, true);
+  const views: Array<{ mode: OverlayMode; label: string }> = [
+    { mode: "translation", label: t("optionsOverlayViewTranslation") },
+    { mode: "original", label: t("optionsOverlayViewOriginal") },
+  ];
+  items.push({
+    icon: OVERLAY_ICON,
+    label: t("overlayInitialView"),
+    separatorBefore: true,
+    currentLabel: () =>
+      views.find((view) => view.mode === defaultMode)?.label ?? "",
+    choices: views.map((view) => ({
+      label: view.label,
+      isChecked: () => defaultMode === view.mode,
+      onSelect: () => saveDefaultMode(view.mode),
+    })),
+  });
+  addItem(SETTINGS_ICON, t("commonSettings"), openSettings);
   return createActionMenu({ items, overlay: true });
+}
+
+// Same setting as the options page
+function saveDefaultMode(next: OverlayMode): void {
+  const previous = defaultMode;
+  defaultMode = next;
+  void setDefaultOverlayMode(next).catch(() => {
+    defaultMode = previous;
+  });
 }
 
 function openSettings(): void {
