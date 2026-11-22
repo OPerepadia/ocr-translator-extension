@@ -26,7 +26,9 @@ import { sendToContent } from "@/shared/runtime-messaging";
 import {
   createSettingsRepository,
   getDisplayMode,
+  getImageHoverButton,
   setDisplayMode,
+  setImageHoverButton,
   type DisplayMode,
 } from "@/shared/storage";
 import type { Settings } from "@/shared/types";
@@ -71,11 +73,13 @@ async function initPopup(): Promise<void> {
   void showShortcutHint(elements);
 
   try {
-    const [settings, displayMode, [activeTab]] = await Promise.all([
-      settingsRepository.get(),
-      getDisplayMode(),
-      browser.tabs.query({ active: true, currentWindow: true }),
-    ]);
+    const [settings, displayMode, imageHoverButton, [activeTab]] =
+      await Promise.all([
+        settingsRepository.get(),
+        getDisplayMode(),
+        getImageHoverButton(),
+        browser.tabs.query({ active: true, currentWindow: true }),
+      ]);
     currentSettings = settings;
 
     fillLanguageSelect(
@@ -104,6 +108,7 @@ async function initPopup(): Promise<void> {
     for (const input of elements.displayModeInputs) {
       input.checked = input.value === displayMode;
     }
+    elements.imageHoverButton.checked = imageHoverButton;
 
     elements.controls.addEventListener("change", () => {
       const ocrProviderId = elements.ocrProvider.value;
@@ -257,9 +262,11 @@ function queuePopupSave(elements: PopupElements): void {
   )
     ? "panel"
     : "overlay";
+  const nextImageHoverButton = elements.imageHoverButton.checked;
   pendingSave = pendingSave.catch(() => {}).then(async () => {
     await settingsRepository.set(nextSettings);
     await setDisplayMode(nextDisplayMode);
+    await setImageHoverButton(nextImageHoverButton);
   });
   void pendingSave.then(clearSaveError, (error: unknown) => {
     console.error(
@@ -407,6 +414,7 @@ interface PopupElements {
   ocrProvider: HTMLSelectElement;
   translationProvider: HTMLSelectElement;
   displayModeInputs: HTMLInputElement[];
+  imageHoverButton: HTMLInputElement;
   openSettings: HTMLButtonElement;
   selectArea: HTMLButtonElement;
   liveTranslate: HTMLButtonElement;
@@ -430,6 +438,7 @@ function getPopupElements(): PopupElements {
         'input[name="display-mode"]',
       ),
     ),
+    imageHoverButton: requiredElement("image-hover-button", HTMLInputElement),
     openSettings: requiredElement("open-settings", HTMLButtonElement),
     selectArea: requiredElement("select-area", HTMLButtonElement),
     liveTranslate: requiredElement("live-translate", HTMLButtonElement),

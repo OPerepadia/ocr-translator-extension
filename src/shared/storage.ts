@@ -71,6 +71,39 @@ export async function setAdjustSelection(enabled: boolean): Promise<void> {
   await browser.storage.local.set({ [ADJUST_SELECTION_KEY]: enabled });
 }
 
+// A translate button on images under the pointer.
+// Off by default because it adds a control to every page.
+const IMAGE_HOVER_BUTTON_KEY = "imageHoverButton";
+
+export async function getImageHoverButton(): Promise<boolean> {
+  try {
+    const values = await browser.storage.local.get(IMAGE_HOVER_BUTTON_KEY);
+    return values[IMAGE_HOVER_BUTTON_KEY] === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function setImageHoverButton(enabled: boolean): Promise<void> {
+  await browser.storage.local.set({ [IMAGE_HOVER_BUTTON_KEY]: enabled });
+}
+
+// Calls `listener` when the setting changes. Returns a function that stops it.
+export function watchImageHoverButton(
+  listener: (enabled: boolean) => void,
+): () => void {
+  const handleChange = (
+    changes: Record<string, { newValue?: unknown }>,
+    area: string,
+  ): void => {
+    if (area === "local" && IMAGE_HOVER_BUTTON_KEY in changes) {
+      listener(changes[IMAGE_HOVER_BUTTON_KEY].newValue === true);
+    }
+  };
+  browser.storage.onChanged.addListener(handleChange);
+  return () => browser.storage.onChanged.removeListener(handleChange);
+}
+
 const DEFAULT_OVERLAY_MODE_KEY = "defaultOverlayMode";
 
 export async function getDefaultOverlayMode(): Promise<OverlayMode> {

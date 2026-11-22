@@ -221,6 +221,67 @@ select {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+.popup-toggle {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 0 10px 0 12px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.popup-toggle input {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--hover-bg);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.popup-toggle input::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+.popup-toggle input:checked {
+  border-color: var(--primary-bg);
+  background: var(--primary-bg);
+}
+
+.popup-toggle input:checked::before {
+  background: #ffffff;
+  transform: translateX(16px);
+}
+
+.popup-toggle input:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .direction {
   z-index: 1;
   grid-column: 1 / 3;
@@ -451,6 +512,7 @@ select:disabled,
 
 .icon-button:focus-visible,
 select:focus-visible,
+.popup-toggle input:focus-visible,
 .ocr-translate-popup-langpill-button:focus-visible,
 .popup-actions button:focus-visible {
   outline: 3px solid var(--focus-ring);

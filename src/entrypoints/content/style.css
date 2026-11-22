@@ -368,6 +368,46 @@
   pointer-events: none;
 }
 
+/* Translate button on an image. The script sets left/top to the image's
+   top-right corner; the transform moves the button inside. */
+.ocr-translate-image-button {
+  position: fixed;
+  z-index: 2147483645;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--ocr-halo-fixed);
+  border-radius: var(--ocr-radius-control);
+  background: var(--ocr-scrim-surface);
+  box-shadow: var(--ocr-shadow-float);
+  color: var(--ocr-scrim-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(calc(-100% - 8px), 8px);
+  transition: background-color var(--ocr-duration-fast) ease;
+}
+
+.ocr-translate-image-button[hidden] {
+  display: none;
+}
+
+.ocr-translate-image-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Slightly lighter than the button, like the toolbar buttons. */
+.ocr-translate-image-button:hover {
+  background: rgba(32, 40, 58, 0.85);
+}
+
+.ocr-translate-image-button:active {
+  background: rgba(45, 52, 70, 0.85);
+}
+
 .ocr-translate-selection-controls {
   position: fixed;
   z-index: 3;
@@ -1846,6 +1886,7 @@
 /* Focus */
 
 .ocr-translate-selection-controls button:focus-visible,
+.ocr-translate-image-button:focus-visible,
 .ocr-translate-popup-icon-button:focus-visible,
 .ocr-translate-popup-menu-item:focus-visible,
 .ocr-translate-popup-langpill-button:focus-visible,

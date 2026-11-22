@@ -260,6 +260,12 @@
   "optionsDefaultOverlayModeHint": {
     "message": "Наведіть курсор на блок тексту, щоб побачити переклад і оригінальний текст. Клавіша Shift перемикає вигляд."
   },
+  "optionsImageHoverButton": {
+    "message": "Показувати кнопку перекладу на зображеннях"
+  },
+  "optionsImageHoverButtonHint": {
+    "message": "Наведіть курсор на зображення й натисніть кнопку, щоб перекласти."
+  },
   "optionsSetEndpointFirst": {
     "message": "Спочатку вкажіть URL кінцевої точки."
   },

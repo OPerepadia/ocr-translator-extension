@@ -260,6 +260,12 @@
   "optionsDefaultOverlayModeHint": {
     "message": "将鼠标悬停在文字块上可查看译文和原文。按 Shift 键可切换视图。"
   },
+  "optionsImageHoverButton": {
+    "message": "在图片上显示翻译按钮"
+  },
+  "optionsImageHoverButtonHint": {
+    "message": "将鼠标悬停在图片上并点击按钮即可翻译。"
+  },
   "optionsSetEndpointFirst": {
     "message": "请先设置端点 URL。"
   },

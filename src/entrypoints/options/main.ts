@@ -23,9 +23,11 @@ import {
   getDefaultOverlayMode,
   getDisplayMode,
   getAdjustSelection,
+  getImageHoverButton,
   setDisplayMode,
   setDefaultOverlayMode,
   setAdjustSelection,
+  setImageHoverButton,
   setUiLocale,
   normalizeUiLocale,
 } from "@/shared/storage";
@@ -196,6 +198,16 @@ async function initOptions(): Promise<void> {
   elements.adjustSelectionInput.addEventListener("change", () => {
     queueSave(() =>
       setAdjustSelection(elements.adjustSelectionInput.checked),
+    ).then(
+      () => showStatus(t("commonSaved")),
+      (error: unknown) => showSaveError(error),
+    );
+  });
+
+  elements.imageHoverButtonInput.checked = await getImageHoverButton();
+  elements.imageHoverButtonInput.addEventListener("change", () => {
+    queueSave(() =>
+      setImageHoverButton(elements.imageHoverButtonInput.checked),
     ).then(
       () => showStatus(t("commonSaved")),
       (error: unknown) => showSaveError(error),
@@ -817,6 +829,7 @@ function getOptionsElements(): {
   uiLocaleSelect: HTMLSelectElement;
   defaultOverlayModeSelect: HTMLSelectElement;
   adjustSelectionInput: HTMLInputElement;
+  imageHoverButtonInput: HTMLInputElement;
   ocrWebGpuInput: HTMLInputElement;
   ocrWebGpuNote: HTMLElement;
   ocrWebGpuStatus: HTMLElement;
@@ -868,6 +881,9 @@ function getOptionsElements(): {
   );
   const adjustSelectionInput = app.querySelector<HTMLInputElement>(
     "input[name='adjustSelection']",
+  );
+  const imageHoverButtonInput = app.querySelector<HTMLInputElement>(
+    "input[name='imageHoverButton']",
   );
   const ocrWebGpuInput = app.querySelector<HTMLInputElement>(
     "input[name='ocrWebGpu']",
@@ -936,6 +952,7 @@ function getOptionsElements(): {
     !uiLocaleSelect ||
     !defaultOverlayModeSelect ||
     !adjustSelectionInput ||
+    !imageHoverButtonInput ||
     !ocrWebGpuInput ||
     !ocrWebGpuNote ||
     !ocrWebGpuStatus ||
@@ -976,6 +993,7 @@ function getOptionsElements(): {
     uiLocaleSelect,
     defaultOverlayModeSelect,
     adjustSelectionInput,
+    imageHoverButtonInput,
     ocrWebGpuInput,
     ocrWebGpuNote,
     ocrWebGpuStatus,

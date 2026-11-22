@@ -24,8 +24,10 @@ import {
   getDefaultOverlayMode,
   getDisplayMode,
   getAdjustSelection,
+  getImageHoverButton,
   getLiveTextScale,
   setLiveTextScale,
+  watchImageHoverButton,
   type DisplayMode,
   type LiveTextScale,
 } from "@/shared/storage";
@@ -82,10 +84,11 @@ import {
   setNavigationContext,
   startNavigationWatch,
 } from "./navigation-watch";
-import { getRenderedImageRect } from "./overlay-layout";
 import { getUiAnchor, watchFullscreen, watchUiModal } from "./modal-ui";
 import { languageName } from "./language-picker";
 import { findImageAtPoint } from "./image-picker";
+import { renderedImageRect } from "./image-rect";
+import { startImageHoverButton } from "./image-hover-button";
 import { answerFrameImageProbe, receiveFrameImage } from "./frame-images";
 import "./style.css";
 
@@ -273,6 +276,49 @@ export default defineContentScript({
       withUi(() => void run());
     };
 
+    // Translate button on images, turned on in Options.
+    let stopHoverButton: (() => void) | undefined;
+    const setHoverButton = (enabled: boolean): void => {
+      stopHoverButton?.();
+      stopHoverButton = undefined;
+      if (!enabled || ctx.isInvalid) {
+        return;
+      }
+      stopHoverButton = startImageHoverButton({
+        getReadyUiRoot: () => {
+          const host = getUiHost();
+          return host?.isConnected && host.parentElement === getUiAnchor()
+            ? uiRoot
+            : undefined;
+        },
+        getUiHost,
+        // Moving the UI into a dialog would close it with the dialog, so a
+        // UI that is showing something stays where it is.
+        mountUi: async () => {
+          const busy = uiRoot?.querySelector(
+            ":scope > :not(.ocr-translate-image-button)",
+          );
+          if (!busy) {
+            await ensureUi();
+          }
+        },
+        isPaused: () => live !== undefined,
+        onTranslate: (image) =>
+          startImageTranslation(() => runImageElementFlow(image)),
+      });
+    };
+    // A change made while the saved value is still loading wins.
+    let hoverButtonChanged = false;
+    const stopWatchingHoverButton = watchImageHoverButton((enabled) => {
+      hoverButtonChanged = true;
+      setHoverButton(enabled);
+    });
+    void getImageHoverButton().then((enabled) => {
+      if (!hoverButtonChanged) {
+        setHoverButton(enabled);
+      }
+    });
+
     const handleRuntimeMessage = (
       rawMessage: unknown,
       _sender: unknown,
@@ -334,6 +380,7 @@ export default defineContentScript({
     };
     browser.runtime.onMessage.addListener(handleRuntimeMessage);
     ctx.onInvalidated(() => {
+      stopHoverButton?.();
       stopModalWatch?.();
       stopFullscreenWatch?.();
       selectionGeneration += 1;
@@ -346,6 +393,7 @@ export default defineContentScript({
       disposeResultPanel();
       disposeOverlay();
       uiRoot = undefined;
+      stopWatchingHoverButton();
       browser.runtime.onMessage.removeListener(handleRuntimeMessage);
     });
   },
@@ -676,26 +724,7 @@ function findImageRect(imageUrl: string): Rect | undefined {
           (candidate) =>
             candidate.currentSrc === imageUrl || candidate.src === imageUrl,
         );
-  if (!image) {
-    return undefined;
-  }
-  const rect = image.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) {
-    return undefined;
-  }
-  const style = getComputedStyle(image);
-  return getRenderedImageRect({
-    elementRect: {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-    },
-    naturalWidth: image.naturalWidth,
-    naturalHeight: image.naturalHeight,
-    objectFit: style.objectFit,
-    objectPosition: style.objectPosition,
-  });
+  return image && renderedImageRect(image);
 }
 
 async function runCapture(

@@ -6,7 +6,7 @@
   <a href="https://github.com/OPerepadia/ocr-translator-extension/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue.svg" alt="MPL-2.0 license"></a>
 </p>
 
-Browser extension that uses local OCR to extract text from images, comics, scans, or any selected area of a web page, and shows the translation in an overlay or a panel.
+Browser extension that uses local OCR to extract text from images, comics, scans, or any area of a web page, and shows the translation in an overlay or a panel.
 
 Text recognition runs locally in your browser. Translation uses Google Translate by default. You can also use DeepL (with your own API key) or any OpenAI-compatible LLM endpoint (local or remote).
 
@@ -51,6 +51,8 @@ Keyboard shortcuts:
 You can set or change a shortcut in the extension settings.
 
 You can also right-click an image and choose **Translate this image**.
+
+To translate an image with one click, enable **Show a translate button on images** in the popup or the extension settings. A button then appears in the corner of an image when you hover over it.
 
 To move or resize the area before recognition starts, enable **Adjust selection before recognition** in the extension settings.
 

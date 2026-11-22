@@ -260,6 +260,12 @@
   "optionsDefaultOverlayModeHint": {
     "message": "テキストブロックにカーソルを合わせると、翻訳と原文が表示されます。Shift キーで表示を切り替えられます。"
   },
+  "optionsImageHoverButton": {
+    "message": "画像に翻訳ボタンを表示"
+  },
+  "optionsImageHoverButtonHint": {
+    "message": "画像にカーソルを合わせてボタンをクリックすると翻訳できます。"
+  },
   "optionsSetEndpointFirst": {
     "message": "先にエンドポイントURLを設定してください。"
   },

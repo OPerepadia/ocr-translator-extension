@@ -5,11 +5,14 @@ import {
   getDefaultOverlayMode,
   getDisplayMode,
   getAdjustSelection,
+  getImageHoverButton,
   getUiLocale,
   setUiLocale,
   UI_LOCALES,
   setDisplayMode,
   setDefaultOverlayMode,
+  setImageHoverButton,
+  watchImageHoverButton,
 } from "./storage";
 
 afterEach(() => {
@@ -119,5 +122,79 @@ describe("storage defaults", () => {
     await expect(createSettingsRepository().get()).resolves.toEqual(
       defaultSettings,
     );
+  });
+});
+
+describe("image hover button setting", () => {
+  it("is off when nothing is saved", async () => {
+    stubStorage({});
+    await expect(getImageHoverButton()).resolves.toBe(false);
+  });
+
+  it("is off when storage cannot be read", async () => {
+    vi.stubGlobal("browser", {
+      storage: { local: { get: vi.fn().mockRejectedValue(new Error("Unavailable")) } },
+    });
+    await expect(getImageHoverButton()).resolves.toBe(false);
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+    ["true", false],
+    [1, false],
+  ])("reads %j as %j", async (saved, enabled) => {
+    stubStorage({ imageHoverButton: saved });
+    await expect(getImageHoverButton()).resolves.toBe(enabled);
+  });
+
+  it("writes only its own key", async () => {
+    const set = vi.fn(async () => {});
+    vi.stubGlobal("browser", { storage: { local: { set } } });
+    await setImageHoverButton(true);
+    expect(set).toHaveBeenCalledWith({ imageHoverButton: true });
+  });
+
+  describe("watching", () => {
+    function stubChangeEvents() {
+      const addListener = vi.fn();
+      const removeListener = vi.fn();
+      vi.stubGlobal("browser", {
+        storage: { onChanged: { addListener, removeListener } },
+      });
+      return { addListener, removeListener };
+    }
+
+    it("reports changes to the local area", () => {
+      const { addListener } = stubChangeEvents();
+      const listener = vi.fn();
+      watchImageHoverButton(listener);
+      const onChanged = addListener.mock.calls[0][0];
+
+      onChanged({ imageHoverButton: { newValue: true } }, "local");
+      onChanged({ imageHoverButton: { oldValue: true } }, "local");
+      onChanged({ imageHoverButton: { newValue: "yes" } }, "local");
+
+      expect(listener.mock.calls).toEqual([[true], [false], [false]]);
+    });
+
+    it("ignores other keys and storage areas", () => {
+      const { addListener } = stubChangeEvents();
+      const listener = vi.fn();
+      watchImageHoverButton(listener);
+      const onChanged = addListener.mock.calls[0][0];
+
+      onChanged({ displayMode: { newValue: "panel" } }, "local");
+      onChanged({ imageHoverButton: { newValue: true } }, "sync");
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it("stops listening when asked", () => {
+      const { addListener, removeListener } = stubChangeEvents();
+      const stop = watchImageHoverButton(vi.fn());
+      stop();
+      expect(removeListener).toHaveBeenCalledWith(addListener.mock.calls[0][0]);
+    });
   });
 });

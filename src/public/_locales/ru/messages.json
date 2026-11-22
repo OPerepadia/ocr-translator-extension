@@ -260,6 +260,12 @@
   "optionsDefaultOverlayModeHint": {
     "message": "Наведите курсор на блок текста, чтобы увидеть перевод и оригинальный текст. Клавиша Shift переключает вид."
   },
+  "optionsImageHoverButton": {
+    "message": "Показывать кнопку перевода на изображениях"
+  },
+  "optionsImageHoverButtonHint": {
+    "message": "Наведите курсор на изображение и нажмите кнопку, чтобы перевести."
+  },
   "optionsSetEndpointFirst": {
     "message": "Сначала укажите URL конечной точки."
   },

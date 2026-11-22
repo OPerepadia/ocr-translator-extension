@@ -295,6 +295,12 @@
   "optionsDefaultOverlayModeHint": {
     "message": "Hover over a text block to see the translation and original text. Press Shift to switch views."
   },
+  "optionsImageHoverButton": {
+    "message": "Show a translate button on images"
+  },
+  "optionsImageHoverButtonHint": {
+    "message": "Hover over an image and click the button to translate it."
+  },
   "optionsSetEndpointFirst": {
     "message": "Set the endpoint URL first."
   },
