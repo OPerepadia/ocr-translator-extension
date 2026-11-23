@@ -6,8 +6,6 @@ import { renderedImageRect } from "./image-rect";
 
 // Smaller images are icons and thumbnails.
 const MIN_PICTURE_SIZE = 150;
-// Skip an image that is almost scrolled out of view.
-const MIN_VISIBLE_SIZE = 64;
 const MOUNT_RETRY_MS = 3000;
 
 export interface ImageHoverButtonOptions {
@@ -94,11 +92,11 @@ export function startImageHoverButton(
       mountUi();
       return;
     }
-    const visible = visibleRect(rect);
-    if (
-      visible.width < MIN_VISIBLE_SIZE ||
-      visible.height < MIN_VISIBLE_SIZE
-    ) {
+    // Hide when the corner is off screen or covered, such as by a page header.
+    const top = rect.y;
+    const right = rect.x + rect.width;
+    const host = options.getUiHost();
+    if (findImageAtPoint(right - 24, top + 24, host) !== image) {
       hide();
       return;
     }
@@ -109,8 +107,8 @@ export function startImageHoverButton(
     }
     target = image;
     // The stylesheet moves the button in from this corner.
-    button.style.left = `${visible.x + visible.width}px`;
-    button.style.top = `${visible.y}px`;
+    button.style.left = `${right}px`;
+    button.style.top = `${top}px`;
     button.hidden = false;
   }
 
@@ -227,17 +225,4 @@ function pictureAt(
   return rect && rect.width >= MIN_PICTURE_SIZE && rect.height >= MIN_PICTURE_SIZE
     ? { image, rect }
     : undefined;
-}
-
-// The part of a rect inside the viewport, not counting scrollbars.
-function visibleRect(rect: Rect): Rect {
-  const { clientWidth, clientHeight } = document.documentElement;
-  const x = Math.max(rect.x, 0);
-  const y = Math.max(rect.y, 0);
-  return {
-    x,
-    y,
-    width: Math.max(0, Math.min(rect.x + rect.width, clientWidth) - x),
-    height: Math.max(0, Math.min(rect.y + rect.height, clientHeight) - y),
-  };
 }

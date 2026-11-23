@@ -111,18 +111,23 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await nextPaint(page);
       assert.deepEqual(await button.boundingBox(), { x: 360, y: 58, width: 32, height: 32 });
 
-      // It stays in the visible part of the image.
+      // It goes off screen with the corner, and comes back with it.
       await page.evaluate(() => window.scrollTo(0, 250));
       await page.mouse.move(250, 50);
-      await nextPaint(page);
-      assert.deepEqual(await button.boundingBox(), { x: 360, y: 8, width: 32, height: 32 });
-
-      // A sliver left on screen is not worth a button.
-      await page.evaluate(() => window.scrollTo(0, 330));
-      await page.mouse.move(250, 10);
-      await nextPaint(page);
-      assert.equal(await button.isVisible(), false);
+      await button.waitFor({ state: "hidden" });
       await page.evaluate(() => window.scrollTo(0, 0));
+      await page.mouse.move(250, 250);
+      await button.waitFor({ state: "visible" });
+
+      // A page header over the corner hides it.
+      await page.evaluate(() => {
+        const header = document.createElement("header");
+        header.style.cssText = "position:fixed; inset:0 0 auto; height:180px; background:#333";
+        document.body.append(header);
+      });
+      await page.mouse.move(260, 260);
+      await button.waitFor({ state: "hidden" });
+      await page.evaluate(() => document.querySelector("header").remove());
       await page.mouse.move(250, 250);
       await button.waitFor({ state: "visible" });
 
