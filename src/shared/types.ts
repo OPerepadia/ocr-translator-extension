@@ -128,7 +128,7 @@ export interface Settings {
       model?: string;
       /** Remove the browser extension's Origin header. Defaults to false. */
       removeOriginHeader?: boolean;
-      /** Thinking is disabled unless this is explicitly false. */
+      /** False for new users. Unset means true, as older versions saved it. */
       disableThinking?: boolean;
       /** Per-request timeout; the provider default (60s) when unset. */
       timeoutMs?: number;

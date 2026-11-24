@@ -246,7 +246,7 @@ describe("createOpenAiTranslationProvider", () => {
     // The prompt names the languages rather than passing bare codes.
     expect(request.body.messages[0].content).toContain("Japanese (ja)");
     expect(request.body.messages[0].content).toContain("English (en)");
-    // Thinking is disabled by default.
+    // Unset means disabled, as older versions saved it.
     expect(request.body.reasoning_effort).toBe("none");
     expect(request.body.chat_template_kwargs).toEqual({
       enable_thinking: false,
@@ -407,7 +407,7 @@ describe("createOpenAiTranslationProvider", () => {
     });
   });
 
-  it("leaves thinking alone when the user re-enabled it", async () => {
+  it("leaves thinking alone when it is not disabled", async () => {
     const { fetchImpl, requests } = llmFetchMock((segments) =>
       translationReply(segments),
     );

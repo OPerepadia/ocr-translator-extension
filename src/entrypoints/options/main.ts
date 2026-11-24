@@ -128,6 +128,7 @@ async function initOptions(): Promise<void> {
     null,
     settings.translation.llm?.model ?? "",
   );
+  // Older versions saved a checked box as unset.
   elements.llmDisableThinkingInput.checked =
     settings.translation.llm?.disableThinking ?? true;
   const savedTimeoutMs = settings.translation.llm?.timeoutMs;
@@ -493,12 +494,12 @@ async function testConnection(elements: OptionsElements): Promise<void> {
   elements.llmModelsStatus.classList.remove("is-error", "is-success");
   try {
     await testLlmConnection({
-      baseUrl: llm?.baseUrl ?? "",
-      apiKey: llm?.apiKey,
-      model: llm?.model,
-      removeOriginHeader: llm?.removeOriginHeader,
-      disableThinking: llm?.disableThinking,
-      timeoutMs: llm?.timeoutMs,
+      baseUrl: llm.baseUrl ?? "",
+      apiKey: llm.apiKey,
+      model: llm.model,
+      removeOriginHeader: llm.removeOriginHeader,
+      disableThinking: llm.disableThinking,
+      timeoutMs: llm.timeoutMs,
     });
     elements.llmModelsStatus.textContent = t("commonConnected");
     elements.llmModelsStatus.classList.add("is-success");
@@ -593,7 +594,9 @@ function fillLlmModelSelect(
   }
 }
 
-function readLlmSettings(formData: FormData): Settings["translation"]["llm"] {
+function readLlmSettings(
+  formData: FormData,
+): NonNullable<Settings["translation"]["llm"]> {
   const baseUrl = String(formData.get("llmBaseUrl") ?? "").trim();
   const apiKey = String(formData.get("llmApiKey") ?? "").trim();
   const model = String(formData.get("llmModel") ?? "").trim();
@@ -607,25 +610,13 @@ function readLlmSettings(formData: FormData): Settings["translation"]["llm"] {
       ? Math.round(timeoutSeconds * 1000)
       : undefined;
 
-  // A checked box is the default, so the whole section is "untouched" when
-  // everything else is empty too.
-  if (
-    !baseUrl &&
-    !apiKey &&
-    !model &&
-    !removeOriginHeader &&
-    disableThinking &&
-    !timeoutMs
-  ) {
-    return undefined;
-  }
   return {
     baseUrl: baseUrl || undefined,
     apiKey: apiKey || undefined,
     model: model || undefined,
     removeOriginHeader: removeOriginHeader || undefined,
-    // Thinking is disabled by default; only an explicit re-enable is stored.
-    disableThinking: disableThinking ? undefined : false,
+    // Always saved, because unset means true for older settings.
+    disableThinking,
     timeoutMs,
   };
 }

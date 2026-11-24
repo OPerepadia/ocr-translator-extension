@@ -123,6 +123,23 @@ describe("storage defaults", () => {
       defaultSettings,
     );
   });
+
+  it("leaves model thinking on for new users", () => {
+    expect(defaultSettings.translation.llm?.disableThinking).toBe(false);
+  });
+
+  it("keeps saved LLM settings without adding the new default", async () => {
+    const saved = {
+      ...defaultSettings,
+      translation: {
+        providerId: "openai",
+        targetLang: "en",
+        llm: { baseUrl: "http://localhost:8080/v1" },
+      },
+    };
+    stubStorage({ settings: saved });
+    await expect(createSettingsRepository().get()).resolves.toEqual(saved);
+  });
 });
 
 describe("image hover button setting", () => {

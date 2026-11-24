@@ -155,6 +155,7 @@ export const defaultSettings: Settings = {
     targetLang: "en",
     llm: {
       baseUrl: "http://localhost:8080/v1",
+      disableThinking: false,
     },
   },
 };

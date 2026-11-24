@@ -160,6 +160,8 @@ The **LLM** translation provider works with any server that has an OpenAI-compat
 5. Click **Fetch models** and pick a model.
 6. Click **Test connection**.
 
+If a reasoning model is slow or times out, turn on **Disable model thinking** if your server supports it, or raise the request timeout.
+
 Default endpoints of common servers:
 
 | Server | Endpoint URL | Notes |
@@ -168,7 +170,7 @@ Default endpoints of common servers:
 | [Ollama](https://ollama.com/) | `http://localhost:11434/v1` | Turn on **Remove Origin header**, or Ollama answers with HTTP 403. |
 | [LM Studio](https://lmstudio.ai/) | `http://localhost:1234/v1` | Start the local server in LM Studio first. |
 | [OpenRouter](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | Needs an API key. |
-| OpenAI | `https://api.openai.com/v1` | Needs an API key. Also turn off **Disable model thinking**. |
+| OpenAI | `https://api.openai.com/v1` | Needs an API key. Keep **Disable model thinking** off. |
 
 ## WebGPU setup
 
@@ -211,7 +213,7 @@ for a walkthrough.
 | The LLM returned an invalid translation format after a retry | The model isn't following the JSON format. This often happens with smaller models. Try a larger or instruction-tuned model. |
 | HTTP 403 with Ollama | Turn on **Remove Origin header** in the LLM settings. |
 | RAM usage grows while using llama.cpp | Start the server with `--cache-ram 0`. This turns off the prompt cache, which keeps copies of earlier prompts in RAM. |
-| LLM request failed (HTTP 400) from a hosted LLM API | Turn off **Disable model thinking**, and check that the model name is correct. |
+| LLM request failed (HTTP 400: Unknown parameter: 'chat_template_kwargs'.) | The server doesn't support 'chat_template_kwargs'. Turn off **Disable model thinking**, and check that the model name is correct. |
 | Google Translate timed out | Try again, or switch to another provider. Google may rate-limit frequent requests. |
 
 ### Recognition

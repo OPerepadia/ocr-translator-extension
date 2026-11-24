@@ -62,8 +62,8 @@ export interface OpenAiProviderConfig {
     model?: string;
     /** Remove Origin from chat-completions requests for Ollama compatibility. */
     removeOriginHeader?: boolean;
-    /** Ask the server to skip the model's thinking phase. Enabled by default;
-     * users can disable it for APIs that reject the request fields. */
+    /** Ask the server to skip the model's thinking phase. Unset means true,
+     * so settings saved by older versions keep working the same way. */
     disableThinking?: boolean;
     /** Per-request timeout in ms, set on the options page (as seconds).
      * Defaults to DEFAULT_TIMEOUT_MS; non-positive values are ignored. */
