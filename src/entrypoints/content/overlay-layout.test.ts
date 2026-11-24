@@ -13,6 +13,7 @@ import {
   moveOverlayLayout,
   paragraphAngle,
   rotatedBounds,
+  extendCard,
   separateCards,
 } from "./overlay-layout";
 
@@ -735,6 +736,30 @@ describe("separateCards", () => {
       expect(rect.y + rect.height).toBeLessThanOrEqual(60);
     }
     expect(placed[0].y + placed[0].height).toBeLessThanOrEqual(placed[1].y);
+  });
+});
+
+describe("extendCard", () => {
+  const card = { x: 140, y: 115, width: 120, height: 30 };
+  const cover = { x: 100, y: 100, width: 200, height: 60 };
+
+  it("extends a card over its cover", () => {
+    expect(extendCard([card], 0, cover)).toEqual(cover);
+  });
+
+  it("keeps the parts of a card outside its cover", () => {
+    expect(extendCard([{ ...card, x: 80, width: 240 }], 0, cover)).toEqual({
+      x: 80,
+      y: 100,
+      width: 240,
+      height: 60,
+    });
+  });
+
+  it("does not extend a card over another one, past its padding", () => {
+    const other = { x: 270, y: 110, width: 100, height: 40 };
+    expect(extendCard([card, other], 0, cover)).toBeUndefined();
+    expect(extendCard([card, { ...other, x: 297 }], 0, cover)).toEqual(cover);
   });
 });
 

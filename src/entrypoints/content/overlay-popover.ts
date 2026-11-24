@@ -57,7 +57,7 @@ interface PopoverView {
 }
 
 export interface OverlayPopover {
-  attach(box: HTMLElement, index: number, mode: OverlayMode): void;
+  attach(box: HTMLElement, index: number): void;
   dismiss(): boolean;
   clearBoxes(): void;
   reposition(): void;
@@ -82,18 +82,9 @@ export function createOverlayPopover(
 
   const state = (): OverlayPopoverState => options.getState();
 
-  function attach(
-    box: HTMLElement,
-    index: number,
-    mode: OverlayMode,
-  ): void {
+  function attach(box: HTMLElement, index: number): void {
     setBoxState(box, false);
-    const hoverTarget =
-      mode === "translation" &&
-      box.firstElementChild instanceof HTMLElement
-        ? box.firstElementChild
-        : box;
-    hoverTarget.addEventListener("pointerenter", (event) => {
+    box.addEventListener("pointerenter", (event) => {
       clearCloseTimer();
       if (event.pointerType === "touch") {
         show(index);
@@ -101,10 +92,10 @@ export function createOverlayPopover(
       }
       waitForPointerToSettle(index, event);
     });
-    hoverTarget.addEventListener("pointermove", (event) => {
+    box.addEventListener("pointermove", (event) => {
       keepWaitingForPointerToSettle(index, event);
     });
-    hoverTarget.addEventListener("pointerleave", handlePointerLeave);
+    box.addEventListener("pointerleave", handlePointerLeave);
     box.addEventListener("keydown", (event) => {
       if (event.repeat || !isOverlayBoxActivationKey(event.key)) {
         return;
@@ -168,11 +159,9 @@ export function createOverlayPopover(
     }
     const into = event.relatedTarget;
     const box = state().boxes[activeView.boxIndex]?.element;
-    const hoverTarget =
-      state().mode === "translation" ? box?.firstElementChild : box;
     if (
       into instanceof Node &&
-      (activeView.el.contains(into) || hoverTarget?.contains(into))
+      (activeView.el.contains(into) || box?.contains(into))
     ) {
       return;
     }
@@ -493,14 +482,7 @@ export function createOverlayPopover(
     if (!box) {
       return;
     }
-    const translationPanel =
-      currentState.mode === "translation"
-        ? box.element.firstElementChild
-        : undefined;
-    const rect =
-      translationPanel instanceof HTMLElement
-        ? translationPanel.getBoundingClientRect()
-        : pageToViewportRect(rotatedBounds(box.rect, box.angle));
+    const rect = pageToViewportRect(rotatedBounds(box.rect, box.angle));
     view.el.style.maxWidth = `${popoverMaxWidth(rect.width, window.innerWidth)}px`;
     const scrollTop = view.body?.scrollTop ?? 0;
     view.el.style.maxHeight = "";

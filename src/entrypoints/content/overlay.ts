@@ -41,6 +41,9 @@ import {
 } from "./pipeline-status";
 import {
   buildOverlayLayout,
+  extendCard,
+  growRect,
+  intersectRect,
   moveOverlayLayout,
   fitRectNearBounds,
   separateCards,
@@ -72,12 +75,20 @@ let toolbar: HTMLElement | undefined;
 let toolbarPosition: { x: number; y: number } | undefined;
 let modeButton: HTMLButtonElement | undefined;
 let renderedBoxes: OverlayPopoverBox[] = [];
-let boxLayers: Partial<
-  Record<
-    OverlayMode,
-    { element: HTMLElement; boxes: OverlayPopoverBox[] }
-  >
-> = {};
+interface BoxLayer {
+  element: HTMLElement;
+  boxes: OverlayPopoverBox[];
+}
+let boxLayers: Partial<Record<OverlayMode, BoxLayer>> = {};
+interface CardFit {
+  textSize: number;
+  sourceWidth: number;
+  vertical: boolean;
+  expanded: boolean;
+  bubbleRoom?: Rect;
+}
+// How each translation card was fitted, in the order of its boxes.
+let cardFits: CardFit[] = [];
 let popover: OverlayPopover | undefined;
 let regionBackdrop: HTMLElement | undefined;
 let regionFrame: HTMLElement | undefined;
@@ -936,12 +947,20 @@ function refreshTranslationBackgrounds(): void {
     return;
   }
   const groups = currentLayout.segmented
-    ? currentLayout.paragraphs.map((paragraph) => [paragraph])
-    : [currentLayout.paragraphs];
-  groups.forEach((paragraphs, index) => {
+    ? currentLayout.paragraphs.map((paragraph) => ({
+        paragraphs: [paragraph],
+        source: paragraph.sourceRect,
+      }))
+    : [
+        {
+          paragraphs: currentLayout.paragraphs,
+          source: currentLayout.combinedSourceRect,
+        },
+      ];
+  const covers = groups.map(({ paragraphs, source }, index) => {
     const box = layer.boxes[index];
     if (!box?.content.translated.trim()) {
-      return;
+      return undefined;
     }
     const tint = estimateSurroundingTint(
       pixels,
@@ -949,11 +968,60 @@ function refreshTranslationBackgrounds(): void {
       paragraphs.flatMap((paragraph) => paragraph.lines),
     );
     if (!tint) {
-      return;
+      return undefined;
     }
     box.element.style.setProperty("--ocr-text-background", tint.background);
     box.element.style.setProperty("--ocr-text-foreground", tint.foreground);
+    // The combined card is upright, so it cannot cover tilted text.
+    const coverable = paragraphs.every(
+      (paragraph) => !paragraph.vertical && paragraph.angle === box.angle,
+    );
+    if (!coverable || tint.margin === undefined || tint.room === undefined) {
+      return undefined;
+    }
+    const room = intersectRect(growRect(source, tint.room), capture);
+    if (room) {
+      refitTruncatedCard(layer, index, room);
+    }
+    return growRect(source, tint.margin);
   });
+  const cards = layer.boxes.map((box) => box.rect);
+  layer.boxes.forEach((box, index) => {
+    const cover = covers[index];
+    const rect = cover && extendCard(cards, index, cover);
+    if (rect) {
+      box.rect = rect;
+      box.element.classList.add("is-extended");
+      positionRectElement(box.element, rect);
+    }
+  });
+}
+
+// Fit a truncated translation again, in the free room around its source text.
+function refitTruncatedCard(layer: BoxLayer, index: number, room: Rect): void {
+  const box = layer.boxes[index];
+  const fit = cardFits[index];
+  // A tilted card cannot be measured, and a bubble has its own room.
+  if (
+    box.angle !== 0 ||
+    fit.bubbleRoom ||
+    !box.element.querySelector(".ocr-translate-overlay-truncation-marker")
+  ) {
+    return;
+  }
+  const cards = layer.boxes.map((other) => other.rect);
+  const rect = extendCard(cards, index, room);
+  if (!rect) {
+    return;
+  }
+  // A hidden layer cannot be measured.
+  const { hidden } = layer.element;
+  layer.element.hidden = false;
+  positionRectElement(box.element, rect);
+  fitTranslationCard(box.element, fit);
+  const center = centerPoint(rect);
+  shrinkBoxesToCards([box], [{ center, slide: center }]);
+  layer.element.hidden = hidden;
 }
 
 function showBoxLayer(dismissPopover = true): void {
@@ -983,12 +1051,7 @@ function renderTranslationBoxes(
   overlayContainer: HTMLElement,
 ): OverlayPopoverBox[] {
   const boxes: OverlayPopoverBox[] = [];
-  const fitOptions: Array<{
-    vertical: boolean;
-    expanded: boolean;
-    textSize: number;
-    sourceWidth: number;
-    bubbleRoom?: Rect;
+  const fitOptions: Array<CardFit & {
     /** Where the card is centred before cards are moved apart. */
     center: Rect;
     slide: Rect;
@@ -1016,7 +1079,6 @@ function renderTranslationBoxes(
           translated: layout.combinedTranslation,
         },
       },
-      "translation",
     );
     fitOptions.push({
       vertical,
@@ -1045,7 +1107,6 @@ function renderTranslationBoxes(
             translated: paragraph.translated ?? "",
           },
         },
-        "translation",
       );
       fitOptions.push({
         vertical: paragraph.vertical,
@@ -1068,6 +1129,7 @@ function renderTranslationBoxes(
     });
   }
 
+  cardFits = fitOptions;
   boxes.forEach((box, index) => {
     fitTranslationCard(box.element, fitOptions[index]);
   });
@@ -1143,7 +1205,6 @@ function renderSourceBoxes(
           translated: layout.combinedTranslation,
         },
       },
-      "original",
     );
   } else {
     layout.paragraphs.forEach((paragraph) => {
@@ -1166,7 +1227,6 @@ function renderSourceBoxes(
             translated: paragraph.translated ?? "",
           },
         },
-        "original",
       );
     });
   }
@@ -1177,10 +1237,9 @@ function renderSourceBoxes(
 function addRenderedBox(
   boxes: OverlayPopoverBox[],
   box: OverlayPopoverBox,
-  boxMode: OverlayMode,
 ): void {
   const index = boxes.push(box) - 1;
-  popover?.attach(box.element, index, boxMode);
+  popover?.attach(box.element, index);
 }
 
 function createTranslationBox(
@@ -1225,24 +1284,15 @@ function createTranslationBox(
 // is shorter. `clampToWholeLines` truncates whatever still overflows.
 function fitTranslationCard(
   box: HTMLElement,
-  {
-    textSize,
-    sourceWidth,
-    vertical,
-    expanded,
-    bubbleRoom,
-  }: {
-    textSize: number;
-    sourceWidth: number;
-    vertical: boolean;
-    expanded: boolean;
-    bubbleRoom?: Rect;
-  },
+  { textSize, sourceWidth, vertical, expanded, bubbleRoom }: CardFit,
 ): void {
   const panel = box.firstElementChild;
   if (!(panel instanceof HTMLElement)) {
     return;
   }
+  // Left over when a card is fitted again.
+  panel.style.removeProperty("-webkit-line-clamp");
+  panel.style.removeProperty("overflow-wrap");
   // Large horizontal text, such as a title, may get a larger font, in step
   // with its line height.
   const maxFontSize = vertical

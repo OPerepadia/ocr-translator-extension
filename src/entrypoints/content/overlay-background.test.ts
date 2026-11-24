@@ -149,6 +149,45 @@ describe("estimateSurroundingTint", () => {
     expect(tint?.background).toBe("rgb(210, 190, 150)");
   });
 
+  describe("margin", () => {
+    const paper = [248, 246, 240, 255];
+    const margin = (pixel: (x: number, y: number) => number[], ocr = line) =>
+      estimateSurroundingTint(
+        image((x, y) => inside(x, y) && x >= 24 && x < 176 && y >= 24 && y < 36 && x % 10 >= 4
+          ? [20, 20, 20, 255]
+          : pixel(x, y)),
+        capture,
+        [ocr],
+      )?.margin;
+
+    it("is small when the box has room around the ink", () => {
+      expect(margin(() => paper)).toBe(3);
+      expect(margin((x, y) => (x * 7 + y * 3) % 4 ? paper : [238, 240, 246, 255])).toBe(3);
+    });
+
+    it("reaches past ink that sticks out of the box", () => {
+      const tight = { ...line, rect: { x: 127, y: 227, width: 146, height: 6 } };
+      const found = margin(() => paper, tight);
+      expect(found).toBeGreaterThan(3);
+      expect(found).toBeLessThanOrEqual(9);
+    });
+
+    it("comes with the room up to the nearest obstacle", () => {
+      const room = (pixel: (x: number, y: number) => number[]) =>
+        estimateSurroundingTint(image(pixel), capture, [line])?.room;
+      expect(room(() => paper)).toBe(18);
+      // A frame 10 px outside the box.
+      expect(room((x, y) => x < 10 || x >= 190 || y < 10 || y >= 50 ? [20, 20, 20, 255] : paper))
+        .toBe(10);
+    });
+
+    it("is unset where the background is not uniform", () => {
+      expect(margin((x, y) => (x + y) % 5 ? paper : [120, 30, 30, 255])).toBeUndefined();
+      expect(margin((x) => [x, x, x, 255])).toBeUndefined();
+      expect(margin((x) => x >= 150 ? [40, 60, 80, 255] : paper)).toBeUndefined();
+    });
+  });
+
   it("leaves transparent and empty input alone", () => {
     expect(estimateSurroundingTint(image(() => [0, 0, 0, 0]), capture, [line])).toBeUndefined();
     expect(estimateSurroundingTint(image(), capture, [])).toBeUndefined();

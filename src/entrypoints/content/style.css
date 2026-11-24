@@ -1317,6 +1317,31 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 
+/* A card extended over its source text: the box is painted instead of the panel.
+   The inset shadow stands in for a border, which would take room from the text. */
+.ocr-translate-overlay-translation-box.is-extended {
+  background: var(--ocr-text-background, rgba(255, 255, 255, 0.97));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 22%, transparent),
+    0 1px 3px rgba(15, 23, 42, 0.16);
+  color: var(--ocr-text-foreground, #152034);
+  transition: box-shadow var(--ocr-duration-fast) ease;
+}
+
+/* A focused card keeps its focus halo instead. */
+.ocr-translate-overlay-translation-box.is-extended:hover:not(:focus-visible) {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 36%, transparent),
+    0 2px 8px rgba(15, 23, 42, 0.22);
+}
+
+.ocr-translate-overlay-translation-box.is-extended
+  .ocr-translate-overlay-translation-text {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+
 /* The script positions this and sets its max width/height from the box and the
    room around it; the values here apply only until it is first positioned. */
 .ocr-translate-overlay-popover {

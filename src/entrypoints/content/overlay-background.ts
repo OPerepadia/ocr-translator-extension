@@ -13,6 +13,11 @@ type Rgb = [number, number, number];
 export interface OverlayTint {
   background: string;
   foreground: string;
+  /** How far past the text's box a card must reach to hide its ink. Set when the
+   * text sits on a uniform background. */
+  margin?: number;
+  /** How far past the text's box the background stays uniform. Set with `margin`. */
+  room?: number;
 }
 
 // Wide enough to clear antialiasing, narrow enough to stay near the block.
@@ -20,6 +25,17 @@ const SURROUND_MARGIN = 6;
 const SURROUND_SAMPLES = 4096;
 // Share of the block's short side the band reaches inside it.
 const SURROUND_INSET = 0.25;
+// A background is uniform when a ring this thick around the text is clear: nearly
+// all of it is close to the background color, per channel.
+const RING = 2;
+const RING_SHARE = 0.98;
+const RING_TOLERANCE = 20;
+// OCR boxes may cut into the glyphs, so the ring is looked for this far outside.
+const RING_REACH = 6;
+// Added around the ring, for the odd bit of ink that its share lets through.
+const RING_PADDING = 3;
+// How far outside the room for a longer translation is looked for.
+const ROOM_REACH = 16;
 
 /** The most common color in a band around the lines, for their translation
  * card. The band straddles the block's edge and follows the text's tilt, so it hugs
@@ -110,7 +126,22 @@ export function estimateSurroundingTint(
     const members = neighborhood(key);
     if (members.length > best.length) best = members;
   }
-  return panelColors(medianColor(best));
+  const color = medianColor(best);
+  const isClear = (by: number): boolean => {
+    const ring = sampleBand(grow(block, by + RING), grow(block, by));
+    const near = ring.filter((sample) =>
+      sample.every((value, i) => Math.abs(value - color[i]) <= RING_TOLERANCE));
+    return near.length >= ring.length * RING_SHARE;
+  };
+  const tint = panelColors(color);
+  for (let by = -RING; by <= RING_REACH; by++) {
+    if (isClear(by)) {
+      let last = by;
+      while (last < ROOM_REACH && isClear(last + 1)) last++;
+      return { ...tint, margin: by + RING + RING_PADDING, room: last + RING };
+    }
+  }
+  return tint;
 }
 
 function binKey(r: number, g: number, b: number): number {

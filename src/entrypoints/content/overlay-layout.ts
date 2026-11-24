@@ -87,6 +87,9 @@ const CARD_GAP = 2;
 // corners of their box are outside them.
 const BUBBLE_ROOM_SHARE = 0.8;
 const CARD_SEPARATION_PASSES = 8;
+// How far an extended card may reach over another card: about the padding
+// around that card's text.
+const EXTEND_OVERLAP = 4;
 // A line only votes on tilt if it is clearly oblong, the same bar the OCR
 // assembler sets for reading orientation.
 const ANGLE_VOTE_MIN_ASPECT = 1.5;
@@ -576,6 +579,24 @@ function moveRoom(
   return Math.max(0, room);
 }
 
+/** The card extended over `cover`, or undefined if it would reach over another
+ * card. */
+export function extendCard(cards: Rect[], index: number, cover: Rect): Rect | undefined {
+  const extended = unionRect([cards[index], cover]);
+  const blocked = cards.some((other, otherIndex) =>
+    otherIndex !== index && intersectRect(extended, growRect(other, -EXTEND_OVERLAP)));
+  return blocked ? undefined : extended;
+}
+
+export function growRect(rect: Rect, by: number): Rect {
+  return {
+    x: rect.x - by,
+    y: rect.y - by,
+    width: rect.width + 2 * by,
+    height: rect.height + 2 * by,
+  };
+}
+
 /** Shift every page-space rectangle after the anchored content reflows. */
 export function moveOverlayLayout(
   layout: OverlayLayout,
@@ -646,7 +667,7 @@ export function buildBubbleRoom(
   return room;
 }
 
-function intersectRect(a: Rect, b: Rect): Rect | undefined {
+export function intersectRect(a: Rect, b: Rect): Rect | undefined {
   const left = Math.max(a.x, b.x);
   const top = Math.max(a.y, b.y);
   const right = Math.min(a.x + a.width, b.x + b.width);
