@@ -17,6 +17,10 @@ The Chrome and Firefox browser tests load the built extension from `.output/`. R
 
 Use generic, fictional text in test fixtures. Do not add real names, places, quoted dialogue, news excerpts, or text copied from screenshots or other source material; common greetings and neutral examples are fine.
 
+## Overlay screenshots
+
+To see an overlay change on real images, use `scripts/overlay-shots.mjs` instead of writing a new harness. It runs the built extension in Chrome or Firefox with made-up translations, and compares two builds. Rebuild first, and run it outside the sandbox.
+
 ## Localization
 
 Use i18n helpers for user-facing text.
