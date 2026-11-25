@@ -19,7 +19,7 @@ const POPOVER_MARGIN = 8;
 const POPOVER_MIN_WIDTH = 384;
 const POPOVER_MAX_WIDTH = 640;
 const POPOVER_MAX_HEIGHT_RATIO = 0.6;
-const POPOVER_MIN_HEIGHT = 120;
+const POPOVER_MIN_HEIGHT = 320;
 
 export interface OverlayPopoverBox {
   element: HTMLElement;
@@ -483,28 +483,28 @@ export function createOverlayPopover(
       return;
     }
     const rect = pageToViewportRect(rotatedBounds(box.rect, box.angle));
-    view.el.style.maxWidth = `${popoverMaxWidth(rect.width, window.innerWidth)}px`;
+    const { style } = view.el;
     const scrollTop = view.body?.scrollTop ?? 0;
-    view.el.style.maxHeight = "";
-    const width = view.el.offsetWidth;
-    const height = view.el.offsetHeight;
-    const x = clamp(
-      rect.x + rect.width / 2 - width / 2,
-      POPOVER_MARGIN,
-      Math.max(POPOVER_MARGIN, window.innerWidth - width - POPOVER_MARGIN),
-    );
-    const vertical = popoverVerticalPlacement({
-      boxY: rect.y,
-      boxHeight: rect.height,
-      height,
-      viewportHeight: window.innerHeight,
+    style.left = "0";
+    style.maxHeight = "none";
+    const placement = popoverPlacement({
+      box: rect,
+      viewport: {
+        width: options.container.clientWidth,
+        height: window.innerHeight,
+      },
+      measure: (maxWidth) => {
+        style.maxWidth = `${maxWidth}px`;
+        return { width: view.el.offsetWidth, height: view.el.offsetHeight };
+      },
     });
-    view.el.style.maxHeight = `${vertical.maxHeight}px`;
+    style.maxWidth = `${placement.maxWidth}px`;
+    style.maxHeight = `${placement.maxHeight}px`;
+    style.left = `${placement.left}px`;
+    style.top = `${placement.top}px`;
     if (view.body) {
       view.body.scrollTop = scrollTop;
     }
-    view.el.style.left = `${x}px`;
-    view.el.style.top = `${vertical.top}px`;
   }
 
   function setWholeSpeechState(
@@ -552,36 +552,73 @@ export function popoverMaxWidth(
   );
 }
 
-export function popoverVerticalPlacement(args: {
-  boxY: number;
-  boxHeight: number;
+interface PopoverSize {
+  width: number;
   height: number;
-  viewportHeight: number;
-}): { top: number; maxHeight: number } {
-  const { boxY, boxHeight, height, viewportHeight } = args;
-  const cap = Math.max(
-    POPOVER_MIN_HEIGHT,
-    viewportHeight * POPOVER_MAX_HEIGHT_RATIO,
-  );
-  const roomBelow = Math.min(
-    cap,
-    viewportHeight - boxY - boxHeight - POPOVER_MARGIN,
-  );
-  const roomAbove = Math.min(cap, boxY - POPOVER_MARGIN);
-  const fitsAbove = height > roomBelow && height <= roomAbove;
-  const below = !fitsAbove && (height <= roomBelow || roomBelow >= roomAbove);
+}
 
-  const maxHeight = Math.max(POPOVER_MIN_HEIGHT, below ? roomBelow : roomAbove);
-  const shown = Math.min(height, maxHeight);
-  const top = below ? boxY + boxHeight : boxY - shown;
+/** Place the popover below its block, above it, or beside it, wherever it shows
+ * the most. Where that is too little, it covers part of the block. */
+export function popoverPlacement(args: {
+  /** The block, in the viewport. */
+  box: Rect;
+  viewport: PopoverSize;
+  /** The popover's full size when it is at most this wide. */
+  measure(maxWidth: number): PopoverSize;
+}): { left: number; top: number; maxWidth: number; maxHeight: number } {
+  const { box, viewport, measure } = args;
+  const boxRight = box.x + box.width;
+  const boxBottom = box.y + box.height;
+  const roomRight = viewport.width - boxRight - POPOVER_MARGIN;
+  const roomLeft = box.x - POPOVER_MARGIN;
+  const maxWidth = popoverMaxWidth(box.width, viewport.width);
+  const cap = viewport.height * POPOVER_MAX_HEIGHT_RATIO;
+  const roomBelow = viewport.height - boxBottom - POPOVER_MARGIN;
+  const roomAbove = box.y - POPOVER_MARGIN;
+
+  const spots = [
+    { side: "below", width: maxWidth, room: Math.min(cap, roomBelow) },
+    { side: "above", width: maxWidth, room: Math.min(cap, roomAbove) },
+  ];
+  if (Math.max(roomRight, roomLeft) >= POPOVER_MIN_WIDTH) {
+    spots.push({
+      side: roomRight >= POPOVER_MIN_WIDTH ? "right" : "left",
+      width: POPOVER_MIN_WIDTH,
+      room: viewport.height - POPOVER_MARGIN * 2,
+    });
+  }
+  // The first of those that show the same share, so below comes before beside.
+  const shown = spots.map((spot) =>
+    Math.min(1, spot.room / measure(spot.width).height),
+  );
+  const { side, width, room } = spots[shown.indexOf(Math.max(...shown))];
+
+  const size = measure(width);
+  const maxHeight = Math.max(room, Math.min(POPOVER_MIN_HEIGHT, cap));
+  const height = Math.min(size.height, maxHeight);
+  let x = box.x + box.width / 2 - size.width / 2;
+  let y = box.y;
+  if (side === "below") {
+    y = boxBottom;
+  } else if (side === "above") {
+    y = box.y - height;
+  } else {
+    x = side === "right" ? boxRight : box.x - size.width;
+  }
   return {
-    top: clamp(
-      top,
-      POPOVER_MARGIN,
-      Math.max(POPOVER_MARGIN, viewportHeight - shown - POPOVER_MARGIN),
-    ),
+    left: insideViewport(x, size.width, viewport.width),
+    top: insideViewport(y, height, viewport.height),
+    maxWidth: width,
     maxHeight,
   };
+}
+
+function insideViewport(start: number, size: number, viewportSize: number): number {
+  return clamp(
+    start,
+    POPOVER_MARGIN,
+    Math.max(POPOVER_MARGIN, viewportSize - size - POPOVER_MARGIN),
+  );
 }
 
 function availableMode(
