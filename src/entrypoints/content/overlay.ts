@@ -52,6 +52,7 @@ import {
 } from "./overlay-layout";
 import { isSpeaking, requestSpeak, stopSpeaking } from "./tts";
 import { startTextSelection } from "./overlay-selection";
+import { replaceTextLine } from "./text-correction";
 import { estimateSurroundingTint } from "./overlay-background";
 import type { ContentControls } from "./content-controls";
 import {
@@ -66,6 +67,7 @@ export interface OverlayConfig {
   onClose(): void;
   onShowPanel(): void;
   onNewSelection(): void;
+  onTranslateRequest(text: string, targetLang: LangCode | undefined): void;
 }
 const OVERLAY_SPEECH_OWNER = "overlay";
 
@@ -424,6 +426,7 @@ function render(): void {
       boxes: renderedBoxes,
       mode,
       hasTranslation: hasTranslationText,
+      canEdit: Boolean(config && currentTargetLang),
       sourceLang: currentSourceLang,
       targetLang: currentTargetLang,
       selectingFromPopover: selectingFrom === "popover",
@@ -431,6 +434,15 @@ function render(): void {
     }),
     beginSelection: () => beginSelection("popover"),
     endSelection,
+    onEditingChange: setEditing,
+    onCorrect: ({ line }, text) => {
+      config?.onTranslateRequest(
+        line === undefined
+          ? text
+          : replaceTextLine(currentOriginalText, line, text),
+        currentTargetLang,
+      );
+    },
   });
   renderBoxes();
   positionToolbar();
@@ -488,7 +500,8 @@ function ensureGlobalHandlers(): void {
       } else if (!event.repeat) {
         loneShiftDown = !event.ctrlKey && !event.altKey && !event.metaKey;
       }
-      if (event.key === "Escape") {
+      // During text composition, Escape belongs to the input method.
+      if (event.key === "Escape" && !event.isComposing) {
         event.preventDefault();
         event.stopPropagation();
         // Close an open language list or the ⋯ menu before the overlay itself.
@@ -729,6 +742,17 @@ function toggleMode(): void {
   mode = mode === "translation" ? "original" : "translation";
   selectedMode = mode;
   showBoxLayer();
+  updateModeButton();
+}
+
+// The cards hide the source text, so show the image while it is being corrected.
+function setEditing(editing: boolean): void {
+  mode = editing || !hasTranslationText ? "original" : selectedMode;
+  container?.classList.toggle("is-editing", editing);
+  showBoxLayer(false);
+  if (modeButton) {
+    modeButton.disabled = editing || !hasTranslationText;
+  }
   updateModeButton();
 }
 
@@ -1106,6 +1130,7 @@ function renderTranslationBoxes(
             original: paragraph.original,
             translated: paragraph.translated ?? "",
           },
+          line: paragraph.line,
         },
       );
       fitOptions.push({
@@ -1226,6 +1251,7 @@ function renderSourceBoxes(
             original: paragraph.original,
             translated: paragraph.translated ?? "",
           },
+          line: paragraph.line,
         },
       );
     });

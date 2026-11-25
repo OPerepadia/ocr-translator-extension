@@ -66,13 +66,19 @@ describe("popoverPlacement", () => {
   it("sits flush to the right when the text fits neither below nor above", () => {
     const placement = place({ x: 100, y: 200, width: 400, height: 400 }, 384 * 600);
 
-    expect(placement).toEqual({ left: 500, top: 192, maxWidth: 384, maxHeight: 784 });
+    expect(placement).toMatchObject({ left: 500, top: 200, maxWidth: 640, maxHeight: 784 });
+  });
+
+  it("takes the side with more room when neither has room for its full width", () => {
+    const box = { x: 560, y: 150, width: 200, height: 450 };
+
+    expect(place(box, 384 * 600)).toMatchObject({ left: 8, maxWidth: 552 });
   });
 
   it("sits flush to the left when there is no room on the right", () => {
     const placement = place({ x: 700, y: 100, width: 400, height: 500 }, 384 * 600);
 
-    expect(placement).toMatchObject({ left: 700 - 384, top: 100, maxWidth: 384 });
+    expect(placement).toMatchObject({ left: 700 - 640, top: 100, maxWidth: 640 });
   });
 
   it("stays below or above when the room beside the box is too narrow", () => {
@@ -85,7 +91,20 @@ describe("popoverPlacement", () => {
   it("takes the place that shows the most when none shows everything", () => {
     const placement = place({ x: 100, y: 200, width: 400, height: 400 }, 384 * 2000);
 
-    expect(placement).toEqual({ left: 500, top: 8, maxWidth: 384, maxHeight: 784 });
+    expect(placement).toMatchObject({ left: 500, top: 8, maxWidth: 640, maxHeight: 784 });
+  });
+
+  it("uses the given side where there is one", () => {
+    const placeOn = (side: "below" | "left", x: number) =>
+      popoverPlacement({
+        box: { x, y: 400, width: 400, height: 60 },
+        viewport,
+        side,
+        measure: (maxWidth) => ({ width: maxWidth, height: 360 }),
+      });
+
+    expect(placeOn("below", 100)).toMatchObject({ side: "below", top: 460, maxHeight: 332 });
+    expect(placeOn("left", 100)).toMatchObject({ side: "above", top: 40 });
   });
 
   it("caps a tall text below the box", () => {
@@ -111,6 +130,6 @@ describe("popoverPlacement", () => {
     const size = { width: 360, height: 300 };
     const placement = place({ x: 0, y: 0, width: 360, height: 300 }, 344 * 700, size);
 
-    expect(placement).toEqual({ left: 8, top: 112, maxWidth: 344, maxHeight: 180 });
+    expect(placement).toMatchObject({ left: 8, top: 112, maxWidth: 344, maxHeight: 180 });
   });
 });

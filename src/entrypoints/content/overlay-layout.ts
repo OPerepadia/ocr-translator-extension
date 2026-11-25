@@ -3,6 +3,7 @@
 // into page-positioned boxes over the selection rect.
 
 import type { OcrBlock, OcrChar, OrientedRect, Rect } from "@/shared/types";
+import { spreadText } from "./text-correction";
 
 export interface OverlayLine {
   rect: Rect;
@@ -31,6 +32,8 @@ export interface OverlayParagraph {
   /** Tilt of both rects, about their own centre, in radians. Zero for upright
    * text, which is every paragraph the detector reports no tilted boxes for. */
   angle: number;
+  /** The line of the recognized text this paragraph is. */
+  line: number;
   /** The recognized original text for this paragraph, as sent for translation. */
   original: string;
   /** The translated line, or null when the translation could not be split per
@@ -394,21 +397,32 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
       angle === 0
         ? toPage(group.bbox)
         : orientedParagraphRect(orientedLines, angle);
+    const original = originalLines[group.paragraph] ?? "";
+    // The user may have corrected the text since it was recognized.
+    const pieces = group.texts.map((text, index) =>
+      group.lineChars[index]?.length
+        ? group.lineChars[index].map((char) => char.text)
+        : Array.from(text),
+    );
+    const corrected =
+      originalLines.length === paragraphLineCount
+        ? spreadText(pieces, original)
+        : pieces;
     const lines = group.lineBboxes.map((bbox, index) => {
       const chars = group.lineChars[index];
       return {
         rect: toPage(bbox),
         oriented: orientedLines[index],
-        text: group.texts[index] ?? "",
+        text: corrected[index].join(""),
         vertical,
         ...(chars
           ? {
-              chars: chars.map((char) => ({
+              chars: chars.map((char, charIndex) => ({
                 rect: toPage(char.bbox),
                 ...(char.oriented
                   ? { oriented: orientedToPage(char.oriented) }
                   : {}),
-                text: char.text,
+                text: corrected[index][charIndex],
               })),
             }
           : {}),
@@ -429,7 +443,8 @@ export function buildOverlayLayout(input: BuildOverlayInput): OverlayLayout {
           ? unionRect([plainRoom, bubbleRoom])
           : plainRoom,
       angle,
-      original: originalLines[group.paragraph] ?? "",
+      line: group.paragraph,
+      original,
       translated,
       lines,
       vertical,

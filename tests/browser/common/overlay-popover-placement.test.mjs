@@ -101,7 +101,7 @@ for (const [name, browserType] of Object.entries({ chromium, firefox })) {
       await hover(0);
       const { x, y, width, height } = await rect();
       assert.equal(x, 400);
-      assert.ok(width <= 384, `width ${width}`);
+      assert.ok(width > 384 && height <= 420, `${width} x ${height}`);
       assert.ok(y >= 8 && y + height <= 692, `${y} + ${height}`);
       assert.ok((await cutOff(body)) <= 1);
 

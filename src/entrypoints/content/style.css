@@ -1232,6 +1232,14 @@
   background: color-mix(in srgb, var(--ocr-marker-tint-strong) 50%, transparent);
 }
 
+/* While one block is being edited, only that block is marked. */
+.ocr-translate-overlay.is-editing
+  .ocr-translate-overlay-frame-box:not(.is-active, :focus-visible) {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+
 /* Only the hovered/focused box rises above overlapping boxes; a box merely
    holding the popover open would block the one underneath. */
 .ocr-translate-overlay-frame-box:hover,
@@ -1486,6 +1494,66 @@
 .ocr-translate-overlay-popover-button.is-active {
   color: var(--ocr-accent);
   background: var(--ocr-accent-tint);
+}
+
+.ocr-translate-overlay-popover.is-editing .ocr-translate-overlay-popover-row-title {
+  color: var(--ocr-ink-strong);
+  font-size: var(--ocr-size-ui);
+}
+
+.ocr-translate-overlay-popover-editor {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  overflow: auto;
+  resize: none;
+  border: 1px solid var(--ocr-accent-border);
+  border-radius: var(--ocr-radius-control);
+  padding: 5px 8px;
+  background: var(--ocr-field-bg);
+  color: var(--ocr-ink-strong);
+  box-shadow: var(--ocr-field-inset);
+  font: inherit;
+  white-space: pre-wrap;
+  user-select: text;
+  appearance: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ocr-line-strong) transparent;
+}
+
+.ocr-translate-overlay-popover-actions {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ocr-translate-overlay-popover-cancel {
+  min-height: 32px;
+  border: none;
+  border-radius: var(--ocr-radius-control);
+  padding: 0 12px;
+  background: none;
+  color: var(--ocr-ink-muted);
+  font-family: var(--ocr-font);
+  font-size: var(--ocr-size-ui);
+  font-weight: 600;
+  line-height: var(--ocr-leading-ui);
+  cursor: pointer;
+  transition:
+    background-color var(--ocr-duration-fast) ease,
+    color var(--ocr-duration-fast) ease;
+}
+
+.ocr-translate-overlay-popover-cancel:hover {
+  color: var(--ocr-ink-strong);
+  background: var(--ocr-surface-hover);
+}
+
+.ocr-translate-overlay-popover-cancel:active {
+  background: var(--ocr-surface-press);
 }
 
 /* An invisible, selectable copy of the recognized text laid over the image's own
@@ -1921,6 +1989,7 @@
 .ocr-translate-popup-retry:focus-visible,
 .ocr-translate-overlay-icon-button:focus-visible,
 .ocr-translate-overlay-retry:focus-visible,
+.ocr-translate-overlay-popover-cancel:focus-visible,
 .ocr-translate-overlay-popover-button:focus-visible {
   outline: var(--ocr-focus-width) solid var(--ocr-focus);
   outline-offset: var(--ocr-focus-offset);
@@ -1932,6 +2001,7 @@
 
 /* Text fields keep the native idiom: border plus ring. */
 .ocr-translate-popup-langpill-search:focus,
+.ocr-translate-overlay-popover-editor:focus,
 .ocr-translate-popup-editable:focus {
   outline: none;
   border-color: var(--ocr-accent);
@@ -2403,6 +2473,7 @@
   .ocr-translate-overlay-icon-button,
   .ocr-translate-overlay-retry,
   .ocr-translate-overlay-popover-button,
+  .ocr-translate-overlay-popover-cancel,
   .ocr-translate-overlay-progress-fill,
   .ocr-translate-popup-progress-fill,
   .ocr-translate-live-region,

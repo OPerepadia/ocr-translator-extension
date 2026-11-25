@@ -249,12 +249,7 @@ export default defineContentScript({
       },
       onNewSelection: startNewSelection,
       onShowOverlay: switchToOverlay,
-      onTranslateRequest: (text, targetLang) => {
-        pendingText = text;
-        if (targetLang) {
-          contentControls.selectTargetLanguage(targetLang);
-        }
-      },
+      onTranslateRequest: translateEditedText,
     });
     configureOverlay({
       controls: contentControls,
@@ -266,6 +261,7 @@ export default defineContentScript({
       },
       onShowPanel: switchToPanel,
       onNewSelection: startNewSelection,
+      onTranslateRequest: translateEditedText,
     });
 
     const startImageTranslation = (run: () => Promise<void>): void => {
@@ -1102,6 +1098,17 @@ function syncPanelRegionOutline(): void {
     showRegionOutline(uiRoot, lastRect);
   } else {
     closeRegionOutline();
+  }
+}
+
+// Translate the recognized text after the user corrected it.
+function translateEditedText(
+  text: string,
+  targetLang: LangCode | undefined,
+): void {
+  pendingText = text;
+  if (targetLang) {
+    contentControls.selectTargetLanguage(targetLang);
   }
 }
 

@@ -48,6 +48,9 @@
   "commonCopy": {
     "message": "Copy"
   },
+  "commonSave": {
+    "message": "Save"
+  },
   "commonTranslate": {
     "message": "Translate"
   },
@@ -562,6 +565,10 @@
   "overlayInitialView": {
     "message": "Initial view",
     "description": "Toolbar menu row that opens a choice of which view new overlays start in."
+  },
+  "overlayEditText": {
+    "message": "Edit recognized text",
+    "description": "Button next to the original text of a block, to fix recognition mistakes. Also the title of the editor it opens."
   },
   "overlayRecognizedAndTranslatedText": {
     "message": "Recognized and translated text"

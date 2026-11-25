@@ -42,3 +42,9 @@ The card takes the most common color around the text, so it blends into the imag
 - **Original view:** an invisible copy of the recognized text over the image, so the original can be selected.
 
 Resting the pointer on a card opens a popover with the translation and the original. Shift switches the views.
+
+## Editing recognized text
+
+The pencil in the popover opens an editor for the recognized text. The original view is shown meanwhile, so the text in the image can be read. The correction replaces the paragraph's line in the recognized text, and the whole text is translated again.
+
+Line boxes do not change. The corrected text is spread over them by matching it to the recognized characters (see [`text-correction.ts`](../src/entrypoints/content/text-correction.ts)), so the text selected in the original view is corrected too.

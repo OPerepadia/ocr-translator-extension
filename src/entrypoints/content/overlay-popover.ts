@@ -4,6 +4,7 @@ import { t } from "@/shared/i18n";
 import {
   CHECK_ICON,
   COPY_ICON,
+  EDIT_ICON,
   SPEAK_ICON,
   STOP_SPEAK_ICON,
 } from "./icons";
@@ -18,6 +19,7 @@ const POPOVER_CLOSE_DELAY_MS = 200;
 const POPOVER_MARGIN = 8;
 const POPOVER_MIN_WIDTH = 384;
 const POPOVER_MAX_WIDTH = 640;
+const POPOVER_MIN_EDITOR_WIDTH = 320;
 const POPOVER_MAX_HEIGHT_RATIO = 0.6;
 const POPOVER_MIN_HEIGHT = 320;
 
@@ -29,12 +31,16 @@ export interface OverlayPopoverBox {
     original: string;
     translated: string;
   };
+  /** The line of the recognized text in this box. Unset for the combined box,
+   * which has the whole text. */
+  line?: number;
 }
 
 interface OverlayPopoverState {
   boxes: readonly OverlayPopoverBox[];
   mode: OverlayMode;
   hasTranslation: boolean;
+  canEdit: boolean;
   sourceLang?: LangCode;
   targetLang?: LangCode;
   selectingFromPopover: boolean;
@@ -47,6 +53,10 @@ interface OverlayPopoverOptions {
   getState(): OverlayPopoverState;
   beginSelection(): void;
   endSelection(): void;
+  /** The recognized text is being edited, or no longer is. Changes the boxes in
+   * the state to the ones shown meanwhile, in the same order. */
+  onEditingChange(editing: boolean): void;
+  onCorrect(box: OverlayPopoverBox, text: string): void;
 }
 
 interface PopoverView {
@@ -54,10 +64,19 @@ interface PopoverView {
   body?: HTMLElement;
   boxIndex: number;
   speechButtons: Partial<Record<OverlayMode, HTMLButtonElement>>;
+  editButton?: HTMLButtonElement;
+  /** Set while the recognized text is being edited. */
+  editor?: HTMLTextAreaElement;
+  /** Where the popover was last placed. */
+  side?: PopoverSide;
 }
+
+type PopoverSide = "below" | "above" | "right" | "left";
 
 export interface OverlayPopover {
   attach(box: HTMLElement, index: number): void;
+  /** Leave the text editor, or else close the popover. False if neither was
+   * open. */
   dismiss(): boolean;
   clearBoxes(): void;
   reposition(): void;
@@ -73,6 +92,7 @@ export function createOverlayPopover(
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   let settleOrigin: { x: number; y: number } | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
+  let pressedInside = false;
   let speakingTarget: OverlayMode | undefined;
   let speakingBoxIndex: number | undefined;
   const copyResetTimers = new Map<
@@ -111,7 +131,7 @@ export function createOverlayPopover(
     event: PointerEvent,
   ): void {
     clearSettleTimer();
-    if (state().selectingFromLayer) return;
+    if (state().selectingFromLayer || activeView?.editor) return;
     if (activeView?.boxIndex === index) {
       return;
     }
@@ -119,7 +139,7 @@ export function createOverlayPopover(
     settleTimer = setTimeout(() => {
       settleTimer = undefined;
       settleOrigin = undefined;
-      if (state().selectingFromLayer) return;
+      if (state().selectingFromLayer || activeView?.editor) return;
       show(index);
     }, POPOVER_SETTLE_MS);
   }
@@ -182,6 +202,7 @@ export function createOverlayPopover(
       return false;
     }
     return (
+      Boolean(activeView.editor) ||
       state().selectingFromPopover ||
       state().selectingFromLayer ||
       hasSelectionInside(activeView.el) ||
@@ -191,6 +212,9 @@ export function createOverlayPopover(
   }
 
   function toggle(index: number): void {
+    if (hasUnsavedEdit()) {
+      return;
+    }
     if (activeView?.boxIndex === index) {
       hide();
       return;
@@ -200,8 +224,11 @@ export function createOverlayPopover(
 
   function show(index: number): void {
     clearCloseTimer();
-    if (activeView?.boxIndex === index) {
+    if (activeView?.boxIndex === index || hasUnsavedEdit()) {
       return;
+    }
+    if (activeView?.editor) {
+      leaveEditor(activeView);
     }
     if (speakingBoxIndex !== undefined && isSpeaking(options.speechOwner)) {
       stopSpeaking();
@@ -240,13 +267,23 @@ export function createOverlayPopover(
     el.addEventListener("pointerenter", clearCloseTimer);
     el.addEventListener("pointerleave", handlePointerLeave);
     options.container.append(el);
+    document.addEventListener("pointerdown", handlePress, true);
     document.addEventListener("click", handleOutsideClick);
     popoverEl = el;
     return el;
   }
 
+  function handlePress(event: PointerEvent): void {
+    pressedInside = Boolean(
+      activeView && event.composedPath().includes(activeView.el),
+    );
+  }
+
   function handleOutsideClick(event: MouseEvent): void {
-    if (!activeView) {
+    // Selecting text can end outside the popover, which is not a click there.
+    const startedInside = pressedInside;
+    pressedInside = false;
+    if (!activeView || startedInside || hasUnsavedEdit()) {
       return;
     }
     const path = event.composedPath();
@@ -262,6 +299,7 @@ export function createOverlayPopover(
   ): void {
     view.el.replaceChildren();
     view.speechButtons = {};
+    view.editButton = undefined;
 
     const body = document.createElement("div");
     body.className = "ocr-translate-overlay-popover-body";
@@ -289,22 +327,16 @@ export function createOverlayPopover(
       row.classList.add("is-source");
     }
 
-    const title = document.createElement("h3");
-    title.className = "ocr-translate-overlay-popover-row-title";
-    const lang = modeLang(textMode);
-    const roleLabel = t(
-      textMode === "original"
-        ? "optionsOverlayModeOriginal"
-        : "optionsOverlayModeTranslation",
-    );
-    title.textContent = lang && lang !== "auto" ? lang.toUpperCase() : roleLabel;
-    if (lang && lang !== "auto") {
-      title.title = roleLabel;
-      title.setAttribute("aria-label", roleLabel);
-    }
-
     const controls = document.createElement("div");
     controls.className = "ocr-translate-overlay-popover-row-controls";
+    if (textMode === "original" && state().canEdit) {
+      view.editButton = popoverButton(
+        EDIT_ICON,
+        t("overlayEditText"),
+        () => openEditor(view),
+      );
+      controls.append(view.editButton);
+    }
     controls.append(
       createSpeakButton(view, textMode, content),
       createCopyButton(textMode, content),
@@ -312,9 +344,169 @@ export function createOverlayPopover(
 
     const header = document.createElement("div");
     header.className = "ocr-translate-overlay-popover-row-header";
-    header.append(title, controls);
+    header.append(createRowTitle(textMode), controls);
     row.append(header, createText(textMode, content));
     return row;
+  }
+
+  function createTitle(text: string): HTMLElement {
+    const title = document.createElement("h3");
+    title.className = "ocr-translate-overlay-popover-row-title";
+    title.textContent = text;
+    return title;
+  }
+
+  function createRowTitle(textMode: OverlayMode): HTMLElement {
+    const lang = modeLang(textMode);
+    const roleLabel = t(
+      textMode === "original"
+        ? "optionsOverlayModeOriginal"
+        : "optionsOverlayModeTranslation",
+    );
+    const title = createTitle(
+      lang && lang !== "auto" ? lang.toUpperCase() : roleLabel,
+    );
+    if (lang && lang !== "auto") {
+      title.title = roleLabel;
+      title.setAttribute("aria-label", roleLabel);
+    }
+    return title;
+  }
+
+  function openEditor(view: PopoverView): void {
+    const box = state().boxes[view.boxIndex];
+    if (!box || view.editor) {
+      return;
+    }
+    stopBoxSpeech(view);
+
+    const editor = document.createElement("textarea");
+    editor.className = "ocr-translate-overlay-popover-editor";
+    editor.value = box.content.original;
+    editor.rows = 1;
+    editor.spellcheck = false;
+    editor.dir = "auto";
+    const lang = modeLang("original");
+    if (lang) {
+      editor.lang = lang;
+    }
+    editor.setAttribute("aria-label", t("panelSourceText"));
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "ocr-translate-overlay-popover-cancel";
+    cancel.textContent = t("commonCancel");
+    cancel.addEventListener("click", () => closeEditor(view));
+
+    const submit = document.createElement("button");
+    submit.type = "button";
+    submit.className = "ocr-translate-popup-translate";
+    submit.textContent = t("commonSave");
+    submit.disabled = true;
+    submit.addEventListener("click", () => submitEdit(view));
+
+    const actions = document.createElement("div");
+    actions.className = "ocr-translate-overlay-popover-actions";
+    actions.append(cancel, submit);
+
+    editor.addEventListener("input", () => {
+      submit.disabled = !editedText(editor, box);
+      // Stay on the same side, so the editor does not jump while typing.
+      position(view, view.side);
+    });
+    editor.addEventListener("keydown", (event) => {
+      // A block's text is one line. Input methods use Enter to confirm text.
+      if (
+        event.key === "Enter" &&
+        box.line !== undefined &&
+        !event.isComposing
+      ) {
+        event.preventDefault();
+      }
+    });
+
+    // Keep the width, so the editor does not resize while typing.
+    const width = Math.max(view.el.offsetWidth, POPOVER_MIN_EDITOR_WIDTH);
+    view.el.style.width = `${width}px`;
+    view.editor = editor;
+    view.body = editor;
+    view.editButton = undefined;
+    view.speechButtons = {};
+    view.el.classList.add("is-editing");
+    view.el.replaceChildren(createTitle(t("overlayEditText")), editor, actions);
+    switchBoxes(true);
+    position(view);
+    editor.focus({ preventScroll: true });
+  }
+
+  /** The editor's text, or undefined if there is nothing new to translate. */
+  function editedText(
+    editor: HTMLTextAreaElement,
+    box: OverlayPopoverBox,
+  ): string | undefined {
+    const text = (
+      box.line === undefined
+        ? editor.value
+        : // Line breaks would shift the lines of the other boxes.
+          editor.value.replace(/\s*\n\s*/g, " ")
+    ).trim();
+    return text && text !== box.content.original.trim() ? text : undefined;
+  }
+
+  function hasUnsavedEdit(): boolean {
+    const box = activeView && state().boxes[activeView.boxIndex];
+    return Boolean(
+      activeView?.editor &&
+        box &&
+        activeView.editor.value.trim() !== box.content.original.trim(),
+    );
+  }
+
+  function submitEdit(view: PopoverView): void {
+    const box = state().boxes[view.boxIndex];
+    if (!view.editor || !box) {
+      return;
+    }
+    const text = editedText(view.editor, box);
+    if (text) {
+      hide();
+      options.onCorrect(box, text);
+    }
+  }
+
+  /** Drop the edit and go back to reading the text. */
+  function closeEditor(view: PopoverView): void {
+    leaveEditor(view);
+    const content = state().boxes[view.boxIndex]?.content;
+    if (!content) {
+      hide();
+      return;
+    }
+    render(view, content);
+    position(view);
+    view.editButton?.focus({ preventScroll: true });
+  }
+
+  function leaveEditor(view: PopoverView): void {
+    view.editor = undefined;
+    view.el.style.width = "";
+    view.el.classList.remove("is-editing");
+    switchBoxes(false);
+  }
+
+  function switchBoxes(editing: boolean): void {
+    for (const box of state().boxes) {
+      setBoxState(box.element, false);
+    }
+    options.onEditingChange(editing);
+    syncBoxStates();
+  }
+
+  // Grow the editor with its text. The popover's height limits it.
+  function fitEditor(editor: HTMLTextAreaElement): void {
+    editor.style.height = "auto";
+    const borders = editor.offsetHeight - editor.clientHeight;
+    editor.style.height = `${editor.scrollHeight + borders}px`;
   }
 
   function createText(
@@ -443,16 +635,31 @@ export function createOverlayPopover(
     if (!activeView) {
       return false;
     }
-    if (
-      speakingBoxIndex === activeView.boxIndex &&
-      isSpeaking(options.speechOwner)
-    ) {
-      stopSpeaking();
+    stopBoxSpeech(activeView);
+    if (activeView.editor) {
+      leaveEditor(activeView);
     }
     activeView.el.hidden = true;
     activeView = undefined;
     syncBoxStates();
     return true;
+  }
+
+  function dismiss(): boolean {
+    if (activeView?.editor) {
+      closeEditor(activeView);
+      return true;
+    }
+    return hide();
+  }
+
+  function stopBoxSpeech(view: PopoverView): void {
+    if (
+      speakingBoxIndex === view.boxIndex &&
+      isSpeaking(options.speechOwner)
+    ) {
+      stopSpeaking();
+    }
   }
 
   function clearBoxes(): void {
@@ -473,7 +680,7 @@ export function createOverlayPopover(
     }
   }
 
-  function position(view: PopoverView): void {
+  function position(view: PopoverView, side?: PopoverSide): void {
     if (view.el.hidden) {
       return;
     }
@@ -489,15 +696,20 @@ export function createOverlayPopover(
     style.maxHeight = "none";
     const placement = popoverPlacement({
       box: rect,
+      side,
       viewport: {
         width: options.container.clientWidth,
         height: window.innerHeight,
       },
       measure: (maxWidth) => {
         style.maxWidth = `${maxWidth}px`;
+        if (view.editor) {
+          fitEditor(view.editor);
+        }
         return { width: view.el.offsetWidth, height: view.el.offsetHeight };
       },
     });
+    view.side = placement.side;
     style.maxWidth = `${placement.maxWidth}px`;
     style.maxHeight = `${placement.maxHeight}px`;
     style.left = `${placement.left}px`;
@@ -522,6 +734,7 @@ export function createOverlayPopover(
     }
     copyResetTimers.clear();
     options.endSelection();
+    document.removeEventListener("pointerdown", handlePress, true);
     document.removeEventListener("click", handleOutsideClick);
     activeView = undefined;
     popoverEl = undefined;
@@ -529,7 +742,7 @@ export function createOverlayPopover(
 
   return {
     attach,
-    dismiss: hide,
+    dismiss,
     clearBoxes,
     reposition,
     setWholeSpeechState,
@@ -563,9 +776,17 @@ export function popoverPlacement(args: {
   /** The block, in the viewport. */
   box: Rect;
   viewport: PopoverSize;
+  /** The side to use, instead of the one that shows the most. */
+  side?: PopoverSide;
   /** The popover's full size when it is at most this wide. */
   measure(maxWidth: number): PopoverSize;
-}): { left: number; top: number; maxWidth: number; maxHeight: number } {
+}): {
+  side: PopoverSide;
+  left: number;
+  top: number;
+  maxWidth: number;
+  maxHeight: number;
+} {
   const { box, viewport, measure } = args;
   const boxRight = box.x + box.width;
   const boxBottom = box.y + box.height;
@@ -576,14 +797,16 @@ export function popoverPlacement(args: {
   const roomBelow = viewport.height - boxBottom - POPOVER_MARGIN;
   const roomAbove = box.y - POPOVER_MARGIN;
 
-  const spots = [
+  const spots: Array<{ side: PopoverSide; width: number; room: number }> = [
     { side: "below", width: maxWidth, room: Math.min(cap, roomBelow) },
     { side: "above", width: maxWidth, room: Math.min(cap, roomAbove) },
   ];
-  if (Math.max(roomRight, roomLeft) >= POPOVER_MIN_WIDTH) {
+  const roomBeside = Math.max(roomRight, roomLeft);
+  if (roomBeside >= POPOVER_MIN_WIDTH) {
+    const sideWidth = Math.min(roomBeside, POPOVER_MAX_WIDTH);
     spots.push({
-      side: roomRight >= POPOVER_MIN_WIDTH ? "right" : "left",
-      width: POPOVER_MIN_WIDTH,
+      side: roomRight >= sideWidth ? "right" : "left",
+      width: sideWidth,
       room: viewport.height - POPOVER_MARGIN * 2,
     });
   }
@@ -591,7 +814,9 @@ export function popoverPlacement(args: {
   const shown = spots.map((spot) =>
     Math.min(1, spot.room / measure(spot.width).height),
   );
-  const { side, width, room } = spots[shown.indexOf(Math.max(...shown))];
+  const { side, width, room } =
+    spots.find((spot) => spot.side === args.side) ??
+    spots[shown.indexOf(Math.max(...shown))];
 
   const size = measure(width);
   const maxHeight = Math.max(room, Math.min(POPOVER_MIN_HEIGHT, cap));
@@ -606,6 +831,7 @@ export function popoverPlacement(args: {
     x = side === "right" ? boxRight : box.x - size.width;
   }
   return {
+    side,
     left: insideViewport(x, size.width, viewport.width),
     top: insideViewport(y, height, viewport.height),
     maxWidth: width,

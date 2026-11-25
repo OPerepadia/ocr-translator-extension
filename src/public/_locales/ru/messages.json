@@ -44,6 +44,9 @@
   "commonCopy": {
     "message": "Копировать"
   },
+  "commonSave": {
+    "message": "Сохранить"
+  },
   "commonTranslate": {
     "message": "Перевести"
   },
@@ -484,6 +487,9 @@
   },
   "overlayInitialView": {
     "message": "Начальный вид"
+  },
+  "overlayEditText": {
+    "message": "Редактировать распознанный текст"
   },
   "overlayRecognizedAndTranslatedText": {
     "message": "Распознанный и переведённый текст"

@@ -65,6 +65,8 @@ The overlay has two views:
 
 Press `Shift` or click the translate button in the toolbar to toggle the view. Hover over a text block to see its translation and the original text. If a translation doesn't fit its box, a small triangle appears in the corner. Hover over the block to read the full text.
 
+To edit the recognized text, hover over a block and click the pencil icon. Click **Save** to update the translation.
+
 <table align="center">
   <tr>
     <th align="center">Translated text (default)</th>

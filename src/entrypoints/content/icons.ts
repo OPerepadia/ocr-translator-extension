@@ -31,6 +31,11 @@ export const CHECK_ICON =
   '<path d="M20 6 9 17l-5-5"/>' +
   "</svg>";
 
+export const EDIT_ICON =
+  '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  '<path d="M10.8 2.7l2.5 2.5-8 8-3.2.7.7-3.2z"/><path d="M9 4.5 11.5 7"/>' +
+  "</svg>";
+
 export const SPEAK_ICON =
   '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
   '<path d="M2 5.5h3.5L9 2v12l-3.5-3.5H2z" fill="currentColor" stroke="none"/>' +

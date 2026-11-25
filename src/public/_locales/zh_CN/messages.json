@@ -44,6 +44,9 @@
   "commonCopy": {
     "message": "复制"
   },
+  "commonSave": {
+    "message": "保存"
+  },
   "commonTranslate": {
     "message": "翻译"
   },
@@ -484,6 +487,9 @@
   },
   "overlayInitialView": {
     "message": "默认显示"
+  },
+  "overlayEditText": {
+    "message": "编辑识别的文字"
   },
   "overlayRecognizedAndTranslatedText": {
     "message": "已识别并翻译的文字"

@@ -200,6 +200,50 @@ describe("buildOverlayLayout", () => {
     ]);
   });
 
+  describe("with corrected text", () => {
+    const char = (text: string, x: number) => ({
+      text,
+      bbox: { x, y: 0, width: 10, height: 10 },
+    });
+    const blocks: OcrBlock[] = [
+      {
+        ...block(0, { x: 0, y: 0, width: 30, height: 10 }, "ofd"),
+        chars: [char("o", 0), char("f", 10), char("d", 20)],
+      },
+      block(0, { x: 0, y: 20, width: 50, height: 10 }, "name"),
+      block(1, { x: 0, y: 50, width: 50, height: 10 }, "other"),
+    ];
+    const build = (ocrText: string) =>
+      buildOverlayLayout({
+        ...base,
+        blocks,
+        ocrText,
+        translationText: ocrText,
+      });
+
+    it("knows which line of the text each paragraph is", () => {
+      expect(build("ofd name\nother").paragraphs.map((p) => p.line)).toEqual([0, 1]);
+    });
+
+    it("puts the correction on its line, keeping the character boxes", () => {
+      const [first, second] = build("old name\nother").paragraphs;
+      expect(first.original).toBe("old name");
+      expect(first.lines.map((line) => line.text)).toEqual(["old", "name"]);
+      expect(first.lines[0].chars).toEqual([
+        { text: "o", rect: { x: 0, y: 0, width: 10, height: 10 } },
+        { text: "l", rect: { x: 10, y: 0, width: 10, height: 10 } },
+        { text: "d", rect: { x: 20, y: 0, width: 10, height: 10 } },
+      ]);
+      expect(second.lines.map((line) => line.text)).toEqual(["other"]);
+    });
+
+    it("keeps the recognized lines when text lines no longer match paragraphs", () => {
+      const paragraphs = build("old\nname\nother").paragraphs;
+      expect(paragraphs[0].lines.map((line) => line.text)).toEqual(["ofd", "name"]);
+      expect(paragraphs[1].lines.map((line) => line.text)).toEqual(["other"]);
+    });
+  });
+
   it("marks lines of a vertical paragraph, so mixed captures keep both", () => {
     const layout = buildOverlayLayout({
       ocrText: "\u7e26\u66f8\u304d\nhorizontal caption",

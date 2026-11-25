@@ -44,6 +44,9 @@
   "commonCopy": {
     "message": "コピー"
   },
+  "commonSave": {
+    "message": "保存"
+  },
   "commonTranslate": {
     "message": "翻訳"
   },
@@ -484,6 +487,9 @@
   },
   "overlayInitialView": {
     "message": "初期表示"
+  },
+  "overlayEditText": {
+    "message": "認識されたテキストを編集"
   },
   "overlayRecognizedAndTranslatedText": {
     "message": "認識・翻訳されたテキスト"
