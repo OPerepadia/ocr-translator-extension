@@ -1009,10 +1009,10 @@ function refreshTranslationBackgrounds(): void {
     }
     return growRect(source, tint.margin);
   });
-  const cards = layer.boxes.map((box) => box.rect);
   layer.boxes.forEach((box, index) => {
     const cover = covers[index];
-    const rect = cover && extendCard(cards, index, cover);
+    // Checked against cards already extended, so two cannot both reach over each other.
+    const rect = cover && extendCard(layer.boxes.map((other) => other.rect), index, cover);
     if (rect) {
       box.rect = rect;
       box.element.classList.add("is-extended");

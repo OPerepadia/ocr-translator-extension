@@ -90,9 +90,8 @@ const CARD_GAP = 2;
 // corners of their box are outside them.
 const BUBBLE_ROOM_SHARE = 0.8;
 const CARD_SEPARATION_PASSES = 8;
-// How far an extended card may reach over another card: about the padding
-// around that card's text.
-const EXTEND_OVERLAP = 4;
+// Cards side by side may touch by a fraction of a pixel; an extended card may too.
+const EXTEND_TOLERANCE = 1;
 // A line only votes on tilt if it is clearly oblong, the same bar the OCR
 // assembler sets for reading orientation.
 const ANGLE_VOTE_MIN_ASPECT = 1.5;
@@ -594,13 +593,38 @@ function moveRoom(
   return Math.max(0, room);
 }
 
-/** The card extended over `cover`, or undefined if it would reach over another
- * card. */
+/** The card extended over `cover`, stopped at the edges of other cards. Undefined
+ * if it cannot grow without reaching over one. */
 export function extendCard(cards: Rect[], index: number, cover: Rect): Rect | undefined {
-  const extended = unionRect([cards[index], cover]);
-  const blocked = cards.some((other, otherIndex) =>
-    otherIndex !== index && intersectRect(extended, growRect(other, -EXTEND_OVERLAP)));
-  return blocked ? undefined : extended;
+  const card = cards[index];
+  let extended = unionRect([card, cover]);
+  for (const [otherIndex, rect] of cards.entries()) {
+    const other = growRect(rect, -EXTEND_TOLERANCE);
+    if (otherIndex === index || !intersectRect(extended, other)) {
+      continue;
+    }
+    // Pull back one side to the other card's edge, but not past the card itself;
+    // keep the choice that loses the least.
+    const { x, y } = extended;
+    const right = x + extended.width;
+    const bottom = y + extended.height;
+    const left = Math.min(other.x + other.width, card.x);
+    const top = Math.min(other.y + other.height, card.y);
+    const newRight = Math.max(other.x, card.x + card.width);
+    const newBottom = Math.max(other.y, card.y + card.height);
+    const options = [
+      { x: left, y, width: right - left, height: extended.height },
+      { x, y: top, width: extended.width, height: bottom - top },
+      { x, y, width: newRight - x, height: extended.height },
+      { x, y, width: extended.width, height: newBottom - y },
+    ].filter((option) => !intersectRect(option, other));
+    if (!options.length) {
+      return undefined;
+    }
+    extended = options.reduce((best, option) =>
+      option.width * option.height > best.width * best.height ? option : best);
+  }
+  return extended;
 }
 
 export function growRect(rect: Rect, by: number): Rect {

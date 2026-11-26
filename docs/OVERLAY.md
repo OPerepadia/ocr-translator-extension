@@ -30,7 +30,7 @@ If the text does not fit, the font shrinks to a minimum. After that, words may b
 
 A card is centered on its source text, so it covers the original. A card in a bubble is shifted back inside the bubble if it spills out, and a tilted card is tilted like its text.
 
-When horizontal text sits on a uniform background, its card is extended over the whole source text, unless it would cover another card. A truncated translation also gets the free room around the text.
+When horizontal text sits on a uniform background, its card is extended over the whole source text, stopping at the edges of other cards. A truncated translation also gets the free room around the text.
 
 Overlapping cards are moved apart. Each pair moves the shorter way, sideways or up and down, but a card never leaves its source text or its bubble, and all cards stay inside the capture. On a crowded page some overlap can remain. Cards keep their place on the page when it scrolls.
 

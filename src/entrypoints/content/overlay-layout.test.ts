@@ -800,10 +800,39 @@ describe("extendCard", () => {
     });
   });
 
-  it("does not extend a card over another one, past its padding", () => {
+  it("stops at the edge of another card", () => {
     const other = { x: 270, y: 110, width: 100, height: 40 };
+    expect(extendCard([card, other], 0, cover)).toEqual({
+      x: 100,
+      y: 100,
+      width: 171,
+      height: 60,
+    });
+  });
+
+  it("pulls back the side that loses the least", () => {
+    const other = { x: 280, y: 150, width: 50, height: 50 };
+    expect(extendCard([card, other], 0, cover)).toEqual({
+      x: 100,
+      y: 100,
+      width: 181,
+      height: 60,
+    });
+  });
+
+  it("ignores a card it touches by less than a pixel", () => {
+    const other = { x: 100, y: 144.5, width: 150, height: 30 };
+    expect(extendCard([card, other], 0, cover)).toEqual({
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 45.5,
+    });
+  });
+
+  it("does not extend a card that already overlaps another one", () => {
+    const other = { x: 200, y: 120, width: 100, height: 20 };
     expect(extendCard([card, other], 0, cover)).toBeUndefined();
-    expect(extendCard([card, { ...other, x: 297 }], 0, cover)).toEqual(cover);
   });
 });
 
