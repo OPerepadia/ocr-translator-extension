@@ -41,7 +41,10 @@ Text recognition runs locally in your browser. Translation uses Google Translate
 
 1. Open the extension from the toolbar or context menu, or use a keyboard shortcut.
 2. Drag to select an area, or click an image to translate it.
-3. The translation appears over the selected area.
+
+You can also right-click an image and choose **Translate this image**.
+
+To translate images with one click, enable **Show a translate button on images** in the popup or the extension settings. A button then appears in the corner of an image when you hover over it.
 
 Keyboard shortcuts:
 
@@ -50,11 +53,7 @@ Keyboard shortcuts:
 
 You can set or change a shortcut in the extension settings.
 
-You can also right-click an image and choose **Translate this image**.
-
-To translate an image with one click, enable **Show a translate button on images** in the popup or the extension settings. A button then appears in the corner of an image when you hover over it.
-
-To move or resize the area before recognition starts, enable **Adjust selection before recognition** in the extension settings.
+To move or resize the area before recognition starts, enable **Adjust selection before recognition** in settings.
 
 ### Overlay view
 
@@ -63,9 +62,7 @@ The overlay has two views:
 - **Translated text** (default): the translation is drawn over the original text.
 - **Original image**: the captured image without the translation, with the text blocks highlighted.
 
-Press `Shift` or click the translate button in the toolbar to toggle the view. Hover over a text block to see its translation and the original text. If a translation doesn't fit its box, a small triangle appears in the corner. Hover over the block to read the full text.
-
-To edit the recognized text, hover over a block and click the pencil icon. Click **Save** to update the translation.
+Press `Shift` or click the translate button in the toolbar to toggle the view. Hover over a text block to see its translation and the original text. If a translation doesn't fit its box, a small triangle appears in the corner.
 
 <table align="center">
   <tr>
@@ -86,6 +83,8 @@ To edit the recognized text, hover over a block and click the pencil icon. Click
   <sub>Comic: <a href="https://densho810.com/free/">Give My Regards to Black Jack</a>, SHUHO SATO.</sub>
 </p>
 
+To edit the recognized text, hover over a block and click the pencil icon.
+
 To change which view opens by default, choose **Initial view** in the ⋯ menu of the overlay toolbar, or set **Initial overlay view** in Settings > Display.
 
 ### Panel view
@@ -95,8 +94,6 @@ To show results in a panel, choose **Panel** in the extension popup. It appears 
 <p align="center">
   <img src="media/demo-panel.png" alt="The panel view with the recognized German text and its English translation" width="400">
 </p>
-
-In the panel view, you can edit the recognized text to fix mistakes, or change the language, recognition model, or translation provider.
 
 ### Local image files
 
@@ -113,7 +110,6 @@ Translate a screen area in real time, such as hardcoded video subtitles.
 
 1. Click **Live translation** in the extension popup.
 2. Drag to select the area containing the text.
-3. The translation appears in a small panel next to the selected area.
 
 <p align="center">
   <img src="media/live-demo.png" alt="Live translation of English video subtitles into Ukrainian in a panel below the video" width="700">
@@ -160,7 +156,7 @@ The **LLM** translation provider works with any server that has an OpenAI-compat
 3. Enter the **Endpoint URL**. It usually ends in `/v1`.
 4. Enter an **API key** if the server requires one.
 5. Click **Fetch models** and pick a model.
-6. Click **Test connection**.
+6. Click **Test connection** to verify.
 
 If a reasoning model is slow or times out, turn on **Disable model thinking** if your server supports it, or raise the request timeout.
 
@@ -169,14 +165,14 @@ Default endpoints of common servers:
 | Server | Endpoint URL | Notes |
 |---|---|---|
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) | `http://localhost:8080/v1` | For live translation, start the server with `--cache-ram 0` to prevent the growing RAM usage (see [Troubleshooting](#troubleshooting)). |
-| [Ollama](https://ollama.com/) | `http://localhost:11434/v1` | Turn on **Remove Origin header**, or Ollama answers with HTTP 403. |
+| [Ollama](https://ollama.com/) | `http://localhost:11434/v1` | Turn on **Remove Origin header**. |
 | [LM Studio](https://lmstudio.ai/) | `http://localhost:1234/v1` | Start the local server in LM Studio first. |
 | [OpenRouter](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | Needs an API key. |
 | OpenAI | `https://api.openai.com/v1` | Needs an API key. Keep **Disable model thinking** off. |
 
 ## WebGPU setup
 
-The **GPU acceleration** setting runs text recognition on WebGPU instead of the CPU. It is off by default. You can turn it on in the extension settings.
+The **GPU acceleration** setting runs text recognition on WebGPU instead of the CPU. It is off by default.
 If the setting shows that WebGPU is unavailable, enable WebGPU in your browser as described below.
 
 > [!WARNING]
@@ -195,7 +191,7 @@ See the [Firefox guide on enableGPU.com](https://enablegpu.com/guides/firefox/)
 for a walkthrough.
 
 > [!NOTE]
-> In Firefox on Windows, the first recognition can take 15–20 seconds with GPU acceleration enabled. See [Troubleshooting](#recognition).
+> In Firefox on Windows, the first recognition can take 15–20 seconds with GPU acceleration enabled. See [issue #18](https://github.com/OPerepadia/ocr-translator-extension/issues/18).
 
 ### Chromium
 
